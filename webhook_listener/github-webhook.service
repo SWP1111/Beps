@@ -1,0 +1,13 @@
+[Unit]
+Description=GitHub Webhook Listener
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/path/to/webhook_listener
+ExecStart=/usr/bin/python3 app.py
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target 
