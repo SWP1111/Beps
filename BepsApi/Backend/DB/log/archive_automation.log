@@ -1,0 +1,40 @@
+2025-04-03 12:47:42: Executing SQL script on Thu Apr  3 12:47:42 PM KST 2025
+psql:content_viewing_history_manager.sql:4: NOTICE:  relation "content_viewing_history_archive_default" already exists, skipping
+CREATE TABLE
+INSERT 0 0
+SET
+psql:content_viewing_history_manager.sql:68: NOTICE:  Creating partition: content_viewing_history_archive_2025_07 (2025-07-01 - 2025-10-01)
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "content_viewing_history_archive_2025_07" already exists, skipping
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "idx_content_viewing_history_archive_2025_07_user_id" already exists, skipping
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "idx_content_viewing_history_archive_2025_07_start_time" already exists, skipping
+DO
+psql:login_history_manager.sql:3: NOTICE:  relation "login_history_archive_default" already exists, skipping
+CREATE TABLE
+INSERT 0 0
+SET
+psql:login_history_manager.sql:65: NOTICE:  Creating partition: login_history_archive_2025_07 (2025-07-01 - 2025-10-01)
+psql:login_history_manager.sql:65: NOTICE:  relation "login_history_archive_2025_07" already exists, skipping
+psql:login_history_manager.sql:65: NOTICE:  relation "idx_login_history_archive_2025_07_user_id" already exists, skipping
+psql:login_history_manager.sql:65: NOTICE:  relation "idx_login_history_archive_2025_07_login_time" already exists, skipping
+DO
+2025-04-03 12:47:42: Backup completed on Thu Apr  3 12:47:42 PM KST 2025
+2025-04-03 12:47:48: Executing SQL script on Thu Apr  3 12:47:48 PM KST 2025
+psql:content_viewing_history_manager.sql:4: NOTICE:  relation "content_viewing_history_archive_default" already exists, skipping
+CREATE TABLE
+INSERT 0 0
+SET
+psql:content_viewing_history_manager.sql:68: NOTICE:  Creating partition: content_viewing_history_archive_2025_07 (2025-07-01 - 2025-10-01)
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "content_viewing_history_archive_2025_07" already exists, skipping
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "idx_content_viewing_history_archive_2025_07_user_id" already exists, skipping
+psql:content_viewing_history_manager.sql:68: NOTICE:  relation "idx_content_viewing_history_archive_2025_07_start_time" already exists, skipping
+DO
+psql:login_history_manager.sql:3: NOTICE:  relation "login_history_archive_default" already exists, skipping
+CREATE TABLE
+INSERT 0 0
+SET
+psql:login_history_manager.sql:65: NOTICE:  Creating partition: login_history_archive_2025_07 (2025-07-01 - 2025-10-01)
+psql:login_history_manager.sql:65: NOTICE:  relation "login_history_archive_2025_07" already exists, skipping
+psql:login_history_manager.sql:65: NOTICE:  relation "idx_login_history_archive_2025_07_user_id" already exists, skipping
+psql:login_history_manager.sql:65: NOTICE:  relation "idx_login_history_archive_2025_07_login_time" already exists, skipping
+DO
+2025-04-03 12:47:48: Backup completed on Thu Apr  3 12:47:48 PM KST 2025

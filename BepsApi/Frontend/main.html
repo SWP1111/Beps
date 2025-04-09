@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BEPs 관리</title>  
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="asset/css/main.css">
+        <script src="asset/js/config.js"></script>
+        <script src="asset/js/verifyCookie.js"></script>
+        <script defer src="asset/js/main.js"></script>
+    </head>
+    <body>
+        <div class="header">
+
+            <div class="logo">
+                <div class="title-en">
+                    <span class="title">B.E.Ps</span>
+                    <span class="subtitle">*BIM Execution Plan samples</span>
+                </div>
+                <div class="title-ko">
+                    <span class="title">내부 BIM 교육</span>
+                    <span class="subtitle">시스템</span>
+                </div>
+            </div>           
+
+            <div class="nav-buttons">
+                <button class="nav-button active" id="learning-button" data-content="progress.html">학습현황</button>
+                <button class="nav-button">콘텐츠</button>
+                <button class="nav-button" data-content="opinion.html">의견서</button>
+            </div>
+
+            <div class="user-info">
+                <div class="user-profile">
+                    <img src="asset/images/user.png" class="profile-img" alt="user-profile">
+                    <span id="user_name" class="user-name">사용자</span>
+                </div>
+                <button id="logout-button" class="logout-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="logout_img" viewBox="0 -960 960 960" fill="white">
+                        <path d="M216-144q-29.7 0-50.85-21.15Q144-186.3 144-216v-528q0-29.7 21.15-50.85Q186.3-816 216-816h264v72H216v528h264v72H216Zm432-168-51-51 81-81H384v-72h294l-81-81 51-51 168 168-168 168Z"/>
+                    </svg>
+                </button>
+            </div>    
+        </div>
+
+        <div class="content" id="content-area">
+            <iframe id="content-frame"></iframe>
+            <!-- style="width: 100%; height: 100vh; border: none;" -->
+        </div>
+    </body>
+</html>

@@ -1,0 +1,37 @@
+/* Additional styles for opinion.html */
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    display: inline-block;
+    text-align: center;
+}
+
+.status-waiting {
+    background-color: #ffd700;
+    color: #000;
+}
+
+.status-processing {
+    background-color: #87ceeb;
+    color: #000;
+}
+
+.status-completed {
+    background-color: #90ee90;
+    color: #000;
+}
+
+.reply-button {
+    padding: 6px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.reply-button:hover {
+    background-color: #45a049;
+} 

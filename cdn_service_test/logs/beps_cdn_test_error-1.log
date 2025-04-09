@@ -1,0 +1,60 @@
+2025-04-08 16:56:43: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'
+}
+2025-04-08 16:57:03: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:45: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/003_설계도서 검토/002_공사시방서/상세보기/002_코드체계의 이해/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/003_설계도서 검토/002_공사시방서/상세보기/002_코드체계의 이해/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:47: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/003_설계도서 검토/004_토공/상세보기/002_종합평면도 작성/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/003_설계도서 검토/004_토공/상세보기/002_종합평면도 작성/DraggableButtonMargins.json'
+}
+2025-04-08 17:11:03: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/001_BIM ⁄ DX/002_Civil Engn. SW/상세보기/003_상용 Engn/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/001_BIM ⁄ DX/002_Civil Engn. SW/상세보기/003_상용 Engn/DraggableButtonMargins.json'
+}
+2025-04-08 17:11:24: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:11:27: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/003_Twin Highway/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/003_Twin Highway/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:19: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:21: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:24: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/002_Engn.Solution/상세보기/002_BCMF/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/002_Engn.Solution/상세보기/002_BCMF/DraggableButtonMargins.json'
+}

@@ -1,0 +1,78 @@
+2025-04-08 16:51:32: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/001_BIM ⁄ DX/002_Civil Engn. SW/상세보기/001_Engn/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/001_BIM ⁄ DX/002_Civil Engn. SW/상세보기/001_Engn/DraggableButtonMargins.json'
+}
+2025-04-08 16:57:16: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:41: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:43: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/003_설계도서 검토/001_개요/상세보기/001_절차와 검토범위/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/003_설계도서 검토/001_개요/상세보기/001_절차와 검토범위/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:46: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/003_설계도서 검토/002_공사시방서/상세보기/004_작성방법/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/003_설계도서 검토/002_공사시방서/상세보기/004_작성방법/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:54: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/002_천지인/001_개요/상세보기/001_천지인 이란/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:55: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/003_설계도서 검토/001_개요/상세보기/001_절차와 검토범위/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/003_설계도서 검토/001_개요/상세보기/001_절차와 검토범위/DraggableButtonMargins.json'
+}
+2025-04-08 17:10:57: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/005_시공상세도/001_개요/상세보기/001_개요/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/005_시공상세도/001_개요/상세보기/001_개요/DraggableButtonMargins.json'
+}
+2025-04-08 17:11:26: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/002_WatchBIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:11:28: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:15: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/001_GSIM/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:20: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/003_Twin Highway/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/001_Engn.SW/상세보기/003_Twin Highway/DraggableButtonMargins.json'
+}
+2025-04-08 17:52:22: [Error: ENOENT: no such file or directory, stat '/mnt/beps_contents/013_Solutions/002_Engn.Solution/상세보기/001_C.C/DraggableButtonMargins.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/mnt/beps_contents/013_Solutions/002_Engn.Solution/상세보기/001_C.C/DraggableButtonMargins.json'
+}
