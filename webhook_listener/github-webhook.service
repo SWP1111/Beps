@@ -3,9 +3,11 @@ Description=GitHub Webhook Listener
 After=network.target
 
 [Service]
-User=ubuntu
-WorkingDirectory=/path/to/webhook_listener
-ExecStart=/usr/bin/python3 app.py
+User=user_ccp
+WorkingDirectory=/home/user_ccp/service/webhook_listener
+Environment=PATH=/usr/bin:/usr/local/bin:/bin
+Environment=PYTHONPATH=/home/user_ccp/webhook_env/lib/python3.*/site-packages
+ExecStart=/usr/bin/gunicorn --workers 3 --bind 127.0.0.1:2003 app:app
 Restart=always
 Environment=PYTHONUNBUFFERED=1
 
