@@ -658,6 +658,7 @@ try:
     memos_queries = """
         CREATE TABLE public.memos (
             id text NOT NULL PRIMARY KEY,
+            serial_number integer,
             user_id text,
             content text,
             path text,
@@ -667,7 +668,7 @@ try:
             world_position_y double precision,
             world_position_z double precision,
             status integer NOT NULL,
-            time_stamp bigint
+            modified_at bigint
         );
     """
 
