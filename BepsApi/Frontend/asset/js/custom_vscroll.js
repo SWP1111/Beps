@@ -62,15 +62,15 @@ export function attachCustomScrollbar(scrollTarget, scrollbarEl, thumbEl) {
 
   // 초기 상태 적용
   requestAnimationFrame(() => {
-    updateThumbHeight();
-    updateThumbPosition();
+    //updateThumbHeight();
+    //updateThumbPosition();
     updateThumbVisibility();
   });
 
   return {
     refresh: () => {
-      updateThumbHeight();
-      updateThumbPosition();
+      //updateThumbHeight();
+      //updateThumbPosition();
       updateThumbVisibility();
     }
   };

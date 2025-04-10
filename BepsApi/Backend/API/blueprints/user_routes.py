@@ -113,6 +113,26 @@ def get_user():
     except OperationalError as e:
         return jsonify({'error': str(e)}), 500  # 500: Internal Server Error
 
+# GET /user/user_info API Users 테이블 Row 조회 API (사용자 정보 조회)_인증된 사용자용
+@api_user_bp.route('/user_info', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_user_info():
+    try:
+        user_id = request.args.get('id')
+        if user_id is None:
+            return jsonify({'error': 'Please provide id'}), 400
+        
+        user = Users.query.filter_by(id=user_id).first()
+        if user is None:
+            return jsonify({'error': 'User not found'}), 404
+        else:
+            user_data = user.to_dict()
+            user_data.pop('password', None) # password 필드는 제외
+            return jsonify(user_data), 200
+        
+    except OperationalError as e:
+        return jsonify({'error': str(e)}), 500
+
 # GET /user/user_auth_time API User 테이블의 특정 사용자의 인증 시간 조회
 @api_user_bp.route('/user_auth_time', methods=['GET'])
 def get_user_auth_time():

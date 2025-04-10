@@ -38,7 +38,12 @@ async def websocket_handler(websocket, path=""):
         await websocket.send(json.dumps({
             "type": "user_count",
             "count": len(active_users),
-            "max_users": MAX_CONNECTIONS
+            "max_users": MAX_CONNECTIONS,
+            "users": [
+                {
+                "user_id": user["user_id"]
+                } for user in active_users.values()
+            ]
         }))
         
         while True:

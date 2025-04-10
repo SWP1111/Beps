@@ -7,9 +7,12 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>   
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="asset/css/custom_vscroll.css">
+        <link rel="stylesheet" href="asset/css/progress_admin_search.css">
+        <link rel="stylesheet" href="asset/css/progress_admin_active_user.css">
         <link rel="stylesheet" href="asset/css/progress_admin.css">
         <script src="asset/js/config.js"></script>
-        <script src="asset/js/progress_admin.js"></script>
+        <script type="module" src="asset/js/progress_admin.js"></script>
     </head>
 
     <body>
@@ -21,10 +24,16 @@
                 <img src="asset/images/search.png" class="search-icon">
             </div>
 
-            <div class="search-container-wrapper"></div>
+            <div class="search-container-wrapper">
                 <div class="search-container" id="container"></div>
-                <div class="custom-scrollbar">
-                    <div class="custom-scrollbar-thumb"></div>
+            </div>
+
+            <div class="active-user">
+                <div class="listbox-container">
+                    <div class="custom-listbox" id="activeUserList"></div>              
+                </div>
+                <div class="legend">
+                    <span class="status-red"></span>진도율 낮은 학습자
                 </div>
             </div>
 
