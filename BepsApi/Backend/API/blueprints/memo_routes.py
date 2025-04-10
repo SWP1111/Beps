@@ -89,6 +89,9 @@ def update_memo(id):
         memo.world_position_z = data.get('worldPositionZ', memo.world_position_z)
         memo.status = data.get('status', memo.status)
         
+        # Update modified_at timestamp
+        memo.modified_at = datetime.now(timezone.utc)
+        
         db.session.commit()
         logging.info(f"Successfully updated memo with id: {memo.id}")
         return jsonify(memo.to_dict()), 200

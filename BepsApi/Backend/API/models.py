@@ -178,10 +178,13 @@ class MemoData(db.Model):
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
 
     def to_dict(self):
+        # Format modified_at as ISO string to match C# DateTime JSON serialization
+        formatted_modified_at = self.modified_at.isoformat() if self.modified_at else None
+        
         return {
             'id': self.id,
             'serial_number': self.serial_number,
-            'modified_at': self.modified_at,
+            'modified_at': formatted_modified_at,
             'user_id': self.user_id,
             'content': self.content,
             'path': self.path,

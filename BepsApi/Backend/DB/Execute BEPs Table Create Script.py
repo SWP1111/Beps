@@ -668,7 +668,7 @@ try:
             world_position_y double precision,
             world_position_z double precision,
             status integer NOT NULL,
-            modified_at bigint
+            modified_at timestamp with time zone DEFAULT NOW()
         );
     """
 
