@@ -283,3 +283,27 @@ def erp_login():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/get_connection_duration', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_login_elapsed_time():
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        
+        if filter_type != 'all' and filter_value is None:
+            return jsonify({'error': 'Please provide filter_value'}), 400
+               
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        if(period_type == 'day'):
+            start_date, end_date = period_value.split('~')
+            if(filter_type == 'all'):
+                
+                    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
