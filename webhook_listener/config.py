@@ -2,7 +2,7 @@ import os
 
 # Path to your Git repository on the VM
 # Replace this with the absolute path to your repository
-REPO_PATH = '~/service'
+REPO_PATH = '/home/user_ccp/service'
 
 # Secret token for webhook verification
 # Replace this with your actual secret token
