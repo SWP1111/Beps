@@ -150,8 +150,7 @@ createApp({
                 const end = start + pageSize;
                 memoList.value = filteredData.slice(start, end).map(memo => ({
                     ...memo,
-                    status_text: formatStatus(memo.status),
-                    content: formatMemoContent(memo.content)
+                    status_text: formatStatus(memo.status)
                 }));
                 totalPages.value = Math.ceil(filteredData.length / pageSize);
                 console.log("Loaded memo data:", memoList.value);

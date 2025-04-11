@@ -36,7 +36,7 @@
                     <tr v-for="memo in memoList" :key="memo.id">
                         <td>{{ memo.serial_number }}</td>
                         <td>{{ formatDate(memo.modified_at) }}</td>
-                        <td>{{ memo.content }}</td>
+                        <td>{{ formatMemoContent(memo.content) }}</td>
                         <td>{{ memo.path }}</td>
                         <td>
                             <span class="status-badge" 
