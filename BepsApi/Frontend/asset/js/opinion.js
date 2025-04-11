@@ -69,11 +69,11 @@ createApp({
             }
         };
 
-        const formatMemoContent = (content) => {
-            if (!content) return '';
+        const formatMemoPath = (path) => {
+            if (!path) return '';
             
             // Remove the first '/'
-            let formatted = content.startsWith('/') ? content.substring(1) : content;
+            let formatted = path.startsWith('/') ? path.substring(1) : path;
             
             // Remove all instances of '###_' patterns
             formatted = formatted.replace(/\d+_/g, '');
