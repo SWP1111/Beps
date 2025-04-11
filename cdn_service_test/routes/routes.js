@@ -34,7 +34,7 @@ router.get(`/${service_type}/get-exe-version`, (req, res) => {
 });
 
 router.get(`/${service_type}/get-installer-version`, (req, res) => {
-    const files = fs.readdirSync(CONSTANTS.APPLICATION_DIR);
+  const files = fs.readdirSync(CONSTANTS.APPLICATION_DIR);
   const exeFile = files.find(file => file.endsWith('.exe'));
 
   if (!exeFile) return res.status(404).json({ error: 'File not found' });
@@ -48,9 +48,10 @@ router.get(`/${service_type}/get-installer-version`, (req, res) => {
   res.json({ version });
 });
 
-router.get(`/${service_type}/get-installer-name`, (req, res) => {
+router.get(`/${service_type}/get-installer-name/:appname`, (req, res) => {
   try {
-    const files = fs.readdirSync(CONSTANTS.APPLICATION_DIR).filter(file => file.endsWith('.exe'));
+    const filePath = path.join(CONSTANTS.APPLICATION_DIR, req.params.appname);
+    const files = fs.readdirSync(filePath).filter(file => file.endsWith('.exe') || file.endsWith('.zip'));
 
     if (files.length === 0) {
       return res.status(404).json({ error: 'No .exe files found' });
@@ -60,11 +61,44 @@ router.get(`/${service_type}/get-installer-name`, (req, res) => {
     files.sort((a, b) => b.localeCompare(a));
 
     // 첫 번째 파일 반환
-    res.json({ name : files[0] });
+    res.json({ name: files[0] });
   } catch (error) {
     console.error(`Error reading directory: ${error.message}`);
     res.status(500).json({ error: 'Unable to read directory' });
   }
+});
+
+router.use(`/${service_type}/download-installer-path/:appname`, authenticateJwtQuery, validateRangeHeader, (req, res) => {
+  try {
+    const filePath = path.join(CONSTANTS.APPLICATION_DIR, req.params.appname);
+    const files = fs.readdirSync(filePath).filter(file => file.endsWith('.exe') || file.endsWith('.zip'));
+
+    if (files.length === 0) {
+      return res.status(404).json({ error: 'No .exe files found' });
+    }
+
+    // 내림차순으로 정렬
+    files.sort((a, b) => b.localeCompare(a));
+
+    // 첫 번째 파일 반환
+    //    res.json({ name: files[0] });
+    const file = path.join(filePath, files[0]);
+    if (!fs.existsSync(file)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    res.download(file, err => {
+      if (err) {
+        console.error(`Error downloading file: ${err.message}`);
+        res.status(500).json({ error: 'Unable to download file' });
+      }
+    });
+  } catch (error) {
+    console.error(`Error reading directory: ${error.message}`);
+    res.status(500).json({ error: 'Unable to read directory' });
+  }
+
+
 });
 
 /*

@@ -78,7 +78,96 @@ class LoginHistory(db.Model):
             'session_duration': self.session_duration,
             'time_stamp': self.time_stamp
         }
+
+class loginSummaryDay(db.Model):
+    __tablename__ = 'login_summary_day'
+    period_value = db.Column(db.Date)
+    scope = db.Column(db.Text)
+    company_id = db.Column(db.Integer)
+    company = db.Column(db.Text)
+    department = db.Column(db.Text)
+    user_id = db.Column(db.Text)
+    user_name = db.Column(db.Text)
+    total_duration = db.Column(db.Interval)
+    worktime_duration = db.Column(db.Interval)
+    offhour_duration = db.Column(db.Interval)
+    internal_count = db.Column(db.Integer)
+    external_count = db.Column(db.Integer)
+    company_key = db.Column(db.Text)
+    department_key = db.Column(db.Text)
+    user_id_key = db.Column(db.Text)
+    
+    __table_args__ = (
+        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key',
+                                name='login_summary_day_pkey'
+                                ),
+    )
+    
+    def to_dict(self):
+        return {
+            'period_value': self.period_value,
+            'scope': self.scope,
+            'company_id': self.company_id,
+            'company': self.company,
+            'department': self.department,
+            'user_id': self.user_id,
+            'user_name': self.user_name,
+            'total_duration': str(self.total_duration),
+            'worktime_duration': str(self.worktime_duration),
+            'offhour_duration': str(self.offhour_duration),
+            'internal_count': self.internal_count,
+            'external_count': self.external_count,
+            'company_key': self.company_key,
+            'department_key': self.department_key,
+            'user_id_key': self.user_id_key
+        }
         
+class loginSummaryAgg(db.Model):
+    __tablename__ = 'login_summary_agg'
+    period_type = db.Column(db.Text)
+    period_value = db.Column(db.Text)
+    scope = db.Column(db.Text)
+    company_id = db.Column(db.Integer)
+    company = db.Column(db.Text)
+    department = db.Column(db.Text)
+    user_id = db.Column(db.Text)
+    user_name = db.Column(db.Text)
+    total_duration = db.Column(db.Interval)
+    worktime_duration = db.Column(db.Interval)
+    offhour_duration = db.Column(db.Interval)
+    internal_count = db.Column(db.Integer)
+    external_count = db.Column(db.Integer)
+    company_key = db.Column(db.Text)
+    department_key = db.Column(db.Text)
+    user_id_key = db.Column(db.Text)
+    
+    __table_args__ = (
+        db.PrimaryKeyConstraint('period_type', 'period_value', 'scope', 'company_key', 'department_key', 'user_id_key',
+                                name='login_summary_agg_pkey'
+                                ),
+    )
+    
+    def to_dict(self):
+        return {
+            'period_type': self.period_type,
+            'period_value': self.period_value,
+            'scope': self.scope,
+            'company_id': self.company_id,
+            'company': self.company,
+            'department': self.department,
+            'user_id': self.user_id,
+            'user_name': self.user_name,
+            'total_duration': self.total_duration,
+            'worktime_duration': self.worktime_duration,
+            'offhour_duration': self.offhour_duration,
+            'internal_count': self.internal_count,
+            'external_count': self.external_count,
+            'company_key': self.company_key,
+            'department_key': self.department_key,
+            'user_id_key': self.user_id_key
+        }
+    
+         
 class ContentViewingHistory(db.Model):
     __tablename__ = 'content_viewing_history'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -178,13 +267,10 @@ class MemoData(db.Model):
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
 
     def to_dict(self):
-        # Format modified_at as ISO string to match C# DateTime JSON serialization
-        formatted_modified_at = self.modified_at.isoformat() if self.modified_at else None
-        
         return {
             'id': self.id,
             'serial_number': self.serial_number,
-            'modified_at': formatted_modified_at,
+            'modified_at': self.modified_at,
             'user_id': self.user_id,
             'content': self.content,
             'path': self.path,

@@ -6,11 +6,12 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 import datetime
 from datetime import timezone
 from extensions import db
-from models import Users, Roles, ContentAccessGroups, LoginHistory
+from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import requests
-
+from collections import defaultdict
+from sqlalchemy import func
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -283,3 +284,167 @@ def erp_login():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/get_connection_duration', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_connection_duration():
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        logging.info(f"filter_type: {filter_type}, filter_value: {filter_value}")
+        
+        if filter_type != 'all' and filter_value is None:
+            return jsonify({'error': 'Please provide filter_value'}), 400
+               
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        logging.info(f"period_type: {period_type}, period_value: {period_value}")
+        
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        if(period_type == 'day'):
+            start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
+            data = get_connection_summary_day(start_date, end_date, filter_value)
+                                
+            if data['has_data']:
+                return jsonify({
+                    'total_duration': str(data['total_duration']),
+                    'worktime_duration': str(data['worktime_duration']),
+                    'offhour_duration': str(data['offhour_duration']),
+                    'internal_count': data['internal_count'],
+                    'external_count': data['external_count']
+                })
+            else:    
+                return jsonify({'error': 'Invalid period_type'}), 400      
+             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+    
+@api_user_bp.route('/get_top_user_duration', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_top_user_duration():
+    try:
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        if period_type == 'day':
+            start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
+            user_duration_map = defaultdict(datetime.timedelta)
+            
+            if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
+                summary_day_rows = db.session.query(
+                    loginSummaryDay.user_id,
+                    func.sum(loginSummaryDay.total_duration).label('total')
+                ).filter(
+                    loginSummaryDay.period_value >= start_date,
+                    loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
+                    loginSummaryDay.scope == 'user'
+                ).all()
+                for record in summary_day_rows:
+                    if record.user_id:
+                        user_duration_map[record.user_id] += record.total or datetime.timedelta()
+            
+            if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+                today_rows = db.session.query(
+                    LoginHistory.user_id,
+                    func.sum(LoginHistory.session_duration).label('total')
+                ).filter(
+                    LoginHistory.login_time >= max(start_date, datetime.date.today() - datetime.timedelta(days=1)),
+                    LoginHistory.login_time <= end_date
+                ).group_by(LoginHistory.user_id).all()
+                for record in today_rows:
+                    if record.user_id:
+                        user_duration_map[record.user_id] += record.total or datetime.timedelta()
+            
+            if user_duration_map:
+                top_user_id, top_duration = max(user_duration_map.items(), key=lambda x: x[1])
+                return jsonify({
+                    'user_id': top_user_id,
+                    'duration': str(top_duration)
+                }), 200
+            else:
+                return jsonify({'error': 'No data found'}), 404
+                              
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+  
+    
+def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
+    total = datetime.timedelta(0)
+    work = datetime.timedelta(0)
+    off = datetime.timedelta(0)
+    internal = 0
+    external = 0
+    has_data = False
+    
+    if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
+        filters = [
+            loginSummaryDay.period_value >= start_date,
+            loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
+            loginSummaryDay.scope == scope
+        ]
+        if scope == 'user' and filter_value:
+            filters.append(loginSummaryDay.user_id == filter_value)
+        elif scope == 'department' and filter_value:
+            filters.append(loginSummaryDay.department == filter_value)
+        elif scope == 'company' and filter_value:
+            filters.append(loginSummaryDay.company == filter_value)
+        
+        data = loginSummaryDay.query.filter(*filters).first()
+        if data:
+            has_data = True
+            total = data.total_duration or datetime.timedelta(0)
+            work = data.worktime_duration or datetime.timedelta(0)
+            off = data.offhour_duration or datetime.timedelta(0)
+            internal = data.internal_count or 0
+            external = data.external_count or 0
+            
+    if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+        filters = [
+            LoginHistory.login_time >= max(start_date, datetime.date.today() - datetime.timedelta(days=1)),
+            LoginHistory.login_time <= end_date
+        ]
+        if scope == 'user' and filter_value:
+            filters.append(LoginHistory.user_id == filter_value)
+        elif scope == 'department' and filter_value:
+            filters.append(LoginHistory.department == filter_value)
+        elif scope == 'company' and filter_value:
+            filters.append(LoginHistory.company == filter_value)
+        
+        datas = LoginHistory.query.filter(*filters).all()
+        if datas:
+            has_data = True
+            for record in datas:
+                if record.login_time is None or record.logout_time is None:
+                    continue
+                
+                duration = record.session_duration or datetime.timedelta(0)
+                total += duration
+                
+                login_locale = record.login_time.astimezone()
+                logout_locale = record.logout_time.astimezone()
+                if login_locale.hour >= 8 and logout_locale.hour <= 18:
+                    work += duration
+                else:
+                    off += duration
+                
+                if record.ip_address.startswith('61.') or record.ip_address.startswith('172.'):
+                    internal += 1 
+                else:
+                    external += 1
+        
+    return {
+        'has_data': has_data,
+        'total_duration': total,
+        'worktime_duration': work,
+        'offhour_duration': off,
+        'internal_count': internal,
+        'external_count': external
+    }
+        
+            

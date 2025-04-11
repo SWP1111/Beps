@@ -113,10 +113,10 @@ case "$NOW-$HOUR" in
     *)
     
     if [ "$HOUR" == "01" ]; then
-        #일일 집계(1시)
+        #일일 집계(1시) 데이터 누락을 피하기 위해 2일전 데이터 집계(전날은 예를 들어 밤 11시에 로그인해서 집계 시간까지 로그아웃 안 하는 경우도 있을 수 있음음)
         psql -v ON_ERROR_STOP=1 -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
         SELECT aggregate_daily_stats(
-            (DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Seoul') - INTERVAL '1 day') -- 시간대가 없는 시간 형식의 숫자값(KST 기준 자정 시각): timestamp  2025-04-01 00:00:00
+            (DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Seoul') - INTERVAL '2 day') -- 시간대가 없는 시간 형식의 숫자값(KST 기준 자정 시각): timestamp  2025-04-01 00:00:00
             AT TIME ZONE 'Asia/Seoul'   -- 숫자값을 한국 시간이라고 해석해서 UTC 기준으로 변환(시간대 추가. -9시간 적용) : timestamptz 2025-03-31 15:00:00+00
         );" >> "$LOG_PATH" 2>&1
         
@@ -128,7 +128,7 @@ case "$NOW-$HOUR" in
         
         psql -v ON_ERROR_STOP=1 -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
         SELECT aggregate_learning_summary_daily(
-            (DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Seoul') - INTERVAL '1 day') -- 시간대가 없는 시간 형식의 숫자값(KST 기준 자정 시각): timestamp  2025-04-01 00:00:00
+            (DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Seoul') - INTERVAL '2 day') -- 시간대가 없는 시간 형식의 숫자값(KST 기준 자정 시각): timestamp  2025-04-01 00:00:00
             AT TIME ZONE 'Asia/Seoul'   -- 숫자값을 한국 시간이라고 해석해서 UTC 기준으로 변환(시간대 추가. -9시간 적용) : timestamptz 2025-03-31 15:00:00+00
         );" >> "$LOG_PATH" 2>&1
         
@@ -144,11 +144,11 @@ esac
 
 # # 매일집계(1시)
 # 0 1 * * * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
-# # 분기 집계(1/4/7/10월 2일 3시)
-# 0 3 2 1,4,7,10 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
-# # 반기 집계(1월, 7월 3일 3시)
-# 0 3 3 1,7 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
-# # 연간 집계(1월 4일 3시)
-# 0 3 4 1 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
-# # 분기 파티션(1/4/7/10월 5일 3시)
-# 0 3 5 1,4,7,10 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
+# # 분기 집계(1/4/7/10월 3일 3시) : 일일 집계를 이틀 전 데이터로 집계하기 때문에 누락하지 않기 위해 3일에 분기 집계 실행
+# 0 3 3 1,4,7,10 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
+# # 반기 집계(1월, 7월 4일 3시)
+# 0 3 4 1,7 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
+# # 연간 집계(1월 5일 3시)
+# 0 3 5 1 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
+# # 분기 파티션(1/4/7/10월 6일 3시)
+# 0 3 6 1,4,7,10 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
