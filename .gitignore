@@ -1,0 +1,9 @@
+BepsApi/.history
+BepsApi/Backend/DB/log
+cdn_service_test/
+BepsApi/Backend/API/blueprints/__pycache__
+BepsApi/Backend/API/__pycache__
+BepsApi/Backend/Websocket/logs
+BepsApi/Backend/API/logs
+webhook_listener/__pycache__
+*.log
