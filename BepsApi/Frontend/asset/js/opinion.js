@@ -184,7 +184,7 @@ createApp({
             replyToMemo,
             formatStatus,
             formatDate,
-            formatMemoContent
+            formatMemoPath
         };
     }
 }).mount("#app"); 
