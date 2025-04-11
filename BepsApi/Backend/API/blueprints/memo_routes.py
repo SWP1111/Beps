@@ -16,12 +16,12 @@ def create_memo():
         # Get the maximum serial number and increment by 1
         max_serial = db.session.query(func.max(MemoData.serial_number)).scalar() or 0
         next_serial = max_serial + 1
-        updated_at = datetime.now(timezone.utc)
+        modified_at = datetime.now(timezone.utc)
         # Create memo with explicit values from request data
         memo = MemoData(
             id=str(data['id']),  # Ensure id is passed
             serial_number=next_serial,  # Set the next serial number
-            modified_at=updated_at,  # Explicitly set modified_at to current time
+            modified_at=modified_at,  # Explicitly set modified_at to current time
             user_id=data.get('user_id'),
             content=data.get('content', ''),
             path=data.get('path'),
@@ -37,7 +37,7 @@ def create_memo():
         db.session.commit()
         logging.info(f"Successfully created memo with id: {memo.id}")
         return jsonify({
-            "updated_at": updated_at,
+            "modified_at": modified_at,
             "serial_number": memo.serial_number
         }), 201
     except Exception as e:
