@@ -69,6 +69,21 @@ createApp({
             }
         };
 
+        const formatMemoContent = (content) => {
+            if (!content) return '';
+            
+            // Remove the first '/'
+            let formatted = content.startsWith('/') ? content.substring(1) : content;
+            
+            // Remove all instances of '###_' patterns
+            formatted = formatted.replace(/\d+_/g, '');
+            
+            // Remove file extensions
+            formatted = formatted.replace(/\.[^/.]+$/, '');
+            
+            return formatted;
+        };
+
         const formatDate = (dateString) => {
             if (!dateString) return '';
             const date = new Date(dateString);
@@ -135,7 +150,8 @@ createApp({
                 const end = start + pageSize;
                 memoList.value = filteredData.slice(start, end).map(memo => ({
                     ...memo,
-                    status_text: formatStatus(memo.status)
+                    status_text: formatStatus(memo.status),
+                    content: formatMemoContent(memo.content)
                 }));
                 totalPages.value = Math.ceil(filteredData.length / pageSize);
                 console.log("Loaded memo data:", memoList.value);
@@ -168,7 +184,8 @@ createApp({
             loadMemoData,
             replyToMemo,
             formatStatus,
-            formatDate
+            formatDate,
+            formatMemoContent
         };
     }
 }).mount("#app"); 
