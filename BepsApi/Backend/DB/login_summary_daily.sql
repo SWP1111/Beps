@@ -40,13 +40,11 @@ BEGIN
     -- 1. 전체 범위(전체) 집계
     INSERT INTO public.login_summary_day (
         period_value, scope,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         v_period_value, 'all',
-        '','','',
         COALESCE(SUM(session_duration), '0'::INTERVAL),
 
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
@@ -73,7 +71,7 @@ BEGIN
         COUNT(DISTINCT CASE WHEN NOT (ip_address LIKE '61.%' OR ip_address LIKE '172.%') THEN id END)
 
     FROM login_history
-    WHERE login_time >= p_start_utc AND login_time < p_start_utc + INTERVAL '1 day'
+    WHERE login_time >= p_start_utc AND login_time < p_start_utc + INTERVAL '1 day' AND logout_time IS NOT NULL
     HAVING COALESCE(SUM(session_duration), '0'::INTERVAL) > '0'::INTERVAL
     ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
     DO UPDATE SET
@@ -87,14 +85,12 @@ BEGIN
     INSERT INTO public.login_summary_day (
         period_value, scope,
         company_id, company,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         v_period_value, 'company',
         NULL, u.company,
-        COALESCE(u.company, ''), '', '',
         COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
 
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
@@ -121,7 +117,7 @@ BEGIN
         COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
     FROM login_history lh
     JOIN users u ON lh.user_id = u.id
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day'
+    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company
     ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
     DO UPDATE SET
@@ -136,14 +132,12 @@ BEGIN
     INSERT INTO public.login_summary_day (
         period_value, scope,
         company_id, company, department_id, department,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         v_period_value, 'department',
         NULL, u.company, NULL, u.department,
-        COALESCE(u.company, ''), COALESCE(u.department, ''), '',
         COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
         
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
@@ -170,7 +164,7 @@ BEGIN
         COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
     FROM login_history lh
     JOIN users u ON lh.user_id = u.id
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day'
+    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company, u.department
     ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
     DO UPDATE SET
@@ -184,14 +178,12 @@ BEGIN
     INSERT INTO public.login_summary_day (
         period_value, scope,
         company_id, company, department_id, department, user_id, user_name,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         v_period_value, 'user',
         NULL, u.company, NULL, u.department, u.id, u.name,
-        COALESCE(u.company, ''), COALESCE(u.department, ''), COALESCE(u.user_id, ''),
         COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
 
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
@@ -218,7 +210,7 @@ BEGIN
         COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
     FROM login_history lh
     JOIN users u ON lh.user_id = u.id
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day'
+    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company, u.department, u.id, u.name
     ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
     DO UPDATE SET
@@ -405,7 +397,7 @@ $$ LANGUAGE plpgsql;
 
 -- END;
 -- $$ LANGUAGE plpgsql;
-
+\!
 
 -- ================================
 -- 📌 함수 등록록
