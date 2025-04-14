@@ -24,20 +24,26 @@
             <table>
                 <thead>
                     <tr>
-                        <th>No.</th>
-                        <th>생성 날짜</th>
-                        <th>내용</th>
-                        <th>경로</th>
-                        <th>상태</th>
+                        <th>번호</th>
+                        <th>회사</th>
+                        <th>부서</th>
+                        <th>팀</th>
+                        <th>작성자</th>
+                        <th>제목</th>
+                        <th>등록일</th>
+                        <th>처리상태</th>
                         <th>작업</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="memo in memoList" :key="memo.id">
                         <td>{{ memo.serial_number }}</td>
-                        <td>{{ formatDate(memo.modified_at) }}</td>
+                        <td>{{ memo.user ? memo.user.company : '' }}</td>
+                        <td>{{ memo.user ? memo.user.department : '' }}</td>
+                        <td></td>
+                        <td>{{ memo.user ? memo.user.name + " " + memo.user.position : '' }}</td>
                         <td>{{ memo.content }}</td>
-                        <td>{{ formatMemoPath(memo.path) }}</td>
+                        <td>{{ formatDate(memo.modified_at) }}</td>
                         <td>
                             <span class="status-badge" 
                                   :class="{

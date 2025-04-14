@@ -148,12 +148,48 @@ createApp({
                 // Since the backend returns an array directly, we need to handle pagination on the client side
                 const start = (page - 1) * pageSize;
                 const end = start + pageSize;
-                memoList.value = filteredData.slice(start, end).map(memo => ({
-                    ...memo,
-                    status_text: formatStatus(memo.status)
-                }));
-                totalPages.value = Math.ceil(filteredData.length / pageSize);
-                console.log("Loaded memo data:", memoList.value);
+
+                // Get user information for each memo
+                const promises = filteredData.map(async memo => {
+                    if (memo.user_id) {
+                        try {
+                            const userResponse = await fetch(`${url}users/${memo.user_id}`, {
+                                method: "GET",
+                                credentials: "include",
+                                headers: {
+                                    "Accept": "application/json",
+                                    "Content-Type": "application/json"
+                                }
+                            });
+                            
+                            if (userResponse.ok) {
+                                const userData = await userResponse.json();
+                                return {
+                                    ...memo,
+                                    user: userData,
+                                    status_text: formatStatus(memo.status)
+                                };
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching user data for user ID ${memo.user_id}:`, error);
+                        }
+                    }
+                    
+                    return {
+                        ...memo,
+                        status_text: formatStatus(memo.status)
+                    };
+                });
+                
+                Promise.all(promises)
+                    .then(memoWithUserData => {
+                        memoList.value = memoWithUserData.slice(start, end);
+                        totalPages.value = Math.ceil(filteredData.length / pageSize);
+                        console.log("Loaded memo data:", memoList.value);
+                    })
+                    .catch(error => {
+                        console.error("Error processing user data:", error);
+                    });
             })
             .catch(error => {
                 console.error("Error loading memo data:", error);
