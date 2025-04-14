@@ -162,21 +162,69 @@ createApp({
                                 }
                             });
                             
-                            if (userResponse.ok) {
+                            if (!userResponse.ok) {
+                                if (userResponse.status === 401) {
+                                    window.top.location.href = "login.html";
+                                    throw new Error("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+                                }
+                                // If response is not OK but not a 401, just return memo without user data
+                                return {
+                                    ...memo,
+                                    user: { 
+                                        company: '-', 
+                                        department: '-', 
+                                        name: '-',
+                                        position: '' 
+                                    },
+                                    status_text: formatStatus(memo.status)
+                                };
+                            }
+                            
+                            // Check content type to avoid parsing HTML as JSON
+                            const contentType = userResponse.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
                                 const userData = await userResponse.json();
                                 return {
                                     ...memo,
                                     user: userData,
                                     status_text: formatStatus(memo.status)
                                 };
+                            } else {
+                                console.error("Received non-JSON response for user ID", memo.user_id);
+                                return {
+                                    ...memo,
+                                    user: { 
+                                        company: '-', 
+                                        department: '-', 
+                                        name: '-',
+                                        position: '' 
+                                    },
+                                    status_text: formatStatus(memo.status)
+                                };
                             }
                         } catch (error) {
                             console.error(`Error fetching user data for user ID ${memo.user_id}:`, error);
+                            return {
+                                ...memo,
+                                user: { 
+                                    company: '-', 
+                                    department: '-', 
+                                    name: '-',
+                                    position: '' 
+                                },
+                                status_text: formatStatus(memo.status)
+                            };
                         }
                     }
                     
                     return {
                         ...memo,
+                        user: { 
+                            company: '-', 
+                            department: '-', 
+                            name: '-',
+                            position: '' 
+                        },
                         status_text: formatStatus(memo.status)
                     };
                 });
