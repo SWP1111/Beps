@@ -12,6 +12,7 @@ from sqlalchemy.sql import text
 import requests
 from collections import defaultdict
 from sqlalchemy import func
+from services.user_summary_service import get_connection_summary_mixed, get_connection_summary_agg, get_top_user_duration_mixed
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -60,20 +61,20 @@ def get_user():
         
         if user:               
             if is_encrypted: 
-                logging.info(f"Encrypted data from client length: {len(password)} bytes")
+                logging.debug(f"Encrypted data from client length: {len(password)} bytes")
             else:
-                logging.info(f"No Encrypted data from client length: {len(password)} bytes")
+                logging.debug(f"No Encrypted data from client length: {len(password)} bytes")
                 
-            logging.info(f"Encrypted data from db length: {len(user.password)} bytes")
+            logging.debug(f"Encrypted data from db length: {len(user.password)} bytes")
             
             decrypted_password_from_client = password
             if is_encrypted:
-                logging.info(f"password from client: {password}")
+                logging.debug(f"password from client: {password}")
                 decrypted_password_from_client = decryption.decrypt(password, 'BEPS')            
             decryption_password_from_db = decryption.decrypt(user.password, 'BEPS')
             
-            logging.info(f"decrypted_password_from_client: {decrypted_password_from_client}")
-            logging.info(f"decryption_password_from_db: {decryption_password_from_db}")
+            logging.debug(f"decrypted_password_from_client: {decrypted_password_from_client}")
+            logging.debug(f"decryption_password_from_db: {decryption_password_from_db}")
             
             if decrypted_password_from_client != decryption_password_from_db:
                 return jsonify({'error': 'Password is incorrect'}), 401 # 401: Unauthorized
@@ -82,7 +83,7 @@ def get_user():
             user_data.pop('password', None) # password 필드는 제외
                         
             ua = (request.headers.get('User-Agent') or '').lower()
-            logging.info(f"User-Agent: {ua}")
+            logging.debug(f"User-Agent: {ua}")
             
             #로그인 이력 저장
             if not ua:               
@@ -291,21 +292,21 @@ def get_connection_duration():
     try:
         filter_type = request.args.get('filter_type', 'all')
         filter_value = request.args.get('filter_value')
-        logging.info(f"filter_type: {filter_type}, filter_value: {filter_value}")
+        logging.debug(f"filter_type: {filter_type}, filter_value: {filter_value}")
         
         if filter_type != 'all' and filter_value is None:
             return jsonify({'error': 'Please provide filter_value'}), 400
                
         period_type = request.args.get('period_type', 'day')
         period_value = request.args.get('period_value')
-        logging.info(f"period_type: {period_type}, period_value: {period_value}")
+        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
         if(period_type == 'day'):
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
-            data = get_connection_summary_day(start_date, end_date, filter_value)
+            data = get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
                                 
             if data['has_data']:
                 return jsonify({
@@ -316,7 +317,22 @@ def get_connection_duration():
                     'external_count': data['external_count']
                 })
             else:    
-                return jsonify({'error': 'Invalid period_type'}), 400      
+                return jsonify({'error': 'Invalid period_type'}), 400     
+        elif(period_type in ['quarter', 'half', 'year']):
+            data = get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
+            
+            if data['has_data']:
+                return jsonify({
+                    'total_duration': str(data['total_duration']),
+                    'worktime_duration': str(data['worktime_duration']),
+                    'offhour_duration': str(data['offhour_duration']),
+                    'internal_count': data['internal_count'],
+                    'external_count': data['external_count']
+                })
+            else:
+                return jsonify({'error': 'Invalid period_type'}), 400
+        
+        return jsonify({'error': 'Invalid period_type'}), 400
              
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -335,116 +351,39 @@ def get_top_user_duration():
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
             user_duration_map = defaultdict(datetime.timedelta)
+            data = get_top_user_duration_mixed(start_date, end_date)
+            logging.info(f"get_top_user_duration_mixed: {data}")
             
-            if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
-                summary_day_rows = db.session.query(
-                    loginSummaryDay.user_id,
-                    func.sum(loginSummaryDay.total_duration).label('total')
-                ).filter(
-                    loginSummaryDay.period_value >= start_date,
-                    loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                    loginSummaryDay.scope == 'user'
-                ).all()
-                for record in summary_day_rows:
-                    if record.user_id:
-                        user_duration_map[record.user_id] += record.total or datetime.timedelta()
+            if data['has_data']:
+                return jsonify({
+                    'user_id': data['user_id'],
+                    'duration': str(data['duration'])
+                }),200
+            else:
+                return jsonify({'error': 'No data found'}), 404        
             
-            if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
-                today_rows = db.session.query(
-                    LoginHistory.user_id,
-                    func.sum(LoginHistory.session_duration).label('total')
-                ).filter(
-                    LoginHistory.login_time >= max(start_date, datetime.date.today() - datetime.timedelta(days=1)),
-                    LoginHistory.login_time <= end_date
-                ).group_by(LoginHistory.user_id).all()
-                for record in today_rows:
-                    if record.user_id:
-                        user_duration_map[record.user_id] += record.total or datetime.timedelta()
-            
-            if user_duration_map:
-                top_user_id, top_duration = max(user_duration_map.items(), key=lambda x: x[1])
+        elif period_type in ['quarter', 'half', 'year']:
+            user_duration_map = defaultdict(datetime.timedelta)
+            summary_day_rows = db.session.query(
+                loginSummaryAgg.user_id,
+                func.sum(loginSummaryAgg.total_duration).label('total')
+            ).filter(
+                loginSummaryAgg.period_type == period_type,
+                loginSummaryAgg.period_value == period_value,
+                loginSummaryAgg.scope == 'user'
+            ).group_by(loginSummaryAgg.user_id).all()
+           
+            for record in summary_day_rows:
+               if record.user_id:
+                   user_duration_map[record.user_id] += record.total or datetime.timedelta()
+                   
+            if (len(user_duration_map) > 0):
+                top_user_id, top_duration =  max(user_duration_map.items(), key=lambda x: x[1])
+                logging.info(f"Agg Top user: {top_user_id}, Duration: {top_duration}")
                 return jsonify({
                     'user_id': top_user_id,
                     'duration': str(top_duration)
-                }), 200
-            else:
-                return jsonify({'error': 'No data found'}), 404
+                }),200
                               
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-  
-    
-def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
-    total = datetime.timedelta(0)
-    work = datetime.timedelta(0)
-    off = datetime.timedelta(0)
-    internal = 0
-    external = 0
-    has_data = False
-    
-    if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
-        filters = [
-            loginSummaryDay.period_value >= start_date,
-            loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-            loginSummaryDay.scope == scope
-        ]
-        if scope == 'user' and filter_value:
-            filters.append(loginSummaryDay.user_id == filter_value)
-        elif scope == 'department' and filter_value:
-            filters.append(loginSummaryDay.department == filter_value)
-        elif scope == 'company' and filter_value:
-            filters.append(loginSummaryDay.company == filter_value)
-        
-        data = loginSummaryDay.query.filter(*filters).first()
-        if data:
-            has_data = True
-            total = data.total_duration or datetime.timedelta(0)
-            work = data.worktime_duration or datetime.timedelta(0)
-            off = data.offhour_duration or datetime.timedelta(0)
-            internal = data.internal_count or 0
-            external = data.external_count or 0
-            
-    if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
-        filters = [
-            LoginHistory.login_time >= max(start_date, datetime.date.today() - datetime.timedelta(days=1)),
-            LoginHistory.login_time <= end_date
-        ]
-        if scope == 'user' and filter_value:
-            filters.append(LoginHistory.user_id == filter_value)
-        elif scope == 'department' and filter_value:
-            filters.append(LoginHistory.department == filter_value)
-        elif scope == 'company' and filter_value:
-            filters.append(LoginHistory.company == filter_value)
-        
-        datas = LoginHistory.query.filter(*filters).all()
-        if datas:
-            has_data = True
-            for record in datas:
-                if record.login_time is None or record.logout_time is None:
-                    continue
-                
-                duration = record.session_duration or datetime.timedelta(0)
-                total += duration
-                
-                login_locale = record.login_time.astimezone()
-                logout_locale = record.logout_time.astimezone()
-                if login_locale.hour >= 8 and logout_locale.hour <= 18:
-                    work += duration
-                else:
-                    off += duration
-                
-                if record.ip_address.startswith('61.') or record.ip_address.startswith('172.'):
-                    internal += 1 
-                else:
-                    external += 1
-        
-    return {
-        'has_data': has_data,
-        'total_duration': total,
-        'worktime_duration': work,
-        'offhour_duration': off,
-        'internal_count': internal,
-        'external_count': external
-    }
-        
-            

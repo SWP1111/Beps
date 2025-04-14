@@ -96,13 +96,13 @@ def file_info():
     try:
         raw_path = request.full_path.replace('/contents/file/get_or_create?path=', '') # 🔹 파일 경로를 가져옴(&가 있으면 잘려서 이 방식 사용)
         #request.args.get('path') # 🔹 파일 경로를 가져옴
-        logging.info(f"Raw Path: {raw_path}")
+        logging.debug(f"Raw Path: {raw_path}")
         
         if not raw_path:
             return jsonify({'error': 'Please provide path'}), 400
         
         path = urllib.parse.unquote(raw_path) # 🔹 URL 디코딩
-        logging.info(f"Decoded Path: {path}")
+        logging.debug(f"Decoded Path: {path}")
         
         folder_id = get_folder_id_from_path(os.path.dirname(path)) # 🔹 파일 경로로 folder_id를 조회
         

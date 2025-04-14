@@ -58,7 +58,7 @@ $$ LANGUAGE plpgsql;
 -- 수동으로 PARTION 생성
 -- CREATE TABLE login_summary_day_2025_h1
 -- PARTITION OF login_summary_day
--- FOR VALUES FROM ('2025-01-01') TO ('2025-06-30');
+-- FOR VALUES FROM ('2025-01-01') TO ('2025-07-01');
 
 
 -- UTC, KST 시간 표시
