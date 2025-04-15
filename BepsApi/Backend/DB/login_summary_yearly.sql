@@ -6,13 +6,11 @@ BEGIN
     -- 1. 전체 집계
     INSERT INTO login_summary_agg (
         period_type, period_value, scope,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         'year', v_period_value, 'all',
-        '', '', '',
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg
@@ -30,13 +28,11 @@ BEGIN
     -- 2. 회사별
     INSERT INTO login_summary_agg (
         period_type, period_value, scope, company,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         'year', v_period_value, 'company', company,
-        company_key, '', '',
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg
@@ -54,13 +50,11 @@ BEGIN
     -- 3. 부서별
     INSERT INTO login_summary_agg (
         period_type, period_value, scope, company, department,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         'year', v_period_value, 'department', company, department,
-        company_key, department_key, '',
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg
@@ -78,13 +72,11 @@ BEGIN
     -- 4. 사용자별
     INSERT INTO login_summary_agg (
         period_type, period_value, scope, company, department, user_id, user_name,
-        company_key, department_key, user_id_key,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
         'year', v_period_value, 'user', company, department, user_id, user_name,
-        company_key, department_key, user_id_key,
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg

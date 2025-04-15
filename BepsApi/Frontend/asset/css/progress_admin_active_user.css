@@ -38,6 +38,10 @@
     position: relative;
     margin-top: 5px;
 }
+.listbox_item .user_text{
+    user-select: none;
+    cursor: default;
+}
 .yellow {
     width: 16px;
     height: 16px;

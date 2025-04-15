@@ -1,6 +1,6 @@
 import { attachCustomScrollbar } from "./custom_vscroll.js";
 
-export async function activeUser()
+export async function activeUser(period_type, period_value)
 {
     const wrapper = document.querySelector(".listbox-container");
     const container = document.querySelector(".custom-listbox");
@@ -13,8 +13,22 @@ export async function activeUser()
 
 
     let currentUserMap = new Map();
-    const allTotalDurationStr = await getTopUserConnectionDuration('day', '2025-04-09~2025-04-10');
-    const allTotalDuration = parseDurationToSeconds(allTotalDurationStr);
+    let allTotalDuration = null;
+    let pendingUsers = [];        // 나중에 처리할 사용자들
+
+    getTopUserConnectionDuration(period_type, period_value)
+    .then(allTotalDurationStr =>
+    {
+        allTotalDuration = parseDurationToSeconds(allTotalDurationStr);
+
+        for (const {userId, element, durationStr} of pendingUsers) {
+            const duration = parseDurationToSeconds(durationStr);
+            const percentage = ((duration / allTotalDuration) * 100).toFixed(2);
+            const status = element.querySelector('.status');
+            status.className = (percentage <= 20) ? "yellow-RedBorder" : "yellow";
+        }
+    }
+    );
 
     let websocketUrl = `${window.websocketUrl}`;
     const socket = new WebSocket(websocketUrl);
@@ -34,33 +48,46 @@ export async function activeUser()
                 }
             }
 
-            for (const user of data.users) {
-                if (!currentUserMap.has(user.user_id)) {
-                    const info = await getUserInfo(user);
-                    const userDurationStr = await getUserConnectionDuration('day', '2025-04-09~2025-04-10', 'user', user.user_id);
+            const userInfos = await Promise.all(data.users
+                .filter(user => !currentUserMap.has(user.user_id))
+                .map(async user => {
+                const info = await getUserInfo(user);
+                const userDurationStr = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
+
+                return { user, info, userDurationStr};
+            }));
+
+            for (const {user, info, userDurationStr} of userInfos) {
+                
+                const item = document.createElement("div");
+                item.contentEditable = false;
+                item.className = "listbox-item";
+
+                const name = document.createElement("span");
+                name.contentEditable = false;
+                name.className = "user_text";
+                name.textContent = `${info.username}/${user.user_id}/${info.position}`;
+
+                const status = document.createElement("span");
+                status.className = "status";
+
+                item.appendChild(name);
+                item.appendChild(status);
+                container.appendChild(item);
+                currentUserMap.set(user.user_id, item);
+
+                if(allTotalDuration)
+                {
                     const userDuration = parseDurationToSeconds(userDurationStr);
-                    
                     const userPercentage = ((userDuration / allTotalDuration) * 100).toFixed(2);
 
-                    const item = document.createElement("div");
-                    item.className = "listbox-item";
-
-                    const name = document.createElement("span");
-                    name.className = "user_text";
-                    name.textContent = `${info.username}/${user.user_id}/${info.position}`;
-
-                    const status = document.createElement("span");
                     if(userPercentage <= 20)
                         status.className = "yellow-RedBorder";
                     else
                         status.className = "yellow";
-
-                    item.appendChild(name);
-                    item.appendChild(status);
-                    container.appendChild(item);
-
-                    currentUserMap.set(user.user_id, item);
                 }
+                else
+                    pendingUsers.push({userId: user.user_id, element: item, durationStr: userDurationStr});
             }
 
             refresh();

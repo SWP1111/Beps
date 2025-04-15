@@ -217,8 +217,8 @@ def logout():
                 login.logout_time = datetime.datetime.now(timezone.utc)
                 duration = login.logout_time - login.login_time
                 
-                if duration.total_seconds() < 5:
-                    db.session.delete(login) # 로그인 이력이 5초 미만이면 삭                
+                if duration.total_seconds() < 30:
+                    db.session.delete(login) # 로그인 이력이 30초 미만이면 삭제             
                 
                 db.session.commit()
             
@@ -387,3 +387,11 @@ def get_top_user_duration():
                               
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_user_bp.route('/ip_location', methods=['GET'])
+def get_test():
+    ip=request.args.get('ip')
+    url = f"http://ipinfo.io/{ip}/json"
+    response = requests.get(url)
+    return response.json(), 200

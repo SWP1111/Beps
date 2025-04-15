@@ -80,8 +80,8 @@ export async function setupUI(container) {
     attachCustomScrollbar(container, scrollbar, thumb);
 
     //#region 검색 기능
-    const searchInput = document.querySelector('.search');
-    const searchIcon = document.querySelector('.search-icon');
+    const searchInput = document.getElementById('filter-search');
+    const searchIcon = document.getElementById('filter-search-icon');
     
     function handleSearch() {
       const keyword = searchInput.value.trim().toLowerCase();
