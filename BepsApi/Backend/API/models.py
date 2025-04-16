@@ -256,6 +256,7 @@ class MemoData(db.Model):
     serial_number = db.Column(db.Integer, nullable=False)
     modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     user_id = db.Column(db.String, nullable=True)
+    title = db.Column(db.String, nullable=True)
     content = db.Column(db.String, nullable=True)
     path = db.Column(db.String, nullable=True)
     rel_position_x = db.Column(db.Float, nullable=False)  # double in C#
@@ -272,6 +273,7 @@ class MemoData(db.Model):
             'serial_number': self.serial_number,
             'modified_at': self.modified_at,
             'user_id': self.user_id,
+            'title': self.title,
             'content': self.content,
             'path': self.path,
             'relPositionX': self.rel_position_x,  # Match C# JsonPropertyName

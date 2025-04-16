@@ -23,6 +23,7 @@ def create_memo():
             serial_number=next_serial,  # Set the next serial number
             modified_at=modified_at,  # Explicitly set modified_at to current time
             user_id=data.get('user_id'),
+            title=data.get('title'),  # Add title field
             content=data.get('content', ''),
             path=data.get('path'),
             rel_position_x=float(data['relPositionX']),  # Convert to float
@@ -79,6 +80,7 @@ def update_memo(id):
         
         # Update fields matching the JSON case
         memo.content = data.get('content', memo.content)
+        memo.title = data.get('title', memo.title)  # Add title field
         memo.user_id = data.get('user_id', memo.user_id)
         memo.path = data.get('path', memo.path)
         memo.rel_position_x = data.get('relPositionX', memo.rel_position_x)

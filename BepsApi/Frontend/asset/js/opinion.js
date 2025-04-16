@@ -4,6 +4,9 @@ const { createApp, ref, reactive, computed, onMounted } = Vue;
 
 const url = typeof baseUrl != "undefined" ? baseUrl : "http://172.16.8.208:20000/";
 
+// User cache to avoid repeated API failures
+const userCache = {};
+
 createApp({
     setup() {
         const memoList = ref([]);
@@ -152,6 +155,39 @@ createApp({
                 // Get user information for each memo
                 const promises = filteredData.map(async memo => {
                     if (memo.user_id) {
+                        // Try to get current user info from localStorage if it's the same user
+                        try {
+                            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+                            if (loggedInUser && loggedInUser.user && loggedInUser.user.id === memo.user_id) {
+                                console.log("Using logged in user data for user_id:", memo.user_id);
+                                // Store in cache for future use
+                                userCache[memo.user_id] = {
+                                    company: loggedInUser.user.company || '-',
+                                    department: loggedInUser.user.department || '-',
+                                    name: loggedInUser.user.name || '-',
+                                    position: loggedInUser.user.position || ''
+                                };
+                                return {
+                                    ...memo,
+                                    user: userCache[memo.user_id],
+                                    status_text: formatStatus(memo.status)
+                                };
+                            }
+                        } catch (error) {
+                            console.error("Error retrieving user data from localStorage:", error);
+                        }
+
+                        // Check if user is already in cache
+                        if (userCache[memo.user_id]) {
+                            console.log("Using cached user data for user_id:", memo.user_id);
+                            return {
+                                ...memo,
+                                user: userCache[memo.user_id],
+                                status_text: formatStatus(memo.status)
+                            };
+                        }
+
+                        // If not the current user, try the API
                         try {
                             const userResponse = await fetch(`${url}users/${memo.user_id}`, {
                                 method: "GET",
@@ -191,14 +227,20 @@ createApp({
                                 };
                             } else {
                                 console.error("Received non-JSON response for user ID", memo.user_id);
+                                
+                                // Cache the failure to avoid repeated attempts
+                                if (!userCache[memo.user_id]) {
+                                    userCache[memo.user_id] = {
+                                        company: '-',
+                                        department: '-',
+                                        name: '-',
+                                        position: ''
+                                    };
+                                }
+                                
                                 return {
                                     ...memo,
-                                    user: { 
-                                        company: '-', 
-                                        department: '-', 
-                                        name: '-',
-                                        position: '' 
-                                    },
+                                    user: userCache[memo.user_id],
                                     status_text: formatStatus(memo.status)
                                 };
                             }
@@ -206,7 +248,7 @@ createApp({
                             console.error(`Error fetching user data for user ID ${memo.user_id}:`, error);
                             return {
                                 ...memo,
-                                user: { 
+                                user: userCache[memo.user_id] || { 
                                     company: '-', 
                                     department: '-', 
                                     name: '-',
@@ -271,4 +313,4 @@ createApp({
             formatMemoPath
         };
     }
-}).mount("#app"); 
+}).mount("#app");
