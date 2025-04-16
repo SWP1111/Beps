@@ -7,10 +7,12 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>   
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <link rel="stylesheet" href="asset/css/custom_vscroll.css">
         <link rel="stylesheet" href="asset/css/progress_admin_search.css">
         <link rel="stylesheet" href="asset/css/progress_admin_active_user.css">
         <link rel="stylesheet" href="asset/css/progress_admin.css">
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
         <script src="asset/js/config.js"></script>
         <script type="module" src="asset/js/progress_admin.js"></script>
     </head>
@@ -20,8 +22,8 @@
         <div class="left-area">
 
             <div class="filter">
-                <input type="search" class="search" placeholder="회사, 팀, 사람이름" />
-                <img src="asset/images/search.png" class="search-icon">
+                <input type="search" class="search" id="filter-search" placeholder="회사, 팀, 사람이름" />
+                <img src="asset/images/search.png" id="filter-search-icon" class="search-icon">
             </div>
 
             <div class="search-container-wrapper">
@@ -35,6 +37,14 @@
                 <div class="legend">
                     <span class="status-red"></span>진도율 낮은 학습자
                 </div>
+            </div>
+
+            <div class="search-ip">               
+                <div class="filter">
+                    <input type="search" class="search" id="ipInput" placeholder="IP" />
+                    <img src="asset/images/search.png" id="ipInput-icon" class="search-icon">
+                </div>
+                <div id="map"></div>      
             </div>
 
         </div>
