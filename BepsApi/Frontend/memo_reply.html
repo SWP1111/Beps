@@ -320,7 +320,7 @@ td:nth-child(even) {
                         user_id: currentUser.value.id
                     };
 
-                    fetch(`${url}memo/reply`, {
+                    fetch(`${url}memo/reply/`, {
                         method: "POST",
                         credentials: "include",
                         headers: {
