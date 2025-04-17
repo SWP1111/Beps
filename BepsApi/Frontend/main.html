@@ -49,6 +49,21 @@
         <div class="content" id="content-area">
             <iframe id="content-frame"></iframe>
             <!-- style="width: 100%; height: 100vh; border: none;" -->
+
+            <script type="text/javascript">
+                const iframe = document.getElementById('content-frame');
+
+                iframe.onload = () => {
+                try {
+                    const innerDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const scrollHeight = innerDoc.body.scrollHeight;
+                    iframe.style.height = (scrollHeight + 2) + 'px';
+
+                } catch (e) {
+                    console.warn("다른 도메인이라면 자동 조정 불가");
+                }
+                };
+            </script>
         </div>
     </body>
 </html>

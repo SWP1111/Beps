@@ -1,6 +1,7 @@
 import { setupUI } from "./progress_admin_search.js";
 import { activeUser } from "./progress_admin_active_user.js";
 import { initMap, lookupIP } from "./progress_admin_map.js";
+import { initTrafficGaugeChart} from "./progress_admin_traffic.js";
 
 document.addEventListener('DOMContentLoaded', async() => {
 
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       lookupIP(ip);
     });
 
+     initTrafficGaugeChart(0);
   });
 
 

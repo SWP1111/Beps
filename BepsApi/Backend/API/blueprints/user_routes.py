@@ -317,7 +317,7 @@ def get_connection_duration():
                     'external_count': data['external_count']
                 })
             else:    
-                return jsonify({'error': 'Invalid period_type'}), 400     
+                return jsonify({'error': 'No data available for given parameters'}), 404     
         elif(period_type in ['quarter', 'half', 'year']):
             data = get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
             
@@ -330,9 +330,9 @@ def get_connection_duration():
                     'external_count': data['external_count']
                 })
             else:
-                return jsonify({'error': 'Invalid period_type'}), 400
+                return jsonify({'error': 'No data available for given parameters'}), 404
         
-        return jsonify({'error': 'Invalid period_type'}), 400
+        return jsonify({'error': f"Invalid period_type. Allowed values are: day, quarter, half, year."}), 400
              
     except Exception as e:
         return jsonify({'error': str(e)}), 500
