@@ -70,65 +70,6 @@
                     {{ page }}
                 </button>
                 <button @click="loadMemoData(currentPage + 1)" :disabled="currentPage === totalPages">&gt;</button>
-            </div>
-        </div>
-        
-        <!-- Reply Modal -->
-        <div class="modal" v-if="showReplyModal">
-            <div class="modal-content">
-                <span class="close-button" @click="closeReplyModal">&times;</span>
-                <div class="reply-grid">
-                    <table class="memo-info-grid">
-                        <tr>
-                            <td>등록일</td>
-                            <td>{{ formatDate(selectedMemo.modified_at) }}</td>
-                            <td>회사명</td>
-                            <td>{{ selectedMemo.user ? selectedMemo.user.company : '' }}</td>
-                        </tr>
-                        <tr>
-                            <td>작성자</td>
-                            <td>{{ selectedMemo.user ? selectedMemo.user.name + ' ' + selectedMemo.user.position + ' (' + selectedMemo.user_id + ')' : '' }}</td>
-                            <td>부서명</td>
-                            <td>{{ selectedMemo.user ? selectedMemo.user.department : '' }}</td>
-                            <td>팀명</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td>제목</td>
-                            <td colspan="5">{{ selectedMemo.title }}</td>
-                        </tr>
-                        <tr>
-                            <td>내용</td>
-                            <td colspan="5">{{ selectedMemo.content }}</td>
-                        </tr>
-                        <tr>
-                            <td>바로가기</td>
-                            <td colspan="5">
-                                <a v-if="selectedMemo.path" :href="selectedMemo.path" target="_blank">[바로가기]</a>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <div class="comment-section">
-                        <h3>COMMENT</h3>
-                        <table class="comment-grid">
-                            <tr>
-                                <td>
-                                    {{ currentUser.name + ' ' + currentUser.position + '\n(' + currentUser.id + ')' }}
-                                </td>
-                                <td>
-                                    <textarea v-model="replyComment" rows="4" placeholder="답변을 입력하세요"></textarea>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" class="text-right">
-                                    <button class="save-button" @click="saveReply">저장</button>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </body>

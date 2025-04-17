@@ -19,10 +19,7 @@ createApp({
         const searchStartDate = ref('');
         const searchEndDate = ref('');
 
-        // Modal state
-        const showReplyModal = ref(false);
-        const selectedMemo = ref({});
-        const replyComment = ref('');
+        // Current user data
         const currentUser = ref({});
 
         const isAdmin = computed(() => {
@@ -314,64 +311,27 @@ createApp({
         };
 
         const replyToMemo = (memo) => {
-            selectedMemo.value = memo;
-            replyComment.value = '';
-            showReplyModal.value = true;
-        };
-
-        const closeReplyModal = () => {
-            showReplyModal.value = false;
-            selectedMemo.value = {};
-            replyComment.value = '';
-        };
-
-        const saveReply = () => {
-            if (!replyComment.value.trim()) {
-                alert('답변 내용을 입력해주세요.');
-                return;
+            // Open a new popup window
+            const width = 800;
+            const height = 600;
+            const left = (window.screen.width - width) / 2;
+            const top = (window.screen.height - height) / 2;
+            
+            // Store the selected memo in localStorage for access from the popup
+            localStorage.setItem('replyMemo', JSON.stringify(memo));
+            
+            // Open popup window
+            const popupWindow = window.open(
+                'memo_reply.html',
+                'replyPopup',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+            );
+            
+            if (popupWindow) {
+                popupWindow.focus();
+            } else {
+                alert('팝업 창이 차단되었습니다. 팝업 차단을 해제해주세요.');
             }
-
-            // Example API call to save the reply (to be implemented)
-            const replyData = {
-                memo_id: selectedMemo.value.id,
-                content: replyComment.value,
-                user_id: currentUser.value.id
-            };
-
-            console.log("Saving reply:", replyData);
-            
-            // Mock success for now
-            alert('답변이 저장되었습니다.');
-            closeReplyModal();
-            
-            // In a real implementation, you would make an API call here
-            /*
-            fetch(`${url}memo/reply`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(replyData)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to save reply');
-                }
-                return response.json();
-            })
-            .then(data => {
-                alert('답변이 저장되었습니다.');
-                closeReplyModal();
-                // Optionally reload memo list to show updated status
-                loadMemoData(currentPage.value);
-            })
-            .catch(error => {
-                console.error("Error saving reply:", error);
-                alert('답변 저장에 실패했습니다: ' + error.message);
-            });
-            */
         };
 
         onMounted(() => {
@@ -388,14 +348,9 @@ createApp({
             searchContent,
             searchStartDate,
             searchEndDate,
-            showReplyModal,
-            selectedMemo,
-            replyComment,
             currentUser,
             loadMemoData,
             replyToMemo,
-            closeReplyModal,
-            saveReply,
             formatStatus,
             formatDate,
             formatMemoPath
