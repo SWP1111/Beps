@@ -673,6 +673,19 @@ try:
         );
     """
 
+    memo_replies_queries = """
+        CREATE TABLE public.memo_replies (
+            id SERIAL PRIMARY KEY,
+            memo_id text NOT NULL REFERENCES memos(id) ON DELETE CASCADE,
+            user_id text NOT NULL REFERENCES users(id),
+            content text NOT NULL,
+            created_at timestamp with time zone DEFAULT NOW(),
+            modified_at timestamp with time zone DEFAULT NOW(),
+            is_deleted boolean DEFAULT FALSE
+        );
+    """
+    
+        
     queries = [
         #contents_queries, 
         #contents_sequence, 
@@ -695,6 +708,7 @@ try:
         stay_duration_update_queries,
         default_insert_queries,
         memos_queries,
+        memo_replies_queries,
         login_summary_queries,
         learning_summary_queries
         ]

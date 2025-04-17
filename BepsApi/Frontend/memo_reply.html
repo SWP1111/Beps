@@ -95,6 +95,46 @@ td:nth-child(even) {
         .cancel-button:hover {
             background-color: #d32f2f;
         }
+        .reply-list {
+            margin-bottom: 20px;
+        }
+        .reply-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .reply-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .reply-user {
+            font-weight: bold;
+        }
+        .reply-date {
+            color: #666;
+            font-size: 0.8em;
+        }
+        .reply-content {
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+        }
+        .reply-actions {
+            text-align: right;
+        }
+        .edit-button, .delete-button {
+            background-color: #2196F3;
+            padding: 5px 10px;
+            font-size: 0.8em;
+        }
+        .delete-button {
+            background-color: #f44336;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -132,6 +172,34 @@ td:nth-child(even) {
         
         <div class="comment-section">
             <h3>COMMENT</h3>
+            
+            <!-- Existing Replies -->
+            <div class="reply-list" v-if="replies.length > 0">
+                <div class="reply-item" v-for="reply in replies" :key="reply.id">
+                    <div class="reply-header">
+                        <div class="reply-user">
+                            {{ reply.user ? reply.user.name + ' ' + reply.user.position + ' (' + reply.user.id + ')' : reply.user_id }}
+                        </div>
+                        <div class="reply-date">
+                            {{ formatDate(reply.modified_at) }}
+                        </div>
+                    </div>
+                    <div class="reply-content" v-if="!reply.editing">
+                        {{ reply.content }}
+                    </div>
+                    <textarea v-if="reply.editing" v-model="reply.editContent" class="edit-textarea"></textarea>
+                    <div class="reply-actions" v-if="currentUser.id === reply.user_id && !reply.editing">
+                        <button class="edit-button" @click="startEditing(reply)">수정</button>
+                        <button class="delete-button" @click="deleteReply(reply)">삭제</button>
+                    </div>
+                    <div class="reply-actions" v-if="reply.editing">
+                        <button class="cancel-button" @click="cancelEditing(reply)">취소</button>
+                        <button class="edit-button" @click="saveEditing(reply)">저장</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- New Reply Form -->
             <table>
                 <tr>
                     <td>{{ currentUser.name + ' ' + currentUser.position + '\n(' + currentUser.id + ')' }}</td>
@@ -157,6 +225,7 @@ td:nth-child(even) {
                 const memo = ref({});
                 const replyComment = ref('');
                 const currentUser = ref({});
+                const replies = ref([]);
 
                 const loadData = () => {
                     // Load memo data from localStorage
@@ -164,6 +233,8 @@ td:nth-child(even) {
                         const memoData = JSON.parse(localStorage.getItem('replyMemo'));
                         if (memoData) {
                             memo.value = memoData;
+                            // Load replies for this memo
+                            fetchReplies(memoData.id);
                         } else {
                             alert('메모 데이터를 불러올 수 없습니다.');
                             window.close();
@@ -196,6 +267,34 @@ td:nth-child(even) {
                     }
                 };
 
+                const fetchReplies = (memoId) => {
+                    // Fetch replies for this memo
+                    fetch(`${url}memo/reply/memo/${memoId}`, {
+                        method: "GET",
+                        credentials: "include",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch replies');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Add editing property to each reply
+                        replies.value = data.map(reply => ({
+                            ...reply,
+                            editing: false,
+                            editContent: reply.content
+                        }));
+                    })
+                    .catch(error => {
+                        console.error("Error fetching replies:", error);
+                    });
+                };
+
                 const formatDate = (dateString) => {
                     if (!dateString) return '';
                     const date = new Date(dateString);
@@ -214,21 +313,13 @@ td:nth-child(even) {
                         return;
                     }
 
-                    // Example API call to save the reply (to be implemented)
+                    // API call to save the reply
                     const replyData = {
                         memo_id: memo.value.id,
                         content: replyComment.value,
                         user_id: currentUser.value.id
                     };
 
-                    console.log("Saving reply:", replyData);
-                    
-                    // Mock success for now
-                    alert('답변이 저장되었습니다.');
-                    window.close();
-                    
-                    // In a real implementation, you would make an API call here
-                    /*
                     fetch(`${url}memo/reply`, {
                         method: "POST",
                         credentials: "include",
@@ -245,14 +336,86 @@ td:nth-child(even) {
                         return response.json();
                     })
                     .then(data => {
-                        alert('답변이 저장되었습니다.');
-                        window.close();
+                        // Add the new reply to the list
+                        replyComment.value = '';
+                        fetchReplies(memo.value.id);
                     })
                     .catch(error => {
                         console.error("Error saving reply:", error);
                         alert('답변 저장에 실패했습니다: ' + error.message);
                     });
-                    */
+                };
+
+                const startEditing = (reply) => {
+                    // Set editing mode for this reply
+                    reply.editing = true;
+                    reply.editContent = reply.content;
+                };
+
+                const cancelEditing = (reply) => {
+                    // Cancel editing mode
+                    reply.editing = false;
+                };
+
+                const saveEditing = (reply) => {
+                    if (!reply.editContent.trim()) {
+                        alert('답변 내용을 입력해주세요.');
+                        return;
+                    }
+
+                    // API call to update the reply
+                    fetch(`${url}memo/reply/${reply.id}`, {
+                        method: "PUT",
+                        credentials: "include",
+                        headers: {
+                            "Accept": "application/json",
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ content: reply.editContent })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to update reply');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Update the reply in the list
+                        reply.content = reply.editContent;
+                        reply.editing = false;
+                        reply.modified_at = data.modified_at;
+                    })
+                    .catch(error => {
+                        console.error("Error updating reply:", error);
+                        alert('답변 수정에 실패했습니다: ' + error.message);
+                    });
+                };
+
+                const deleteReply = (reply) => {
+                    if (!confirm('정말로 이 답변을 삭제하시겠습니까?')) {
+                        return;
+                    }
+
+                    // API call to delete the reply
+                    fetch(`${url}memo/reply/${reply.id}`, {
+                        method: "DELETE",
+                        credentials: "include"
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to delete reply');
+                        }
+                        
+                        // Remove the reply from the list
+                        const index = replies.value.findIndex(r => r.id === reply.id);
+                        if (index !== -1) {
+                            replies.value.splice(index, 1);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error deleting reply:", error);
+                        alert('답변 삭제에 실패했습니다: ' + error.message);
+                    });
                 };
 
                 const cancelReply = () => {
@@ -267,9 +430,14 @@ td:nth-child(even) {
                     memo,
                     replyComment,
                     currentUser,
+                    replies,
                     saveReply,
                     cancelReply,
-                    formatDate
+                    formatDate,
+                    startEditing,
+                    cancelEditing,
+                    saveEditing,
+                    deleteReply
                 };
             }
         }).mount("#app");

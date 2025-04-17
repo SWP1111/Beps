@@ -284,3 +284,29 @@ class MemoData(db.Model):
             'status': self.status,  # Match C# JsonPropertyName
             'time_stamp': self.time_stamp
         }
+
+class MemoReply(db.Model):
+    __tablename__ = 'memo_replies'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    memo_id = db.Column(db.String, db.ForeignKey('memos.id'), nullable=False)
+    user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    memo = db.relationship('MemoData', backref=db.backref('replies', lazy=True))
+    user = db.relationship('Users', backref=db.backref('memo_replies', lazy=True))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'memo_id': self.memo_id,
+            'user_id': self.user_id,
+            'content': self.content,
+            'created_at': self.created_at,
+            'modified_at': self.modified_at,
+            'is_deleted': self.is_deleted
+        }
