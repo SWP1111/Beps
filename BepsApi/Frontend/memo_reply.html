@@ -31,22 +31,30 @@
             border: 1px solid #ddd;
         }
         th, td {
-            padding: 10px;
-            text-align: left;
-            min-width: 100px;
-            word-wrap: break-word;
-        }
-        td:nth-child(odd) {
-            background-color: #f9f9f9;
-            font-weight: bold;
-            width: 100px;
-            text-align: right;
-        }
+    padding: 10px;
+    text-align: left;
+    word-wrap: break-word;
+}
+
+td:nth-child(odd) {
+    background-color: #f9f9f9;
+    font-weight: bold;
+    width: 80px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+td:nth-child(even) {
+    min-width: 100px;
+}
         .content-cell {
             height: 400px;
             max-height: 400px;
             overflow-y: auto;
             white-space: pre-wrap;
+            text-align: left;
+            vertical-align: top;  /* Instead of align-content: top */
+            padding-top: 10px;
         }
         .comment-section {
             margin-top: 30px;
