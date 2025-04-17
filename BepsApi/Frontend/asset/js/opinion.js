@@ -19,6 +19,12 @@ createApp({
         const searchStartDate = ref('');
         const searchEndDate = ref('');
 
+        // Modal state
+        const showReplyModal = ref(false);
+        const selectedMemo = ref({});
+        const replyComment = ref('');
+        const currentUser = ref({});
+
         const isAdmin = computed(() => {
             const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
             return userInfo.user.role_id == 1;
@@ -97,6 +103,27 @@ createApp({
                 hour: '2-digit',
                 minute: '2-digit'
             }).replace(/\./g, '-');
+        };
+
+        const loadCurrentUser = () => {
+            try {
+                const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+                if (loggedInUser && loggedInUser.user) {
+                    currentUser.value = {
+                        id: loggedInUser.user.id,
+                        name: loggedInUser.user.name || '',
+                        position: loggedInUser.user.position || '',
+                        company: loggedInUser.user.company || '',
+                        department: loggedInUser.user.department || ''
+                    };
+                } else {
+                    // Redirect to login if no user data found
+                    window.top.location.href = "login.html";
+                }
+            } catch (error) {
+                console.error("Error loading current user data:", error);
+                window.top.location.href = "login.html";
+            }
         };
 
         const loadMemoData = (page = 1) => {
@@ -287,13 +314,68 @@ createApp({
         };
 
         const replyToMemo = (memo) => {
-            // This function will be implemented to handle replying to memos
-            console.log("Reply to memo:", memo);
-            // You can implement a modal or redirect to a reply page
-            alert(`메모 ID ${memo.id}에 대한 답변 기능은 개발 중입니다.`);
+            selectedMemo.value = memo;
+            replyComment.value = '';
+            showReplyModal.value = true;
+        };
+
+        const closeReplyModal = () => {
+            showReplyModal.value = false;
+            selectedMemo.value = {};
+            replyComment.value = '';
+        };
+
+        const saveReply = () => {
+            if (!replyComment.value.trim()) {
+                alert('답변 내용을 입력해주세요.');
+                return;
+            }
+
+            // Example API call to save the reply (to be implemented)
+            const replyData = {
+                memo_id: selectedMemo.value.id,
+                content: replyComment.value,
+                user_id: currentUser.value.id
+            };
+
+            console.log("Saving reply:", replyData);
+            
+            // Mock success for now
+            alert('답변이 저장되었습니다.');
+            closeReplyModal();
+            
+            // In a real implementation, you would make an API call here
+            /*
+            fetch(`${url}memo/reply`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(replyData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to save reply');
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('답변이 저장되었습니다.');
+                closeReplyModal();
+                // Optionally reload memo list to show updated status
+                loadMemoData(currentPage.value);
+            })
+            .catch(error => {
+                console.error("Error saving reply:", error);
+                alert('답변 저장에 실패했습니다: ' + error.message);
+            });
+            */
         };
 
         onMounted(() => {
+            loadCurrentUser();
             loadMemoData();
         });
 
@@ -306,8 +388,14 @@ createApp({
             searchContent,
             searchStartDate,
             searchEndDate,
+            showReplyModal,
+            selectedMemo,
+            replyComment,
+            currentUser,
             loadMemoData,
             replyToMemo,
+            closeReplyModal,
+            saveReply,
             formatStatus,
             formatDate,
             formatMemoPath

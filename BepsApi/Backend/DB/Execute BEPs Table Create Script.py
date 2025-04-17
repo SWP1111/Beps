@@ -660,6 +660,7 @@ try:
             id text NOT NULL PRIMARY KEY,
             serial_number integer,
             user_id text,
+            title text,
             content text,
             path text,
             rel_position_x double precision,
