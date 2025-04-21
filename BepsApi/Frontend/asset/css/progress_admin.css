@@ -1,3 +1,12 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: auto;
+    /* min-height: calc(100vh - 70px); ✅ 이게 없으면 outer에서 scrollHeight가 작게 나옴 */
+    box-sizing: border-box;
+    overflow: hidden;   
+  }
+
 #map {
     height: 225px;
     width: 225px;
@@ -5,4 +14,57 @@
     border-width: 0px 1px 1px 1px;
     border-style: solid;
     border-color: black;
+}
+
+.traffic {
+    display: flex;
+    flex-direction: column;
+    margin-left: 20px;
+    margin-top: 15px;
+    width: 227px;
+    height: auto;
+    border: none;
+    background-color: #fff;
+}
+
+.traffic span{
+    font-size: 15px;
+    font-weight: 700;
+    font-family: NotosansKR;   
+    align-self: center;
+    margin-top: -90px;
+}
+
+.gaugeChart
+{
+    width: 100%;
+    height: 227px;
+}
+
+@media (min-width: 3400px) and (min-height: 1800px) {
+    #map {
+        height: 443px;
+        width: 443px;
+        margin-left: 42px; 
+    }
+
+    .traffic {
+        margin-left: 42px;
+        margin-top: 15px;
+        width: 445px;
+    }
+
+    .gaugeChart
+    {
+        width: 100%;
+        height: 445px;
+    }
+
+    .traffic span{
+        font-size: 18px;
+        font-weight: 700;
+        font-family: NotosansKR;   
+        align-self: center;
+        margin-top: -170px;
+    }
 }

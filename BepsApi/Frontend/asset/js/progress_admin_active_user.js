@@ -1,4 +1,5 @@
 import { attachCustomScrollbar } from "./custom_vscroll.js";
+import { updateTrafficGaugeValue } from "./progress_admin_traffic.js";
 
 export async function activeUser(period_type, period_value)
 {
@@ -10,7 +11,7 @@ export async function activeUser(period_type, period_value)
     const scrollbar = wrapper.querySelector('.custom-scrollbar');
     const thumb = wrapper.querySelector('.custom-scrollbar-thumb');
     const {refresh} = attachCustomScrollbar(container, scrollbar, thumb);
-
+    const user_count = document.getElementById("active-user-count");
 
     let currentUserMap = new Map();
     let allTotalDuration = null;
@@ -39,6 +40,10 @@ export async function activeUser(period_type, period_value)
         const data = JSON.parse(event.data);
         if(data.type == "user_count")
         {
+            updateTrafficGaugeValue(data.count, data.max_users);
+            if(user_count)
+                user_count.textContent = `현재접속인원 : ${data.count} 명`;
+
             const newUserIds = new Set(data.users.map(u => u.user_id));
 
             for (const [userId, element] of currentUserMap.entries()) {
@@ -79,7 +84,9 @@ export async function activeUser(period_type, period_value)
                 if(allTotalDuration)
                 {
                     const userDuration = parseDurationToSeconds(userDurationStr);
-                    const userPercentage = ((userDuration / allTotalDuration) * 100).toFixed(2);
+                    const userPercentage = (allTotalDuration > 0) 
+                        ? parseFloat(((userDuration / allTotalDuration) * 100).toFixed(2))
+                        : parseFloat("0.00");
 
                     if(userPercentage <= 20)
                         status.className = "yellow-RedBorder";
@@ -144,6 +151,8 @@ async function getTopUserConnectionDuration(period_type=null, period_value) {
 }
 
 function parseDurationToSeconds(durationStr) {
+    if (durationStr == "0") return 0;
+
     const [hms, fractioanl = '0'] = durationStr.split('.');
     const [hours, minutes, seconds] = hms.split(':').map(Number);
     const fractionalSeconds = parseFloat(`0.${fractioanl}`);

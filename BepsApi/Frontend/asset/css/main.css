@@ -288,24 +288,21 @@ body {
     background-color: #c9302c; /* 호버 시 배경색 변경 */
 }
 
-.content{
+.content {
     padding: 0px;
     width: 100%;
-    /* height: 860px; */
-    height: calc(100vh - 70px);
-    overflow-y: auto;
-    overflow-x: auto;
+    height: auto;               /* ✅ 내부 콘텐츠에 따라 유동 */
+    /* min-height: 100vh;          ✅ 화면 꽉 채우기 */
     box-sizing: border-box;
+    overflow: visible;          /* ✅ 이중 스크롤 방지 */
     min-width: 1600px;
-    min-height: 800px;
-    overflow: hidden;
-}
+  }
 
-#content-frame{
+  #content-frame {
     width: 100%;
-    height: 100%;
+    height: auto;               /* ✅ 내부에 따라 조정 */
     border: none;
     display: block;
-    overflow: hidden;
     box-sizing: border-box;
-}
+    /* min-height: 100vh;          너무 작을 때를 방지 */
+  }
