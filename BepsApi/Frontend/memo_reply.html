@@ -205,7 +205,7 @@ td:nth-child(even) {
             <!-- New Reply Form -->
             <table>
                 <tr>
-                    <td class="user-info">{{ currentUser.name + ' ' + currentUser.position + '\n(' + currentUser.id + ')' }}</td>
+                    <td v-html="currentUser.name + ' ' + currentUser.position + '<br>(' + currentUser.id + ')'"></td>
                     <td>
                         <textarea v-model="replyComment" placeholder="답변을 입력하세요"></textarea>
                     </td>
