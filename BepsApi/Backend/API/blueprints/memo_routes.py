@@ -54,12 +54,40 @@ def get_all_memos():
         path = request.args.get('path')
 
         query = MemoData.query
-        if user_id:
-            query = query.filter(MemoData.user_id == user_id)
         if path:
             query = query.filter(MemoData.path == path)
 
-        memos = query.all()
+        # Initialize memos as empty list
+        memos = []
+        
+        # Handle user_id case-insensitive search
+        if user_id:
+            # First try with the exact user_id
+            first_query = query.filter(MemoData.user_id == user_id)
+            memos = first_query.all()
+            
+            # If no results and user_id contains letters, try alternative case
+            if not memos and any(c.isalpha() for c in user_id):
+                import re
+                # Extract letters and numbers
+                match = re.match(r'([a-zA-Z]+)(\d+)', user_id)
+                if match:
+                    letters, numbers = match.groups()
+                    # Try opposite case (upper if lower, lower if upper)
+                    if letters.islower():
+                        alt_user_id = letters.upper() + numbers
+                    else:
+                        alt_user_id = letters.lower() + numbers
+                    
+                    logging.info(f"No results for user_id: {user_id}, trying alternative: {alt_user_id}")
+                    memos = query.filter(MemoData.user_id == alt_user_id).all()
+                    
+                    # At this point, if memos is still empty, we'll return an empty list
+            
+        else:
+            # If no user_id provided, get all memos
+            memos = query.all()
+            
         memos_list = [memo.to_dict() for memo in memos]
         return jsonify(memos_list), 200
     except Exception as e:

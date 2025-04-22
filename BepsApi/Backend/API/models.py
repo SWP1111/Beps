@@ -255,7 +255,7 @@ class MemoData(db.Model):
     id = db.Column(db.String, primary_key=True)
     serial_number = db.Column(db.Integer, nullable=False)
     modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    user_id = db.Column(db.String, nullable=True)
+    user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=True)
     title = db.Column(db.String, nullable=True)
     content = db.Column(db.String, nullable=True)
     path = db.Column(db.String, nullable=True)
@@ -266,6 +266,8 @@ class MemoData(db.Model):
     world_position_z = db.Column(db.Float, nullable=False)  # double in C#
     status = db.Column(db.Integer, nullable=False)  # uint in C#
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
+
+    user = db.relationship('Users', backref=db.backref('memos', lazy=True))
 
     def to_dict(self):
         return {
