@@ -13,6 +13,7 @@ import requests
 from collections import defaultdict
 from sqlalchemy import func
 from services.user_summary_service import get_connection_summary_mixed, get_connection_summary_agg, get_top_user_duration_mixed
+from urllib.parse import unquote
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -292,6 +293,8 @@ def get_connection_duration():
     try:
         filter_type = request.args.get('filter_type', 'all')
         filter_value = request.args.get('filter_value')
+        if filter_value:
+            filter_value = unquote(filter_value)
         logging.debug(f"filter_type: {filter_type}, filter_value: {filter_value}")
         
         if filter_type != 'all' and filter_value is None:
@@ -344,6 +347,7 @@ def get_top_user_duration():
     try:
         period_type = request.args.get('period_type', 'day')
         period_value = request.args.get('period_value')
+        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
@@ -362,7 +366,7 @@ def get_top_user_duration():
             else:
                 return jsonify({'error': 'No data found'}), 404        
             
-        elif period_type in ['quarter', 'half', 'year']:
+        elif period_type in ['quarter', 'half', 'year']:            
             user_duration_map = defaultdict(datetime.timedelta)
             summary_day_rows = db.session.query(
                 loginSummaryAgg.user_id,
@@ -384,6 +388,8 @@ def get_top_user_duration():
                     'user_id': top_user_id,
                     'duration': str(top_duration)
                 }),200
+            else:
+                return jsonify({'error': 'No data found'}), 404
                               
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -2,7 +2,7 @@ import logging
 import log_config
 import datetime
 from extensions import db
-from models import LoginHistory, loginSummaryDay, loginSummaryAgg
+from models import LoginHistory, loginSummaryDay, loginSummaryAgg, Users
 from collections import defaultdict
 from sqlalchemy import func
 
@@ -200,6 +200,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
     used_ranges = []
     
     for period_str, y_start, y_end in get_year_period_value(start_date.year):
+        logging.debug(f"[get_connection_summary_mixed] Yearly summary for {period_str}: {y_start} - {y_end}")
         if start_date <= y_start and end_date >= y_end:
             data = get_connection_summary_agg('year', period_str, scope, filter_value)
             if data['has_data']:
@@ -209,9 +210,11 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 off += data['offhour_duration']
                 internal += data['internal_count']
                 external += data['external_count']
+                logging.debug(f"[get_connection_summary_mixed] Yearly summary data: {data}")
             used_ranges.append((y_start, y_end))
     
     for period_str, h_start, h_end in get_half_period_value(start_date.year):
+        logging.debug(f"[get_connection_summary_mixed] Half yearly summary for {period_str}: {h_start} - {h_end}")
         if start_date <= h_start and end_date >= h_end and not is_range_used(h_start, h_end, used_ranges):
             data = get_connection_summary_agg('half', period_str, scope, filter_value)
             if data['has_data']:
@@ -221,9 +224,11 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 off += data['offhour_duration']
                 internal += data['internal_count']
                 external += data['external_count']
+                logging.debug(f"[get_connection_summary_mixed] Half yearly summary data: {data}")
             used_ranges.append((h_start, h_end))
     
     for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
+        logging.debug(f"[get_connection_summary_mixed] Quarterly summary for {period_str}: {q_start} - {q_end}")
         if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
             data = get_connection_summary_agg('quarter', period_str, scope, filter_value)
             if data['has_data']:
@@ -233,6 +238,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 off += data['offhour_duration']
                 internal += data['internal_count']
                 external += data['external_count']
+                logging.debug(f"[get_connection_summary_mixed] Quarterly summary data: {data}")
             used_ranges.append((q_start, q_end))
     
     used_ranges.sort(key=lambda x: x[0])
@@ -253,6 +259,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 off += data['offhour_duration']
                 internal += data['internal_count']
                 external += data['external_count']
+                logging.debug(f"[get_connection_summary_mixed] Daily summary data: {data}")
         current = max(current, used_end + datetime.timedelta(days=1))
         logging.debug(f"[get_connection_summary_mixed] current: {current}")
     if current <= end_date:
@@ -264,6 +271,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
             off += data['offhour_duration']
             internal += data['internal_count']
             external += data['external_count']
+            logging.debug(f"[get_connection_summary_mixed] Daily summary data: {data}")
     
     logging.info(f"[get_connection_summary_mixed] Total duration: {total}, Worktime duration: {work}, Offhour duration: {off}, Internal count: {internal}, External count: {external}")
     
@@ -296,7 +304,14 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
         if scope == 'user' and filter_value:
             filters.append(loginSummaryDay.user_id_key == filter_value)
         elif scope == 'department' and filter_value:
-            filters.append(loginSummaryDay.department_key == filter_value)
+            parts = filter_value.split('||', 1)
+            if len(parts) == 2:
+                company_name, department_name = parts
+                filters.append(loginSummaryDay.company_key == company_name)
+                filters.append(loginSummaryDay.department_key == department_name)
+            else:
+                department_name = parts[0]
+                filters.append(loginSummaryDay.department_key == department_name)
         elif scope == 'company' and filter_value:
             filters.append(loginSummaryDay.company_key == filter_value)
         
@@ -314,18 +329,34 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
         local_tz = datetime.datetime.now().astimezone().tzinfo
         utc_start_dt = datetime.datetime.combine(max(start_date, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
         utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)       
+        
+        logging.debug(f"UTC Start: {utc_start_dt}, UTC End: {utc_end_dt}")
+        query = db.session.query(LoginHistory)
+        
+        if scope in ['department', 'company']:
+            query = query.join(Users, LoginHistory.user_id == Users.id)
+        
         filters = [
             LoginHistory.login_time >= utc_start_dt,
             LoginHistory.login_time <= utc_end_dt
         ]
+        
         if scope == 'user' and filter_value:
             filters.append(LoginHistory.user_id == filter_value)
         elif scope == 'department' and filter_value:
-            filters.append(LoginHistory.department == filter_value)
+            parts = filter_value.split('||', 1)
+            if len(parts) == 2:
+                company_name, department_name = parts
+                filters.append(Users.company == company_name)
+                filters.append(Users.department == department_name)
+            else:
+                department_name = parts[0]
+                filters.append(Users.department == department_name)
         elif scope == 'company' and filter_value:
-            filters.append(LoginHistory.company == filter_value)
+            logging.debug(f"[get_connection_summary_day] filter_value: {filter_value}")
+            filters.append(Users.company == filter_value)
         
-        datas = LoginHistory.query.filter(*filters).all()
+        datas = query.filter(*filters).all()
         if datas:
             has_data = True
             for record in datas:
@@ -360,6 +391,8 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
     }
     
 def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):
+    logging.debug(f"[get_connection_summary_agg] period_type: {period_type}, period_value: {period_value}, scope: {scope}, filter_value: {filter_value}")
+    
     total = datetime.timedelta(0)
     work = datetime.timedelta(0)
     off = datetime.timedelta(0)
@@ -375,7 +408,14 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
     if scope == 'user' and filter_value:
         filters.append(loginSummaryAgg.user_id_key == filter_value)
     elif scope == 'department' and filter_value:
-        filters.append(loginSummaryAgg.department_key == filter_value)
+        parts = filter_value.split('||', 1)
+        if len(parts) == 2:
+            company_name, department_name = parts
+            filters.append(loginSummaryAgg.company_key == company_name)
+            filters.append(loginSummaryAgg.department_key == department_name)
+        else:
+            department_name = parts[0]
+            filters.append(loginSummaryAgg.department_key == department_name)
     elif scope == 'company' and filter_value:
         filters.append(loginSummaryAgg.company_key == filter_value)
     

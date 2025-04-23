@@ -12,8 +12,11 @@
         <link rel="stylesheet" href="asset/css/progress_admin_search.css">
         <link rel="stylesheet" href="asset/css/progress_admin_active_user.css">
         <link rel="stylesheet" href="asset/css/progress_admin.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
         <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
         <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
         <script src="asset/js/config.js"></script>
         <script type="module" src="asset/js/progress_admin.js"></script>
     </head>
@@ -54,6 +57,83 @@
             </div>
 
         </div>
+
+        <div class="main-area">
+            <div class="header-area">
+                <span class="selected-period" id="selected-period">전체 (2025년) </span>
+
+                <div class="period-area">
+
+                    <div class="dropdown">
+                        <button tabindex="0" class="dropdown-button" id="year">
+                            <span id="year-label">년도</span>                 
+                            <svg class="icon" width="13" height="13" viewBox="0 0 26 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M0 8.73087L3.06475 5.66504L13.0043 15.7823L22.9353 5.66504L26 8.73087L13.0043 21.915L0 8.73087Z" fill="#3A3541"/>
+                            </svg>
+                        </button>
+                        <div tabindex="0" class="dropdown-list" id="year-list">
+                        </div>
+                    </div>
+    
+                    <button tabindex="0" class="year-button" id="year-button" > 연간 </button>
+    
+                    <div class="dropdown">
+                        <button tabindex="0" class="dropdown-button" id="half-year">
+                            <span id="half-year-label">반기</span>
+                            <svg class="icon" width="13" height="13" viewBox="0 0 26 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M0 8.73087L3.06475 5.66504L13.0043 15.7823L22.9353 5.66504L26 8.73087L13.0043 21.915L0 8.73087Z" fill="#3A3541"/>
+                            </svg>
+                        </button>
+                        <div tabindex="0" class="dropdown-list" id="half-year-list">
+                        <div><button class="dropdown-item">상반기</button></div>
+                        <div><button class="dropdown-item">하반기</button></div>
+                        </div>
+                    </div>
+    
+                    <div class="dropdown">
+                        <button tabindex="0" class="dropdown-button" id="quarter">
+                            <span id="quarter-label">분기</span> 
+                            <svg class="icon" width="13" height="13" viewBox="0 0 26 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M0 8.73087L3.06475 5.66504L13.0043 15.7823L22.9353 5.66504L26 8.73087L13.0043 21.915L0 8.73087Z" fill="#3A3541"/>
+                            </svg>
+                        </button>
+                        <div tabindex="0" class="dropdown-list" id="quarter-list">
+                            <div><button class="dropdown-item">1분기</button></div>
+                            <div><button class="dropdown-item">2분기</button></div>
+                            <div><button class="dropdown-item">3분기</button></div>
+                            <div><button class="dropdown-item">4분기</button></div>
+                        </div>
+                    </div>
+    
+                    <div class="datepicker">
+                        <input type="text" class="start-date" id="start-date">
+                        <span>~</span>
+                        <input type="text" class="end-date" id="end-date">
+                    </div>
+    
+                    <button class="apply-button" id="apply-button">적용</button>
+    
+                </div>
+            </div>
+            
+
+            <div class="chart-area">
+
+                <div class="login-time">
+                    <span class="total-login-time" id="total-login-time">접속 시간</span>
+                    <span class="worktime-duration" id="worktime-duration">근무 시간 내</span>
+                    <span class="offhour-duration" id="offhour-duration">근무 시간 외</span> 
+                    <span></span> 
+                    <span class="total-login-count" id="total-login-count">총 접속 횟수</span>
+                    <span class="internal-count" id="internal-count">내부 접속 횟수</span>
+                    <span class="external-count" id="external-count">외부 접속 횟수</span> 
+                </div>
+                
+            </div>
+
+        </div>
+
+        
 
     </body>
 

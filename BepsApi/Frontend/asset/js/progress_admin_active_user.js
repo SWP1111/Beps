@@ -1,6 +1,8 @@
 import { attachCustomScrollbar } from "./custom_vscroll.js";
 import { updateTrafficGaugeValue } from "./progress_admin_traffic.js";
 
+let currentUserMap = new Map();
+
 export async function activeUser(period_type, period_value)
 {
     const wrapper = document.querySelector(".listbox-container");
@@ -13,7 +15,6 @@ export async function activeUser(period_type, period_value)
     const {refresh} = attachCustomScrollbar(container, scrollbar, thumb);
     const user_count = document.getElementById("active-user-count");
 
-    let currentUserMap = new Map();
     let allTotalDuration = null;
     let pendingUsers = [];        // 나중에 처리할 사용자들
 
@@ -57,8 +58,8 @@ export async function activeUser(period_type, period_value)
                 .filter(user => !currentUserMap.has(user.user_id))
                 .map(async user => {
                 const info = await getUserInfo(user);
-                const userDurationStr = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
-
+                const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
+                const userDurationStr = userDuration.total_duration;
                 return { user, info, userDurationStr};
             }));
 
@@ -117,7 +118,7 @@ async function getUserInfo(user) {
     }
 }
 
-async function getUserConnectionDuration(period_type=null, period_value, filter_type=null, filter_value=null) {
+export async function getUserConnectionDuration(period_type=null, period_value, filter_type=null, filter_value=null) {
     let url = `${window.baseUrl}user/get_connection_duration?period_value=${period_value}`;
 
     if(period_type != null)
@@ -125,13 +126,19 @@ async function getUserConnectionDuration(period_type=null, period_value, filter_
     if(filter_type != null)
         url += `&filter_type=${filter_type}`;
     if(filter_value != null)
-        url += `&filter_value=${filter_value}`;
+        url += `&filter_value=${encodeURIComponent(filter_value)}`;
 
     const response = await fetch(url);
     const getdurationInfo = await response.json();
     if(response.ok)
     {
-        return getdurationInfo.total_duration;
+        return {
+            total_duration: getdurationInfo.total_duration,
+            worktime_duration: getdurationInfo.worktime_duration,
+            offhour_duration: getdurationInfo.offhour_duration,
+            internal_count: getdurationInfo.internal_count,
+            external_count: getdurationInfo.external_count,
+        };
     }
     return 0;
 }

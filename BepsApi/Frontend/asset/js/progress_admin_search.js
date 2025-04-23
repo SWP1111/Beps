@@ -1,4 +1,12 @@
 import { attachCustomScrollbar } from "./custom_vscroll.js";
+
+export const SELECTION_TYPE = {
+  ALL: 'ALL',               // 전체
+  COMPANY: 'COMPANY',       // 회사
+  DEPARTMENT: 'DEPARTMENT', // 부서
+  USER: 'USER'              // 직원
+};
+
 let data = {
     '삼안': {
       '기획팀': [
@@ -61,7 +69,18 @@ let data = {
       '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
           {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
     },
+    'TEST': {
+     '기술개발센터': [{id: 'b0024',name: '최유리', position: '대리', progress: 0.55},],
+     '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
+          {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
+    },
   };
+
+let onSelectCallback = null;
+
+export function setOnSelectCallback(callback) {
+    onSelectCallback = callback;
+}
 
 export function setData(newData) {
     data = newData;
@@ -196,6 +215,15 @@ export async function setupUI(container) {
       const allBtn = document.createElement('button');
       allBtn.innerText = '전체';
       allBtn.classList.add('selected');
+      if(onSelectCallback){
+        onSelectCallback({
+          type: SELECTION_TYPE.ALL,
+          company: null,
+          department: null,
+          userId: null,
+          userName: null
+        });
+      };
       allBtn.onclick = () => renderCompanyList();
       container.appendChild(allBtn);
 
@@ -225,6 +253,15 @@ export async function setupUI(container) {
         const companyBtn = document.createElement('button');
         companyBtn.innerText = selectedCompany;
         companyBtn.classList.add('selected');
+        if(onSelectCallback){
+          onSelectCallback({
+            type: SELECTION_TYPE.COMPANY,
+            company: selectedCompany,
+            department: null,
+            userId: null,
+            userName: null
+          });
+        };
         companyBtn.onclick = () => renderTeamList();
         container.appendChild(companyBtn);
 
@@ -238,6 +275,15 @@ export async function setupUI(container) {
           };
           if (team === selectedTeam) {
             btn.classList.add('selected');
+            if(onSelectCallback){
+              onSelectCallback({
+                type: SELECTION_TYPE.DEPARTMENT,
+                company: selectedCompany,
+                department: selectedTeam,
+                userId: null,
+                userName: null
+              });
+            };
           }
           container.appendChild(btn);
         });
@@ -269,6 +315,15 @@ export async function setupUI(container) {
       const teamBtn = document.createElement('button');
       teamBtn.innerText = selectedTeam;
       teamBtn.classList.add('selected');
+      if(onSelectCallback && selectedUserId == null){
+        onSelectCallback({
+          type: SELECTION_TYPE.DEPARTMENT,
+          company: selectedCompany,
+          department: selectedTeam,
+          userId: null,
+          userName: null
+        });
+      };
       teamBtn.onclick = () => 
       {
         selectedUserId = null;
@@ -297,6 +352,14 @@ export async function setupUI(container) {
         {
             teamBtn.classList.add('dimmed');
             btn.classList.add('selected');
+            if(onSelectCallback){
+              onSelectCallback({
+                type: SELECTION_TYPE.USER,
+                company: selectedCompany,
+                department: selectedTeam,
+                user: {userId: user.id, userName: user.name, position: user.position},
+              });
+            };
         }
         btn.onclick = () => {
             selectedUserId = user.id;
@@ -326,3 +389,4 @@ export async function setupUI(container) {
 
       renderCompanyList();
 }
+

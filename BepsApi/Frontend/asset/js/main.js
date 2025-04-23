@@ -81,7 +81,10 @@ function loadContent(page) {
         fetch(page)
         .then(response => response.text())
         .then(data => {
-            document.getElementById("content-frame").src = page;
+            //document.getElementById("content-frame").src = page;
+            const iframe = document.getElementById("content-frame");
+            iframe.style.height = window.innerHeight + 'px';
+            iframe.src = page;
             console.log("page: ", page);
         })
         .catch(error => {
