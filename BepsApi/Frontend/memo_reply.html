@@ -176,7 +176,7 @@ td:nth-child(even) {
             <tr>
                 <td>바로가기</td>
                 <td colspan="5">
-                    <a v-if="memo.path" :href="memo.path" target="_blank">[바로가기]</a>
+                    <button v-if="memo.path" @click="handleGoToClick" style="cursor: pointer; background-color: #2196F3; color: white;">[바로가기]</button>
                 </td>
             </tr>
         </table>
@@ -350,6 +350,35 @@ td:nth-child(even) {
                         // Add the new reply to the list
                         replyComment.value = '';
                         fetchReplies(memo.value.id);
+                        
+                        // Send message to local window process
+                        try {
+                            if (window.chrome && window.chrome.webview) {
+                                // For WebView2
+                                window.chrome.webview.postMessage({
+                                    action: 'replySaved',
+                                    memo_id: memo.value.id,
+                                    reply_data: data
+                                });
+                            } else if (window.external && typeof window.external.notify === "function") {
+                                // For older WebBrowser control
+                                window.external.notify(JSON.stringify({
+                                    action: 'replySaved',
+                                    memo_id: memo.value.id,
+                                    reply_data: data
+                                }));
+                            } else if (window.external && window.external.postMessage) {
+                                // Alternative approach
+                                window.external.postMessage(JSON.stringify({
+                                    action: 'replySaved',
+                                    memo_id: memo.value.id,
+                                    reply_data: data
+                                }));
+                            }
+                            console.log('Message sent to host application');
+                        } catch (err) {
+                            console.error('Failed to send message to host application:', err);
+                        }
                     })
                     .catch(error => {
                         console.error("Error saving reply:", error);
@@ -430,7 +459,100 @@ td:nth-child(even) {
                 };
 
                 const cancelReply = () => {
+                    // Send message to local window process before closing
+                    try {
+                        if (window.chrome && window.chrome.webview) {
+                            // For WebView2
+                            window.chrome.webview.postMessage({
+                                action: 'replyCancelled',
+                                memo_id: memo.value.id
+                            });
+                        } else if (window.external && typeof window.external.notify === "function") {
+                            // For older WebBrowser control
+                            window.external.notify(JSON.stringify({
+                                action: 'replyCancelled',
+                                memo_id: memo.value.id
+                            }));
+                        } else if (window.external && window.external.postMessage) {
+                            // Alternative approach
+                            window.external.postMessage(JSON.stringify({
+                                action: 'replyCancelled',
+                                memo_id: memo.value.id
+                            }));
+                        }
+                        console.log('Cancel message sent to host application');
+                    } catch (err) {
+                        console.error('Failed to send cancel message to host application:', err);
+                    }
+                    
                     window.close();
+                };
+
+                const handleGoToClick = () => {
+                    // Try to communicate with BEPsApp
+                    let isAppRunning = false;
+                    
+                    try {
+                        // Check if we can communicate with the app
+                        if (window.chrome && window.chrome.webview) {
+                            // For WebView2
+                            window.chrome.webview.postMessage({
+                                action: 'checkAppRunning',
+                                appName: 'BEPsApp'
+                            });
+                            isAppRunning = true;
+                        } else if (window.external && typeof window.external.notify === "function") {
+                            // For older WebBrowser control
+                            window.external.notify(JSON.stringify({
+                                action: 'checkAppRunning',
+                                appName: 'BEPsApp'
+                            }));
+                            isAppRunning = true;
+                        } else if (window.external && window.external.postMessage) {
+                            // Alternative approach
+                            window.external.postMessage(JSON.stringify({
+                                action: 'checkAppRunning',
+                                appName: 'BEPsApp'
+                            }));
+                            isAppRunning = true;
+                        } else {
+                            // No communication method available
+                            isAppRunning = false;
+                        }
+                        
+                        // If we get here, we should be able to communicate with the host app
+                        // Now send the navigation request
+                        if (isAppRunning) {
+                            // Send message to navigate to the path
+                            if (window.chrome && window.chrome.webview) {
+                                window.chrome.webview.postMessage({
+                                    action: 'navigateTo',
+                                    path: memo.value.path
+                                });
+                            } else if (window.external && typeof window.external.notify === "function") {
+                                window.external.notify(JSON.stringify({
+                                    action: 'navigateTo',
+                                    path: memo.value.path
+                                }));
+                            } else if (window.external && window.external.postMessage) {
+                                window.external.postMessage(JSON.stringify({
+                                    action: 'navigateTo',
+                                    path: memo.value.path
+                                }));
+                            }
+                            console.log('Navigation message sent to BEPsApp');
+                        } else {
+                            // App is not running
+                            showAppNotRunningMessage();
+                        }
+                    } catch (err) {
+                        console.error('Failed to communicate with BEPsApp:', err);
+                        showAppNotRunningMessage();
+                    }
+                };
+
+                const showAppNotRunningMessage = () => {
+                    alert("BEPs가 실행중이 아닙니다. BEPs를 실행한 후 다시 시도하세요.");
                 };
 
                 onMounted(() => {
@@ -448,7 +570,8 @@ td:nth-child(even) {
                     startEditing,
                     cancelEditing,
                     saveEditing,
-                    deleteReply
+                    deleteReply,
+                    handleGoToClick
                 };
             }
         }).mount("#app");
