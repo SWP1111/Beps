@@ -11,9 +11,10 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import requests
 from collections import defaultdict
-from sqlalchemy import func
-from services.user_summary_service import get_connection_summary_mixed, get_connection_summary_agg, get_top_user_duration_mixed
 from urllib.parse import unquote
+from sqlalchemy import func
+import services.user_summary_service as summary_service
+import traceback
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -295,7 +296,7 @@ def get_connection_duration():
         filter_value = request.args.get('filter_value')
         if filter_value:
             filter_value = unquote(filter_value)
-        logging.debug(f"filter_type: {filter_type}, filter_value: {filter_value}")
+        logging.debug(f"[get_connection_duration]filter_type: {filter_type}, filter_value: {filter_value}")
         
         if filter_type != 'all' and filter_value is None:
             return jsonify({'error': 'Please provide filter_value'}), 400
@@ -309,7 +310,7 @@ def get_connection_duration():
         
         if(period_type == 'day'):
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
-            data = get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
+            data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
                                 
             if data['has_data']:
                 return jsonify({
@@ -322,7 +323,7 @@ def get_connection_duration():
             else:    
                 return jsonify({'error': 'No data available for given parameters'}), 404     
         elif(period_type in ['quarter', 'half', 'year']):
-            data = get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
+            data = summary_service.get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
             
             if data['has_data']:
                 return jsonify({
@@ -333,7 +334,19 @@ def get_connection_duration():
                     'external_count': data['external_count']
                 })
             else:
-                return jsonify({'error': 'No data available for given parameters'}), 404
+                start_date,end_date = summary_service.get_period_value(period_type, period_value)                     
+                data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
+                               
+                if data['has_data']:
+                    return jsonify({
+                        'total_duration': str(data['total_duration']),
+                        'worktime_duration': str(data['worktime_duration']),
+                        'offhour_duration': str(data['offhour_duration']),
+                        'internal_count': data['internal_count'],
+                        'external_count': data['external_count']
+                    })
+                else:    
+                    return jsonify({'error': 'No data available for given parameters'}), 404 
         
         return jsonify({'error': f"Invalid period_type. Allowed values are: day, quarter, half, year."}), 400
              
@@ -354,45 +367,208 @@ def get_top_user_duration():
         
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
-            user_duration_map = defaultdict(datetime.timedelta)
-            data = get_top_user_duration_mixed(start_date, end_date)
+            data = summary_service.get_top_user_duration_mixed(start_date, end_date)
             logging.info(f"get_top_user_duration_mixed: {data}")
             
             if data['has_data']:
                 return jsonify({
-                    'user_id': data['user_id'],
-                    'duration': str(data['duration'])
+                    'data': data
                 }),200
             else:
                 return jsonify({'error': 'No data found'}), 404        
             
         elif period_type in ['quarter', 'half', 'year']:            
-            user_duration_map = defaultdict(datetime.timedelta)
-            summary_day_rows = db.session.query(
-                loginSummaryAgg.user_id,
-                func.sum(loginSummaryAgg.total_duration).label('total')
-            ).filter(
-                loginSummaryAgg.period_type == period_type,
-                loginSummaryAgg.period_value == period_value,
-                loginSummaryAgg.scope == 'user'
-            ).group_by(loginSummaryAgg.user_id).all()
+            user_duration_map = {}
+            
+            all_user = db.session.query(Users.id, Users.name).all()
+            for user in all_user:
+                user_duration_map[user.id.lower()] = (user.name, datetime.timedelta(0))
+                
+            summary_day_rows = summary_service.get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type = period_type,
+                period_value = period_value,
+                scope = 'user',
+                group_fields=[loginSummaryAgg.user_id, Users.name]
+            )
            
-            for record in summary_day_rows:
-               if record.user_id:
-                   user_duration_map[record.user_id] += record.total or datetime.timedelta()
-                   
-            if (len(user_duration_map) > 0):
-                top_user_id, top_duration =  max(user_duration_map.items(), key=lambda x: x[1])
-                logging.info(f"Agg Top user: {top_user_id}, Duration: {top_duration}")
+            if summary_day_rows:
+                for record in summary_day_rows:
+                    if record.user_id:
+                        prev = user_duration_map.get(record.user_id.lower())
+                        duration = record.total or datetime.timedelta(0)
+                        if prev:
+                            user_duration_map[record.user_id.lower()] = (record.name, prev[1] + duration)
+                        else:
+                            user_duration_map[record.user_id.lower()] = (record.name, duration)
+                            
+                if (len(user_duration_map) > 0):
+                    sorted_user = sorted(user_duration_map.items(), key=lambda x: x[1][1], reverse=True)
+                    sorted_users_by_low = sorted(user_duration_map.items(), key=lambda x: x[1][1])
+                    return jsonify({
+                        'data': {
+                            'top': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_user[:3]],
+                            'bottom': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users_by_low[:3]],
+                        }
+                    }),200
+                else:
+                    return jsonify({'error': 'No data found'}), 404
+            
+            else:
+                start_date,end_date = summary_service.get_period_value(period_type, period_value) 
+                data = summary_service.get_top_user_duration_mixed(start_date, end_date)
+                logging.info(f"get_top_user_duration_mixed: {data}")
+                
+                if data['has_data']:
+                    return jsonify({
+                        'data': data
+                    }),200
+                else:
+                    return jsonify({'error': 'No data found'}), 404 
+                                    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/get_top_department_duration', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_top_department_duration():
+    try:
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
+        
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        if period_type == 'day':
+            start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
+            data = summary_service.get_top_department_duration_mixed(start_date, end_date)
+            logging.info(f"get_top_department_duration_mixed: {data}")
+            
+            if data['has_data']:
                 return jsonify({
-                    'user_id': top_user_id,
-                    'duration': str(top_duration)
+                    'data': data
                 }),200
             else:
                 return jsonify({'error': 'No data found'}), 404
-                              
+        elif period_type in ['quarter', 'half', 'year']:
+            dept_duration_map = {}
+            
+            all_dept = db.session.query(Users.company, Users.department).all()
+            for company, department in all_dept:
+                dept_duration_map[(company, department)] = datetime.timedelta(0)
+                
+            summary_rows = summary_service.get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type = period_type,
+                period_value = period_value,
+                scope = 'department',
+                group_fields=[loginSummaryAgg.company, loginSummaryAgg.department],
+                join_users=False
+            )
+            
+            if summary_rows:
+                for row in summary_rows:
+                    logging.debug(f"Row: {row}")
+                    key = (row.company, row.department)
+                    if dept_duration_map.get(key):
+                        dept_duration_map[key] += row.total or datetime.timedelta(0)
+                    else:
+                        dept_duration_map[key] = row.total or datetime.timedelta(0)
+                
+                if(len(dept_duration_map) > 0):
+                    sorted_dept = sorted(dept_duration_map.items(), key=lambda x: x[1], reverse=True)
+                    sorted_dept_by_low = sorted(dept_duration_map.items(), key=lambda x: x[1])
+                    return jsonify({
+                        'data': {
+                            'top': [(company, department, str(duration)) for (company, department), duration in sorted_dept[:3]],
+                            'bottom': [(company, department, str(duration)) for (company, department), duration in sorted_dept_by_low[:3]],
+                        }
+                    }),200
+                else:
+                    return jsonify({'error': 'No data found'}), 404
+            else:
+                start_date,end_date = summary_service.get_period_value(period_type, period_value) 
+                data = summary_service.get_top_department_duration_mixed(start_date, end_date)
+                
+                if data['has_data']:
+                    return jsonify({
+                        'data': data
+                    }),200
+                else:
+                    return jsonify({'error': 'No data found'}), 404
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'[get_top_department_duration] error': str(e)}), 500    
+
+@api_user_bp.route('/get_top_company_duration', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_top_company_duration():
+    try:
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        if period_value == "day":
+            start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
+            data = summary_service.get_top_company_duration_mixed(start_date, end_date)
+            
+            if data['has_data']:
+                return jsonify({
+                    'data': data
+                }),200
+            else:                    
+                return jsonify({'error': 'No data found'}), 404
+        elif period_type in ['quarter', 'half', 'year']:
+            company_duration_map = {}
+            
+            all_company = db.session.query(Users.company).distinct().all()
+            for company in all_company:
+                company_duration_map[company] = datetime.timedelta(0)
+                
+            summary_rows = summary_service.get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type= period_type,
+                period_value= period_value,
+                scope= 'company',
+                group_fields=[loginSummaryAgg.company],
+                join_users=False
+            )
+            
+            if summary_rows:
+                for row in summary_rows:
+                    if company_duration_map.get(row.company):
+                        company_duration_map[row.company] += row.total or datetime.timedelta(0)
+                    else:
+                        company_duration_map[row.company] = row.total or datetime.timedelta(0)
+
+                if(len(company_duration_map) > 0):
+                    sorted_company = sorted(company_duration_map.items(), key=lambda x: x[1], reverse=True)
+                    sorted_company_by_low = sorted(company_duration_map.items(), key=lambda x: x[1])
+                    return jsonify({
+                        'data': {
+                            'top': [(company, str(duration)) for company, duration in sorted_company[:3]],
+                            'bottom': [(company, str(duration)) for company, duration in sorted_company_by_low[:3]],
+                        }
+                    }),200
+                else:                    
+                    return jsonify({'error': 'No data found'}), 404
+            else:
+                start_date,end_date = summary_service.get_period_value(period_type, period_value) 
+                data = summary_service.get_top_company_duration_mixed(start_date, end_date)
+                
+                if data['has_data']:
+                    return jsonify({
+                        'data': data
+                    }),200
+                else:                    
+                    return jsonify({'error': 'No data found'}), 404
+            
+    except Exception as e:
+        logging.error(f"[get_top_company_duration] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[get_top_company_duration] error': str(e)}), 500
 
 
 @api_user_bp.route('/ip_location', methods=['GET'])

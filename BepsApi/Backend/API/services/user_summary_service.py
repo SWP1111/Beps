@@ -35,59 +35,117 @@ def is_range_used(start, end, used_ranges):
             return True
     return False
 
+def get_period_value(period_type: str, period_value: str):
+    """
+    주어진 기간 유형과 값에 따라 시작일과 종료일을 반환합니다.
+    period_type: 'year', 'half', 'quarter'
+    period_value:
+        - year: '2025'
+        - half: '20251', '20252'
+        - quarter: '20251', '20252', '20253', '20254'
+    """
+    if period_type == 'year':
+        year = int(period_value)
+        return datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+
+    elif period_type == 'half':
+        year = int(period_value[:4])
+        half = int(period_value[4:])
+        if half == 1:
+            return datetime.date(year, 1, 1), datetime.date(year, 6, 30)
+        elif half == 2:
+            return datetime.date(year, 7, 1), datetime.date(year, 12, 31)
+        else:
+            raise ValueError(f"Invalid half value: {period_value}")
+
+    elif period_type == 'quarter':
+        year = int(period_value[:4])
+        quarter = int(period_value[4:])
+        if quarter == 1:
+            return datetime.date(year, 1, 1), datetime.date(year, 3, 31)
+        elif quarter == 2:
+            return datetime.date(year, 4, 1), datetime.date(year, 6, 30)
+        elif quarter == 3:
+            return datetime.date(year, 7, 1), datetime.date(year, 9, 30)
+        elif quarter == 4:
+            return datetime.date(year, 10, 1), datetime.date(year, 12, 31)
+        else:
+            raise ValueError(f"Invalid quarter value: {period_value}")
+
+    else:
+        raise ValueError(f"Invalid period_type: {period_type}")
+
 def get_top_user_duration_mixed(start_date, end_date):
     """주어진 기간 동안의 사용자별 총 로그인 시간 중 제일 높은 시간 정보를 반환합니다."""
-    user_duration_map = defaultdict(datetime.timedelta)
+    user_duration_map = {}
     used_ranges = []
 
+    all_users = db.session.query(Users.id, Users.name).all()
+    for user in all_users:
+        user_duration_map[user.id.lower()] = (user.name, datetime.timedelta(0))
+        
     for period_str, y_start, y_end in get_year_period_value(start_date.year):
         if start_date <= y_start and end_date >= y_end:
-            summary_year_rows = db.session.query(
-                loginSummaryAgg.user_id,
-                func.sum(loginSummaryAgg.total_duration).label('total')
-            ).filter(
-                loginSummaryAgg.period_type == 'year',
-                loginSummaryAgg.period_value == period_str,
-                loginSummaryAgg.scope == 'user',
-            ).group_by(loginSummaryAgg.user_id).all()
+            summary_year_rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='year',
+                period_value=period_str,
+                scope='user',
+                group_fields=[loginSummaryAgg.user_id, Users.name])
+            
+            if summary_year_rows:               
+                used_ranges.append((y_start, y_end))
             for row in summary_year_rows:
                 if row.user_id:
-                    user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
-                    logging.debug(f"[get_top_user_duration_mixed] Yearly summary for user {row.user_id}: {row.total}")
-            used_ranges.append((y_start, y_end))
+                    prev = user_duration_map.get(row.user_id.lower())
+                    duration = row.total or datetime.timedelta(0)
+                    if prev:
+                        user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                    else:
+                        user_duration_map[row.user_id.lower()] = (row.name, duration)                  
+                    logging.debug(f"[get_top_user_duration_mixed] Yearly summary for user {row.user_id}: {row.name} : {row.total}")
             
     for period_str, h_start, h_end in get_half_period_value(start_date.year):
         if start_date <= h_start and end_date >= h_end and not is_range_used(h_start, h_end, used_ranges):
-            summary_half_rows = db.session.query(
-                loginSummaryAgg.user_id,
-                func.sum(loginSummaryAgg.total_duration).label('total')
-            ).filter(
-                loginSummaryAgg.period_type == 'half',
-                loginSummaryAgg.period_value == period_str,
-                loginSummaryAgg.scope == 'user',
-            ).group_by(loginSummaryAgg.user_id).all()
+            summary_half_rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='half',
+                period_value=period_str,
+                scope='user',
+                group_fields=[loginSummaryAgg.user_id, Users.name]
+            )
+            if summary_half_rows:
+                used_ranges.append((h_start, h_end))
             for row in summary_half_rows:
                 if row.user_id:
-                    user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
-                    logging.debug(f"[get_top_user_duration_mixed] Half yearly summary for user {row.user_id}: {row.total}")
-            used_ranges.append((h_start, h_end))
+                    prev = user_duration_map.get(row.user_id.lower())
+                    duration = row.total or datetime.timedelta(0)
+                    if prev:
+                        user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                    else:
+                        user_duration_map[row.user_id.lower()] = (row.name, duration)
+                    logging.debug(f"[get_top_user_duration_mixed] Half yearly summary for user {row.user_id}: {row.name} : {row.total}")
             
     for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
         if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
-            summary_quarter_rows = db.session.query(
-                loginSummaryAgg.user_id,
-                func.sum(loginSummaryAgg.total_duration).label('total')
-            ).filter(
-                loginSummaryAgg.period_type == 'quarter',
-                loginSummaryAgg.period_value == period_str,
-                loginSummaryAgg.scope == 'user',
-            ).group_by(loginSummaryAgg.user_id).all()
+            summary_quarter_rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='quarter',
+                period_value=period_str,
+                scope='user',
+                group_fields=[loginSummaryAgg.user_id, Users.name])
+            if summary_quarter_rows:
+                used_ranges.append((q_start, q_end))               
+                logging.debug(f"[get_top_user_duration_mixed] Used ranges: {(q_start, q_end)}")
             for row in summary_quarter_rows:
                 if row.user_id:
-                    user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
-                    logging.debug(f"[get_top_user_duration_mixed] Quarterly summary for user {row.user_id}: {row.total}")
-            used_ranges.append((q_start, q_end))
-            logging.debug(f"[get_top_user_duration_mixed] Used ranges: {(q_start, q_end)}")
+                    prev = user_duration_map.get(row.user_id.lower())
+                    duration = row.total or datetime.timedelta(0)
+                    if prev:
+                        user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                    else:
+                        user_duration_map[row.user_id.lower()] = (row.name, duration)
+                    logging.debug(f"[get_top_user_duration_mixed] Quarterly summary for user {row.user_id}: {row.name} : {row.total}")
     
     used_ranges.sort(key=lambda x: x[0])
     if used_ranges:
@@ -102,18 +160,23 @@ def get_top_user_duration_mixed(start_date, end_date):
             
             if current < (datetime.date.today() - datetime.timedelta(days=1)):     
                 try:
-                    summary_day_rows = db.session.query(
-                        loginSummaryDay.user_id_key,
-                        func.sum(loginSummaryDay.total_duration).label('total')
-                    ).filter(
-                        loginSummaryDay.period_value >= current,
-                        loginSummaryDay.period_value <= min(used_start - datetime.timedelta(days=1), datetime.date.today() - datetime.timedelta(days=2)),
-                        loginSummaryDay.scope == 'user'
-                    ).group_by(loginSummaryDay.user_id_key).all()
+                    summary_day_rows = get_summary_rows_day(
+                        loginSummaryDay,
+                        start_date=current,
+                        end_date=min(used_start - datetime.timedelta(days=1), datetime.date.today() - datetime.timedelta(days=2)),
+                        scope='user',
+                        group_fields=[loginSummaryDay.user_id_key, Users.name]
+                    )                 
                     
                     for row in summary_day_rows:
                         if row.user_id:
-                            user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
+                            prev = user_duration_map.get(row.user_id.lower())
+                            duration = row.total or datetime.timedelta(0)
+                            if prev:
+                                user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                            else:
+                                user_duration_map[row.user_id.lower()] = (row.name, duration)
+                            logging.debug(f"[get_top_user_duration_mixed] Daily summary for user {row.user_id}: {row.name} : {row.total}")
                 except Exception as e:
                     logging.error(f"Error in summary_day_rows query: {e}")
                     return {
@@ -126,60 +189,72 @@ def get_top_user_duration_mixed(start_date, end_date):
                 local_tz = datetime.datetime.now().astimezone().tzinfo
                 utc_start_dt = datetime.datetime.combine(current, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
                 utc_end_dt = datetime.datetime.combine(used_start - datetime.timedelta(days=1), datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-                login_history_rows = db.session.query(
-                    LoginHistory.user_id,
-                    func.sum(LoginHistory.session_duration).label('total')
-                ).filter(
-                    LoginHistory.login_time >= utc_start_dt,
-                    LoginHistory.login_time <= utc_end_dt
-                ).group_by(LoginHistory.user_id).all()
+                login_history_rows = get_summary_rows_history(
+                    LoginHistory,
+                    start_date=utc_start_dt,
+                    end_date=utc_end_dt,
+                    group_fields=[LoginHistory.user_id, Users.name]
+                )                
                 for row in login_history_rows:
                     if row.user_id:
-                        user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
+                        prev = user_duration_map.get(row.user_id.lower())
+                        duration = row.total or datetime.timedelta(0)
+                        if prev:
+                            user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                        else:
+                            user_duration_map[row.user_id.lower()] = (row.name, duration)
+                        logging.debug(f"[get_top_user_duration_mixed] LoginHistory for user {row.user_id}: {row.name} : {row.total}")
         current = max(current, used_end + datetime.timedelta(days=1))
         logging.debug(f"[get_top_user_duration_mixed] current: {current}")
                    
     if current <= end_date:
         if current < (datetime.date.today() - datetime.timedelta(days=1)):
             logging.debug(f"[get_top_user_duration_mixed] current {current} end_date { min(end_date, datetime.date.today() - datetime.timedelta(days=2))}")
-            summary_day_rows = db.session.query(
-                loginSummaryDay.user_id_key,
-                func.sum(loginSummaryDay.total_duration).label('total')
-            ).filter(
-                loginSummaryDay.period_value >= current,
-                loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                loginSummaryDay.scope == 'user'
-            ).group_by(loginSummaryDay.user_id_key).all()
+            summary_day_rows = get_summary_rows_day(
+                loginSummaryDay,
+                start_date=current,
+                end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
+                scope='user',
+                group_fields=[loginSummaryDay.user_id_key, Users.name]
+            )          
             for row in summary_day_rows:
                 if row.user_id_key:
-                    user_duration_map[row.user_id_key] += row.total or datetime.timedelta(0)
-                    logging.debug(f"[get_top_user_duration_mixed] Daily summary for user {row.user_id_key}: {row.total}")
-            current = max(current, end_date)
+                    prev = user_duration_map.get(row.user_id_key.lower())
+                    duration = row.total or datetime.timedelta(0)
+                    if prev:
+                        user_duration_map[row.user_id_key.lower()] = (row.name, prev[1]+ duration)
+                    else:
+                        user_duration_map[row.user_id_key.lower()] = (row.name, duration)
+                    logging.debug(f"[get_top_user_duration_mixed] Daily summary for user {row.user_id_key}: {row.name} : {row.total}")
         if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
             local_tz = datetime.datetime.now().astimezone().tzinfo
             utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
             utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
             logging.debug(f"[get_top_user_duration_mixed] Current: {current}, End date: {end_date}")
             logging.debug(f"[get_top_user_duration_mixed] UTC Start: {utc_start_dt}, UTC End: {utc_end_dt}")
-            login_history_rows = db.session.query(
-                LoginHistory.user_id,
-                func.sum(LoginHistory.session_duration).label('total')
-            ).filter(
-                LoginHistory.login_time >= utc_start_dt,
-                LoginHistory.login_time <= utc_end_dt
-            ).group_by(LoginHistory.user_id).all()
+            login_history_rows = get_summary_rows_history(
+                LoginHistory,
+                start_date=utc_start_dt,
+                end_date=utc_end_dt,
+                group_fields=[LoginHistory.user_id, Users.name]
+            )         
             for row in login_history_rows:
                 if row.user_id:
-                    user_duration_map[row.user_id] += row.total or datetime.timedelta(0)
-                    logging.debug(f"[get_top_user_duration_mixed] LoginHistory for user {row.user_id}: {row.total}")
+                    prev = user_duration_map.get(row.user_id.lower())
+                    duration = row.total or datetime.timedelta(0)
+                    if prev:
+                        user_duration_map[row.user_id.lower()] = (row.name, prev[1]+ duration)
+                    else:
+                        user_duration_map[row.user_id.lower()] = (row.name, duration)
+                    logging.debug(f"[get_top_user_duration_mixed] LoginHistory for user {row.user_id}: {row.name} : {row.total}")
     
     if user_duration_map:
-        top_user_id, top_duration = max(user_duration_map.items(), key=lambda x: x[1])   
-        logging.info(f"[get_top_user_duration_mixed] Top user: {top_user_id}, Duration: {top_duration}")    
+        sorted_users = sorted(user_duration_map.items(), key=lambda x: x[1][1], reverse=True)
+        sorted_users_by_low = sorted(user_duration_map.items(), key=lambda x: x[1][1])
         return {
             'has_data': True,
-            'user_id': top_user_id,
-            'duration': top_duration
+            'top':  [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users[:3]],
+            'bottom': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users_by_low[:3]],
         }
     else:
         return {
@@ -187,8 +262,337 @@ def get_top_user_duration_mixed(start_date, end_date):
             'user_id': None,
             'duration': datetime.timedelta(0)
         }
+
+def get_top_department_duration_mixed(start_date, end_date):
+    dept_duration_map = {}
+    used_ranges = []
     
-           
+    all_departments = db.session.query(Users.company, Users.department).distinct().all()
+    for company, department in all_departments:
+        dept_duration_map[(company, department)] = datetime.timedelta(0)
+        
+    for period_str, y_start, y_end in get_year_period_value(start_date.year):
+        if start_date <= y_start and end_date >= y_end:
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='year',
+                period_value=period_str,
+                scope='department',
+                group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((y_start, y_end))
+            for row in rows:
+                key = (row.company_key, row.department_key)
+                if dept_duration_map.get(key) is None:
+                    dept_duration_map[key] = datetime.timedelta(0)
+                else:
+                    dept_duration_map[key] += row.total or datetime.timedelta(0)
+            
+    for period_str, h_start, h_end in get_half_period_value(start_date.year):
+        if start_date <= h_start and end_date >= h_end and not is_range_used(h_start, h_end, used_ranges):
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='half',
+                period_value=period_str,
+                scope='department',
+                group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((h_start, h_end))
+            for row in rows:
+                key = (row.company_key, row.department_key)
+                if dept_duration_map.get(key) is None:
+                    dept_duration_map[key] = datetime.timedelta(0)
+                else:
+                    dept_duration_map[key] += row.total or datetime.timedelta(0)
+            
+    for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
+        if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
+            logging.debug(f"[get_top_department_duration_mixed] Quarterly summary for {period_str}: {q_start} - {q_end}")
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='quarter',
+                period_value=period_str,
+                scope='department',
+                group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((q_start, q_end))
+            for row in rows:
+                key = (row.company_key, row.department_key)
+                if dept_duration_map.get(key) is None:
+                    dept_duration_map[key] = datetime.timedelta(0)
+                else:
+                    dept_duration_map[key] += row.total or datetime.timedelta(0)
+                logging.debug(f"[get_top_department_duration_mixed] Quarterly summary for {row.company_key}: {row.department_key} : {row.total}")
+            
+    used_ranges.sort(key=lambda x: x[0])
+    if used_ranges:
+        current = min(start_date, used_ranges[0][0])
+    else:
+        current = start_date
+    
+    for used_start, used_end in used_ranges:
+        logging.debug(f"[get_top_department_duration_mixed] used_start: {used_start}, current: {current}, end: {used_end}")
+        if current < used_start:
+            if current < (datetime.date.today() - datetime.timedelta(days=1)):
+                try:
+                    rows = get_summary_rows_day(
+                        loginSummaryDay,
+                        start_date=current,
+                        end_date=min(used_start - datetime.timedelta(days=1), datetime.date.today() - datetime.timedelta(days=2)),
+                        scope='department',
+                        group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key],
+                        join_users=False
+                    )
+                    for row in rows:
+                        key = (row.company_key, row.department_key)
+                        dept_duration_map[key] += row.total or datetime.timedelta(0)
+                except Exception as e:
+                    logging.error(f"Error in summary_day_rows query: {e}")
+                    return {
+                        'has_data': False,
+                        'company': None,
+                        'department': None,
+                        'duration': datetime.timedelta(0)
+                    }
+                        
+            if used_start - datetime.timedelta(days=1) in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+                local_tz = datetime.datetime.now().astimezone().tzinfo
+                utc_start_dt = datetime.datetime.combine(current, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+                utc_end_dt = datetime.datetime.combine(used_start - datetime.timedelta(days=1), datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+                rows = get_summary_rows_history(
+                    LoginHistory,
+                    start_date=utc_start_dt,
+                    end_date=utc_end_dt,
+                    group_fields=[Users.company, Users.department],
+                )
+                for row in rows:
+                    key = (row.company, row.department)
+                    if dept_duration_map.get(key) is None:
+                        dept_duration_map[key] = datetime.timedelta(0)
+                    else:
+                        dept_duration_map[key] += row.total or datetime.timedelta(0)
+        current = max(current, used_end + datetime.timedelta(days=1))
+        logging.debug(f"[get_top_department_duration_mixed] current: {current}")
+        
+    if current <= end_date:
+        logging.debug(f"[get_top_department_duration_mixed] current <= end_date {current} <= {end_date}")
+        if current < (datetime.date.today() - datetime.timedelta(days=1)):
+            logging.debug(f"[get_top_department_duration_mixed]111 current {current} end_date { min(end_date, datetime.date.today() - datetime.timedelta(days=2))}")
+            rows = get_summary_rows_day(
+                loginSummaryDay,
+                start_date=current,
+                end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
+                scope='department',
+                group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key],
+                join_users=False
+            )
+            for row in rows:
+                key = (row.company_key, row.department_key)
+                if dept_duration_map.get(key) is None:
+                    dept_duration_map[key] = datetime.timedelta(0)
+                else:
+                    dept_duration_map[key] += row.total or datetime.timedelta(0)
+        logging.debug(f"[get_top_department_duration_mixed]222 current {current} end_date {end_date}")
+        if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+            logging.debug(f"[get_top_department_duration_mixed]333 current {current} end_date {end_date}")
+            local_tz = datetime.datetime.now().astimezone().tzinfo
+            utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+            utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+            logging.debug(f"[get_top_department_duration_mixed] utc_start_dt : {utc_start_dt} utc_end_dt: {utc_end_dt}")
+            rows = get_summary_rows_history(
+                LoginHistory,
+                start_date=utc_start_dt,
+                end_date=utc_end_dt,
+                group_fields=[Users.company, Users.department],
+            )
+            for row in rows:
+                logging.debug(f"[get_top_department_duration_mixed] row: {row}")
+                key = (row.company, row.department)
+                if dept_duration_map.get(key) is None:
+                    dept_duration_map[key] = datetime.timedelta(0)
+                else:
+                    dept_duration_map[key] += row.total or datetime.timedelta(0)
+                
+    if dept_duration_map:
+        sorted_departments = sorted(dept_duration_map.items(), key=lambda x: x[1], reverse=True)
+        sorted_departments_by_low = sorted(dept_duration_map.items(), key=lambda x: x[1])
+        return {
+            'has_data': True,
+            'top': [(company, department, str(duration)) for (company, department), duration in sorted_departments[:3]],
+            'bottom': [(company, department, str(duration)) for (company, department), duration in sorted_departments_by_low[:3]],
+        }
+    else:
+        return {
+            'has_data': False,
+            'company': None,
+            'department': None,
+            'duration': datetime.timedelta(0)
+        }
+
+def get_top_company_duration_mixed(start_date, end_date):
+    company_duaration_map = {}
+    used_ranges = []
+    
+    all_companies = db.session.query(Users.company).distinct().all()
+    for (company,) in all_companies:
+        company_duaration_map[company] = datetime.timedelta(0)
+        
+    for period_str, y_start, y_end in get_year_period_value(start_date.year):
+        if start_date <= y_start and end_date >= y_end:
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='year',
+                period_value=period_str,
+                scope='company',
+                group_fields=[loginSummaryAgg.company_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((y_start, y_end))
+            for row in rows:
+                if company_duaration_map.get(row.company_key) is None:
+                    company_duaration_map[row.company_key] = datetime.timedelta(0)
+                else:
+                    company_duaration_map[company] += row.total or datetime.timedelta(0)
+    
+    for period_str, h_start, h_end in get_half_period_value(start_date.year):
+        if start_date <= h_start and end_date >= h_end and not is_range_used(h_start, h_end, used_ranges):
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='half',
+                period_value=period_str,
+                scope='company',
+                group_fields=[loginSummaryAgg.company_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((h_start, h_end))
+            for row in rows:
+                if company_duaration_map.get(row.company_key) is None:
+                    company_duaration_map[row.company_key] = datetime.timedelta(0)
+                else:
+                    company_duaration_map[company] += row.total or datetime.timedelta(0)
+    
+    for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
+        if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
+            rows = get_summary_rows_agg(
+                loginSummaryAgg,
+                period_type='quarter',
+                period_value=period_str,
+                scope='company',
+                group_fields=[loginSummaryAgg.company_key],
+                join_users=False
+            )
+            if rows:
+                used_ranges.append((q_start, q_end))
+            for row in rows:
+                if company_duaration_map.get(row.company_key) is None:
+                    company_duaration_map[row.company_key] = datetime.timedelta(0)
+                else:
+                    company_duaration_map[company] += row.total or datetime.timedelta(0)
+    
+    used_ranges.sort(key=lambda x: x[0])
+    if used_ranges:
+        current = min(start_date, used_ranges[0][0])
+    else:
+        current = start_date
+        
+    for used_start, used_end in used_ranges:
+        if current < used_start:
+            if current < (datetime.date.today() - datetime.timedelta(days=1)):
+                try:
+                    rows = get_summary_rows_day(
+                        loginSummaryDay,
+                        start_date=current,
+                        end_date=min(used_start - datetime.timedelta(days=1), datetime.date.today() - datetime.timedelta(days=2)),
+                        scope='company',
+                        group_fields=[loginSummaryDay.company_key],
+                        join_users=False
+                    )
+                    for row in rows:
+                        if company_duaration_map.get(row.company_key) is None:
+                            company_duaration_map[row.company_key] = datetime.timedelta(0)
+                        else:
+                            company_duaration_map[company] += row.total or datetime.timedelta(0)
+                except Exception as e:
+                    logging.error(f"Error in summary_day_rows query: {e}")
+                    return {
+                        'has_data': False,
+                        'company': None,
+                        'duration': datetime.timedelta(0)
+                    }
+            
+            if used_start - datetime.timedelta(days=1) in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+                local_tz = datetime.datetime.now().astimezone().tzinfo
+                utc_start_dt = datetime.datetime.combine(current, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+                utc_end_dt = datetime.datetime.combine(used_start - datetime.timedelta(days=1), datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+                rows = get_summary_rows_history(
+                    LoginHistory,
+                    start_date=utc_start_dt,
+                    end_date=utc_end_dt,
+                    group_fields=[Users.company]
+                )
+                for row in rows:
+                    if company_duaration_map.get(row.company) is None:
+                        company_duaration_map[row.company] = datetime.timedelta(0)
+                    else:
+                        company_duaration_map[company] += row.total or datetime.timedelta(0)
+                        
+        current = max(current, used_end + datetime.timedelta(days=1))
+        
+    if current <= end_date:
+        if current < (datetime.date.today() - datetime.timedelta(days=1)):
+            rows = get_summary_rows_day(
+                loginSummaryDay,
+                start_date=current,
+                end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
+                scope='company',
+                group_fields=[loginSummaryDay.company_key],
+                join_users=False
+            )
+            for row in rows:
+                if company_duaration_map.get(row.company_key) is None:
+                    company_duaration_map[row.company_key] = datetime.timedelta(0)
+                else:
+                    company_duaration_map[company] += row.total or datetime.timedelta(0)
+        if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+            local_tz = datetime.datetime.now().astimezone().tzinfo
+            utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+            utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+            rows = get_summary_rows_history(
+                LoginHistory,
+                start_date=utc_start_dt,
+                end_date=utc_end_dt,
+                group_fields=[Users.company]
+            )
+            for row in rows:
+                if company_duaration_map.get(row.company) is None:
+                    company_duaration_map[row.company] = datetime.timedelta(0)
+                else:
+                    company_duaration_map[company] += row.total or datetime.timedelta(0)
+    
+    if company_duaration_map:
+        sorted_companies = sorted(company_duaration_map.items(), key=lambda x: x[1], reverse=True)
+        sorted_companies_by_low = sorted(company_duaration_map.items(), key=lambda x: x[1])
+        return {
+            'has_data': True,
+            'top': [(company, str(duration)) for company, duration in sorted_companies[:3]],
+            'bottom': [(company, str(duration)) for company, duration in sorted_companies_by_low[:3]],
+        }
+    else:
+        return {
+            'has_data': False,
+            'company': None,
+            'duration': datetime.timedelta(0)
+        }
+    
+               
 def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None):
     total = datetime.timedelta(0)
     work = datetime.timedelta(0)
@@ -211,7 +615,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 internal += data['internal_count']
                 external += data['external_count']
                 logging.debug(f"[get_connection_summary_mixed] Yearly summary data: {data}")
-            used_ranges.append((y_start, y_end))
+                used_ranges.append((y_start, y_end))
     
     for period_str, h_start, h_end in get_half_period_value(start_date.year):
         logging.debug(f"[get_connection_summary_mixed] Half yearly summary for {period_str}: {h_start} - {h_end}")
@@ -225,10 +629,10 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 internal += data['internal_count']
                 external += data['external_count']
                 logging.debug(f"[get_connection_summary_mixed] Half yearly summary data: {data}")
-            used_ranges.append((h_start, h_end))
+                used_ranges.append((h_start, h_end))
     
     for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
-        logging.debug(f"[get_connection_summary_mixed] Quarterly summary for {period_str}: {q_start} - {q_end}")
+        logging.debug(f"[get_connection_summary_mixed] Quarterly summary for {start_date} {period_str}: {q_start} - {q_end}")
         if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
             data = get_connection_summary_agg('quarter', period_str, scope, filter_value)
             if data['has_data']:
@@ -239,9 +643,10 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
                 internal += data['internal_count']
                 external += data['external_count']
                 logging.debug(f"[get_connection_summary_mixed] Quarterly summary data: {data}")
-            used_ranges.append((q_start, q_end))
+                used_ranges.append((q_start, q_end))
     
     used_ranges.sort(key=lambda x: x[0])
+    logging.debug(f"[get_connection_summary_mixed] Used ranges: {used_ranges}")
     if used_ranges:
         current = min(start_date, used_ranges[0][0])
     else:
@@ -283,8 +688,7 @@ def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None)
         'internal_count': internal,
         'external_count': external
     }
-                  
-   
+                    
 def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
     total = datetime.timedelta(0)
     work = datetime.timedelta(0)
@@ -447,5 +851,52 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
             'internal_count': internal,
             'external_count': external
         }
+
+  
         
-            
+def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, join_users = True):
+    query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
+    
+    if join_users:
+        query = query.join(Users, Users.id == model.user_id_key)
+        
+    query = query.filter(
+            model.period_type == period_type,
+            model.period_value == period_value,
+            model.scope == scope
+        ) \
+        .group_by(*group_fields)
+    
+    logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))     
+    return query.all()
+
+def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_users=True):
+    query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
+    
+    if join_users:
+        query = query.join(Users, Users.id == model.user_id_key)
+
+    query = query.filter(
+            model.period_value >= start_date,
+            model.period_value <= end_date,
+            model.scope == scope
+        ) \
+        .group_by(*group_fields)
+    
+    logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
+    return query.all()
+
+def get_summary_rows_history(model, start_date, end_date, group_fields, join_users=True):
+    query = db.session.query(*group_fields, func.sum(model.session_duration).label('total'))
+    
+    if join_users:
+        query = query.join(Users, Users.id == model.user_id)
+        
+    query = query.filter(
+            model.login_time >= start_date,
+            model.login_time <= end_date
+        ) \
+        .group_by(*group_fields)
+    
+    logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
+    return query.all()

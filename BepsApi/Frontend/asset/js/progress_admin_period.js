@@ -15,7 +15,7 @@ export function initPeriod()
 {
     const currentYear = new Date().getFullYear();
     const yearStart = `${new Date().getFullYear()}-01-01`;
-    const today = new Date().toISOString().split('T')[0];
+    let today = new Date().toISOString().split('T')[0];
 
     let period_type = "day";
     let period_value = `${yearStart}~${today}`;
@@ -91,11 +91,8 @@ export function initPeriod()
         period_type = "year";
         period_value = dropdownLabelYear.textContent.replace("년도","").trim();
 
-        if(today <= `${period_value}-12-31`)
-        {
-            period_type = "day";
-            period_value = `${period_value}-01-01~${today}`;
-        }
+        statpicker.set('maxDate', null);
+        endpicker.set('minDate', null);
 
         statpicker.setDate(`${period_value}-01-01`);
         endpicker.setDate(`${period_value}-12-31`);
@@ -137,18 +134,15 @@ export function initPeriod()
             period_type = "half-year";
             period_value = selectedYear;
 
+            statpicker.set('maxDate', null);
+            endpicker.set('minDate', null);
+
             if(dropdownLabel.textContent === "상반기")
             {
                 period_value += '-H1';
                 
                 statpicker.setDate(`${selectedYear}-01-01`);
                 endpicker.setDate(`${selectedYear}-06-30`);
-
-                if(today <= `${period_type}-12-31`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-01-01~${today}`;
-                }
             }
             else if(dropdownLabel.textContent === "하반기")
             {
@@ -156,12 +150,6 @@ export function initPeriod()
 
                 statpicker.setDate(`${selectedYear}-07-01`);
                 endpicker.setDate(`${selectedYear}-12-31`);
-
-                if(today >= `${selectedYear}-07-01` && today <= `${selectedYear}-12-31`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-07-01~${today}`;
-                }
             }
 
             dropdownBtnQuarter.classList.remove("active");
@@ -189,45 +177,29 @@ export function initPeriod()
 
             period_type = "quarter";
             period_value = selectedYear;
+
+            statpicker.set('maxDate', null);
+            endpicker.set('minDate', null);
+
             if(dropdownLabelQuarter.textContent === "1분기") {
                 period_value += '-Q1';
                 statpicker.setDate(`${selectedYear}-01-01`);
                 endpicker.setDate(`${selectedYear}-03-31`);
-                if(today <= `${selectedYear}-03-31`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-01-01~${today}`;
-                }
             }
             else if(dropdownLabelQuarter.textContent === "2분기") {
                 period_value += '-Q2';
                 statpicker.setDate(`${selectedYear}-04-01`);
                 endpicker.setDate(`${selectedYear}-06-30`);
-                if(today >= `${selectedYear}-04-01` && today <= `${selectedYear}-06-30`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-04-01~${today}`;
-                }
             }
             else if(dropdownLabelQuarter.textContent === "3분기") {
                 period_value += '-Q3';
                 statpicker.setDate(`${selectedYear}-07-01`);
                 endpicker.setDate(`${selectedYear}-09-30`);
-                if(today >= `${selectedYear}-07-01` && today <= `${selectedYear}-09-30`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-07-01~${today}`;
-                }
             }
             else if(dropdownLabelQuarter.textContent === "4분기") {
                 period_value += '-Q4';
                 statpicker.setDate(`${selectedYear}-10-01`);
                 endpicker.setDate(`${selectedYear}-12-31`);
-                if(today >= `${selectedYear}-10-01` && today <= `${selectedYear}-12-31`)
-                {
-                    period_type = "day";
-                    period_value = `${selectedYear}-10-01~${today}`;
-                }
             }
 
             dropdownBtn.classList.remove("active");

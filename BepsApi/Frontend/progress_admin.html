@@ -8,15 +8,15 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>   
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <link rel="stylesheet" href="asset/css/flatpickr.min.css">
         <link rel="stylesheet" href="asset/css/custom_vscroll.css">
         <link rel="stylesheet" href="asset/css/progress_admin_search.css">
         <link rel="stylesheet" href="asset/css/progress_admin_active_user.css">
         <link rel="stylesheet" href="asset/css/progress_admin.css">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-        <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-        <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>       
+        <script type="text/javascript" src="asset/js/echarts.min.js"></script>
+        <script src="asset/js/flatpickr.min.js"></script>
+        <script src="asset/js/ko.js"></script>
         <script src="asset/js/config.js"></script>
         <script type="module" src="asset/js/progress_admin.js"></script>
     </head>
@@ -128,7 +128,41 @@
                     <span class="internal-count" id="internal-count">내부 접속 횟수</span>
                     <span class="external-count" id="external-count">외부 접속 횟수</span> 
                 </div>
-                
+                            
+                <div class="learing-time-Rank">
+                    <div>
+                        <span class="user-rank-first" id="user-rank-top-first">개인 상위 1위</span>
+                        <span class="user-rank-second" id="user-rank-top-second">개인 상위 2위</span>
+                        <span class="user-rank-third" id="user-rank-top-third">개인 상위 3위</span>
+                    </div>
+                    <div>
+                        <span class="user-rank-first" id="user-rank-bottom-first">개인 하위 1위</span>
+                        <span class="user-rank-second" id="user-rank-bottom-second">개인 하위 2위</span>
+                        <span class="user-rank-third" id="user-rank-bottom-third">개인 하위 3위</span>
+                    </div>
+                    <span></span>
+                    <div>
+                        <span class="department-rank-first" id="team-rank-top-first">팀 1위</span>
+                        <span class="department-rank-second" id="team-rank-top-second">팀 2위</span>
+                        <span class="department-rank-third" id="team-rank-top-third">팀 3위</span>
+                    </div>
+                    <div>
+                        <span class="department-rank-first" id="team-rank-bottom-first">팀 1위</span>
+                        <span class="department-rank-second" id="team-rank-bottom-second">팀 2위</span>
+                        <span class="department-rank-third" id="team-rank-bottom-third">팀 3위</span>
+                    </div>
+                    <span></span>
+                    <div>                       
+                        <span class="company-rank-first" id="company-rank-top-first">회사 1위</span>
+                        <span class="company-rank-second" id="company-rank-top-second">회사 2위</span>
+                        <span class="company-rank-third" id="company-rank-top-third"></span>
+                    </div>
+                    <div>                       
+                        <span class="company-rank-first" id="company-rank-bottom-first">회사 1위</span>
+                        <span class="company-rank-second" id="company-rank-bottom-second">회사 2위</span>
+                        <span class="company-rank-third" id="company-rank-bottom-third"></span>
+                    </div>
+                </div>
             </div>
 
         </div>

@@ -5,6 +5,7 @@ from flask import Flask, request
 from config import Config
 from extensions import db, jwt
 from blueprints import register_blueprints
+import traceback
 
 # Flask 애플리케이션 생성
 app = Flask(__name__)
@@ -23,6 +24,18 @@ def log_request():
 def log_response(response):
     logging.info(f"응답: {response.status_code} - 데이터: {response.get_json(silent=True)}")
     return response
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 모든 예외를 로깅합니다.
+    logging.error(f"예외 발생: {str(e)}, {traceback.format_exc()}")
+    return {"error": str(e)}, 500
+
+@app.errorhandler(500)
+def internal_error(error):
+    # 500 에러를 로깅합니다.
+    logging.error(f"500 Internal Server Error: {str(error)}, {traceback.format_exc()}")
+    return {"error": "Internal Server Error"}, 500
 
 # DB 초기화
 db.init_app(app)

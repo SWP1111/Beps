@@ -9,12 +9,17 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = "login.html";
 
     const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
-    const isAdmin = userInfo.user.role_id == 1;// || userInfo.user.role_id == null;
+    const user_role = userInfo.user.role_id;
 
     const buttons = document.querySelectorAll(".nav-button");
     const contentArea = document.getElementById("content-area");
-   
-    if(isAdmin)
+
+    if(user_role == 5 || user_role == 6 || user_role == null) { // 일반사용자 또는 외부사용자
+        document.getElementById("contents-button").style.display = "none"; // 학습 버튼 숨김
+        document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
+    }
+
+    if(user_role == 1 || user_role == 2) // 통합관리자 또는 개발관리자
         loadContent("progress_admin.html");
     else
         loadContent("progress.html");
@@ -26,8 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 클릭한 버튼에 'active' 클래스 추가
             button.classList.add("active");
-
-            if(button.id == "learning-button" && isAdmin)
+            
+            if(button.id == "learning-button" && (user_role == 1 || user_role == 2))
                 loadContent("progress_admin.html");
             else
                 loadContent(button.dataset.content);

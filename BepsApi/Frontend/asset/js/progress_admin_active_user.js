@@ -19,8 +19,10 @@ export async function activeUser(period_type, period_value)
     let pendingUsers = [];        // 나중에 처리할 사용자들
 
     getTopUserConnectionDuration(period_type, period_value)
-    .then(allTotalDurationStr =>
+    .then(data =>
     {
+        const allTotalDurationStr = data.data.top[0][1];
+
         allTotalDuration = parseDurationToSeconds(allTotalDurationStr);
 
         for (const {userId, element, durationStr} of pendingUsers) {
@@ -143,7 +145,7 @@ export async function getUserConnectionDuration(period_type=null, period_value, 
     return 0;
 }
 
-async function getTopUserConnectionDuration(period_type=null, period_value) {
+export async function getTopUserConnectionDuration(period_type=null, period_value) {
     let url = `${window.baseUrl}user/get_top_user_duration?period_value=${period_value}`;
     if(period_type != null)
         url += `&period_type=${period_type}`;
@@ -152,7 +154,35 @@ async function getTopUserConnectionDuration(period_type=null, period_value) {
     const getdurationInfo = await response.json();
     if(response.ok)
     {
-        return getdurationInfo.duration;
+        return getdurationInfo;
+    }
+    return 0;
+}
+
+export async function getTopDepartmentConnectionDuration(period_type=null, period_value) {
+    let ulr = `${window.baseUrl}user/get_top_department_duration?period_value=${period_value}`;
+    if(period_type != null)
+        ulr += `&period_type=${period_type}`;
+
+    const response = await fetch(ulr);
+    const getdurationInfo = await response.json();
+    if(response.ok)
+    {
+        return getdurationInfo;
+    }
+    return 0;
+}
+
+export async function getTopCompanyConnectionDuration(period_type=null, period_value) {    
+    let url = `${window.baseUrl}user/get_top_company_duration?period_value=${period_value}`;
+    if(period_type != null)
+        url += `&period_type=${period_type}`;
+
+    const response = await fetch(url);
+    const getdurationInfo = await response.json();
+    if(response.ok)
+    {
+        return getdurationInfo;
     }
     return 0;
 }

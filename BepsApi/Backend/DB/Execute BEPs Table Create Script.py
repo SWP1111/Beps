@@ -223,6 +223,7 @@ try:
         role_id integer NOT NULL,
         role_name text NOT NULL,
         time_stamp bigint,
+        description jsonb,
         CONSTRAINT roles_pkey PRIMARY KEY (role_id)
         );  
         """
@@ -617,6 +618,21 @@ try:
     
     #endregion
     
+    #region content_point_record 테이블(학습 포인트 기록 테이블)
+    content_point_record_queries = [
+        """
+        CREATE TABLE content_point_record (
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,       -- 사용자 ID
+            file_id INTEGER NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,    -- 컨텐츠(파일) ID
+            point INTEGER NOT NULL CHECK (point >= 1),                          -- 포인트. 최소 1 이상 (insert로만 생성)
+            earned_times JSONB NOT NULL DEFAULT '[]'::jsonb,                    -- 포인트 획득 시간 (JSON 배열로 저장)
+            UNIQUE (user_id, file_id)                                           -- 사용자 ID와 파일 ID의 조합은 유일해야 함
+        );
+        """
+    ]
+    #endregion
+    
     #region stay_duration(content_viewing_history) 업데이트 트리거
     stay_duration_update_queries = [
         """
@@ -646,10 +662,22 @@ try:
         """,
         # Roles 기본 값 추가
         """
-        INSERT INTO public.roles (role_name) VALUES ('Admin');
+        INSERT INTO public.roles (role_name, description) VALUES ('SuperAdmin','{"note": "모든 항목 확인", "user_info": "all", "contents_info": true, "opinion_point": true, "contents_upload": true, "opinion_response": true}');
         """,
         """
-        INSERT INTO public.roles (role_name) VALUES ('User');
+        INSERT INTO public.roles (role_name, description) VALUES ('DevAdmin','{"note": "모든 항목 확인", "user_info": "all", "contents_info": true, "opinion_point": false, "contents_upload": true, "opinion_response": false}');
+        """,
+        """
+        INSERT INTO public.roles (role_name, description) VALUES ('ContentAdmin','{"note": "Contents 총괄 관리자", "user_info": "single", "contents_info": true, "opinion_point": true, "contents_upload": false, "opinion_response": true}');
+        """,
+        """
+        INSERT INTO public.roles (role_name, description) VALUES ('ContentEditor','{"note": "Contents 제작 실무자", "user_info": "single", "contents_info": true, "opinion_point": true, "contents_upload": true, "opinion_response": true}');
+        """,
+        """
+        INSERT INTO public.roles (role_name, description) VALUES ('InternalUser','{"note": "일반 사내 사용자", "user_info": "none", "contents_info": false, "opinion_point": false, "contents_upload": false, "opinion_response": false}');
+        """,
+        """
+        INSERT INTO public.roles (role_name, description) VALUES ('ExternalUser','{"note": "일반 사외 사용자", "user_info": "none", "contents_info": false, "opinion_point": false, "contents_upload": false, "opinion_response": false}');
         """
     ]
     
@@ -710,7 +738,8 @@ try:
         memos_queries,
         memo_replies_queries,
         login_summary_queries,
-        learning_summary_queries
+        learning_summary_queries,
+        content_point_record_queries
         ]
 
     for query in queries:

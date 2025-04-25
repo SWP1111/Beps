@@ -1,5 +1,6 @@
 from extensions import db
 from sqlalchemy.sql import func, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 class Roles(db.Model):
     __tablename__ = 'roles'
@@ -191,6 +192,22 @@ class ContentViewingHistory(db.Model):
             'time_stamp': self.time_stamp
         }
         
+class ContentPointRecord(db.Model):
+    __tablename__ = 'content_point_record'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=False)
+    point = db.Column(db.Integer, nullable=False)
+    earned_times = db.Column(JSONB, nullable=False, default=list)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'file_id': self.file_id,
+            'point': self.point,
+            'earned_times': self.earned_times
+        }
         
 class Folders(db.Model):
     __tablename__ = 'folders'
