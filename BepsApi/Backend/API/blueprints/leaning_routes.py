@@ -15,6 +15,8 @@ import glob
 import os
 import pickle
 from flask import session
+from sqlalchemy import func
+import services.user_summary_service as user_summary_service
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
 
@@ -188,3 +190,136 @@ def data():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# 🔹 GET /leaning/point API 포인트 조회       
+@api_leaning_bp.route('/point', methods=['GET']) 
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def point():
+    try:
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+                
+        if period_type != 'year' and period_type is None:
+            return jsonify({'error': 'Please provide period_type'}), 400    # 400: Bad Request
+        
+        if filter_type != 'all' and filter_type is None:
+            return jsonify({'error': 'Please provide filter_type'}), 400    # 400: Bad Request
+        
+        logging.debug(f"[leaning/point] period_type: {period_type}, period_value: {period_value}, filter_type: {filter_type}, filter_value: {filter_value}")
+        
+        start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        utc_end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        logging.debug(f"[leaning/point]UTC Start Date: {utc_start_date}, UTC End Date: {utc_end_date}")
+        
+        filters = {}
+
+        base_sql = """
+            SELECT SUM(cpr.point) AS total_points
+            FROM content_point_record cpr
+            JOIN users u ON cpr.user_id = u.id
+            JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
+            WHERE earned_time::timestamp BETWEEN :start_date AND :end_date
+            """
+        filters['start_date'] = utc_start_date
+        filters['end_date'] = utc_end_date
+        
+        # 포인트 조회        
+        if filter_type == 'company' and filter_value:
+            base_sql += " AND u.company = :filter_value"
+            filters['filter_value'] = filter_value
+        elif filter_type == 'department' and filter_value:
+            parts = filter_value.split('||',1)
+            if len(parts) == 2:
+                company_name, department_name = parts
+                base_sql += " AND u.company = :company_name AND u.department = :department_name"
+                filters['company_name'] = company_name
+                filters['department_name'] = department_name
+            else:
+                department_name = parts[0]
+                base_sql += " AND u.department = :department_name"
+                filters['department_name'] = department_name
+        elif filter_type == 'user' and filter_value:
+            base_sql += " AND u.id = :user_id"
+            filters['user_id'] = filter_value
+        
+        result = db.session.execute(text(base_sql), filters).scalar() or 0 # 결과가 없으면 0으로 설정
+        logging.debug(f"SQL: {base_sql}, Filters: {filters}, Result: {result}")
+                
+        return jsonify({'total_points': result}), 200 # 200: OK
+      
+    except Exception as e:
+        return jsonify({'[point] error': str(e)}), 500
+
+
+# 🔹 GET /leaning/point/rank API 포인트 랭킹 조회
+@api_leaning_bp.route('/point/rank', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def point_rank():
+    try:
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        filter_type = request.args.get('filter_type', 'all')
+        
+        if period_type != 'year' and period_type is None:
+            return jsonify({'error': 'Please provide period_type'}), 400    # 400: Bad Request
+        
+        if filter_type in ['all','company', 'department'] is False:
+            return jsonify({'error': 'Please provide filter_type'}), 400    # 400: Bad Request
+        
+        start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        utc_end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        
+        filters = {'start_date': utc_start_date, 'end_date': utc_end_date}
+        
+        if filter_type == 'all':
+            select_field = 'u.id, COALESCE(u.name,\'[삭제된 사용자]\') AS name'
+            group_by_field = 'u.id, u.name'
+        elif filter_type == 'company':
+            select_field = 'u.company'
+            group_by_field = 'u.company'
+        elif filter_type == 'department':
+            select_field = 'u.company, u.department'
+            group_by_field = 'u.company, u.department'
+        else:
+            return jsonify({'error': 'Invalid filter_type'}), 400    # 400: Bad Request
+        
+        rank_sql = f"""
+            SELECT {select_field}, COALESCE(SUM(
+                CASE
+                    WHEN earned_time IS NOT NULL
+                            AND earned_time::timestamp BETWEEN :start_date AND :end_date
+                    THEN cpr.point
+                    ELSE 0
+                END), 0) AS total_points
+            FROM users u
+            LEFT JOIN content_point_record cpr ON u.id = cpr.user_id
+            LEFT JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
+            GROUP BY {group_by_field}
+        """
+        
+        all_rows = db.session.execute(text(rank_sql), filters).mappings().all()
+        sorted_rows = sorted(all_rows, key=lambda x: x['total_points'], reverse=True)   
+        
+         # 상위, 하위 점수 찾기
+        top_score = sorted_rows[0]['total_points']
+        bottom_score = sorted_rows[-1]['total_points']
+        
+        # 상위/하위 동점자 모두 추출
+        top_list = [dict(row) for row in sorted_rows if row['total_points'] == top_score]
+        bottom_list = [dict(row) for row in sorted_rows if row['total_points'] == bottom_score]
+        
+        return jsonify({
+            'top': top_list,
+            'bottom': bottom_list,
+        }), 200  # 200: OK
+        
+    except Exception as e:
+        return jsonify({'[point/rank] error': str(e)}), 500
+        
+        

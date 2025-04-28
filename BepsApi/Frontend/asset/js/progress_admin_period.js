@@ -131,7 +131,7 @@ export function initPeriod()
 
             const selectedYear = dropdownLabelYear.textContent.replace("년도","").trim();
 
-            period_type = "half-year";
+            period_type = "half";
             period_value = selectedYear;
 
             statpicker.set('maxDate', null);

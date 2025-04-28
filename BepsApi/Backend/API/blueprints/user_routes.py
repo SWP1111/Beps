@@ -324,6 +324,7 @@ def get_connection_duration():
                 return jsonify({'error': 'No data available for given parameters'}), 404     
         elif(period_type in ['quarter', 'half', 'year']):
             data = summary_service.get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
+            logging.debug(f"[get_connection_duration] get_connection_summary_agg: {data}")
             
             if data['has_data']:
                 return jsonify({
@@ -511,7 +512,7 @@ def get_top_company_duration():
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
-        if period_value == "day":
+        if period_type == "day":
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
             data = summary_service.get_top_company_duration_mixed(start_date, end_date)
             
@@ -525,7 +526,7 @@ def get_top_company_duration():
             company_duration_map = {}
             
             all_company = db.session.query(Users.company).distinct().all()
-            for company in all_company:
+            for (company,) in all_company:
                 company_duration_map[company] = datetime.timedelta(0)
                 
             summary_rows = summary_service.get_summary_rows_agg(
