@@ -191,6 +191,92 @@ class ContentViewingHistory(db.Model):
             'ip_address': self.ip_address,
             'time_stamp': self.time_stamp
         }
+
+class LearningSummaryDay(db.Model):
+    __tablename__ = 'learning_summary_day'
+    stat_date = db.Column(db.Date)
+    scope = db.Column(db.Text)
+    company_id = db.Column(db.Integer)
+    company = db.Column(db.Text)
+    department_id = db.Column(db.Integer)
+    department = db.Column(db.Text)
+    user_id = db.Column(db.Text)
+    user_name = db.Column(db.Text)
+    folder_id = db.Column(db.Integer)
+    folder_name = db.Column(db.Text)
+    total_duration = db.Column(db.Interval)
+    company_key = db.Column(db.Text)
+    department_key = db.Column(db.Text)
+    user_id_key = db.Column(db.Text)
+    folder_key = db.Column(db.Text)
+
+    __table_args__ = (
+        db.PrimaryKeyConstraint('stat_date', 'scope', 'company_key', 'department_key', 'user_id_key', 'folder_key',
+                                name='pk_learning_summary_day'
+                                ),
+    )
+    
+    def to_dict(self):
+        return {
+            'stat_date': self.stat_date,
+            'scope': self.scope,
+            'company_id': self.company_id,
+            'company': self.company,
+            'department': self.department,
+            'user_id': self.user_id,
+            'user_name': self.user_name,
+            'folder_id': self.folder_id,
+            'folder_name': self.folder_name,
+            'total_duration': str(self.total_duration),
+            'company_key': self.company_key,
+            'department_key': self.department_key,
+            'user_id_key': self.user_id_key,
+            'folder_key': self.folder_key
+        }
+
+class LearningSummaryAgg(db.Model):
+    __tablename__ = 'learning_summary_agg'
+    period_type = db.Column(db.Text)
+    period_value = db.Column(db.Text)
+    scope = db.Column(db.Text)
+    company_id = db.Column(db.Integer)
+    company = db.Column(db.Text)
+    deparment_id = db.Column(db.Integer)
+    department = db.Column(db.Text)
+    user_id = db.Column(db.Text)
+    user_name = db.Column(db.Text)
+    folder_id = db.Column(db.Integer)
+    folder_name = db.Column(db.Text)
+    total_duration = db.Column(db.Interval)
+    company_key = db.Column(db.Text)
+    department_key = db.Column(db.Text)
+    user_id_key = db.Column(db.Text)
+    folder_key = db.Column(db.Text)
+    
+    __table_args__ = (
+        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key', 'folder_key',
+                                name='pk_learning_summary_agg'
+                                ),
+    )
+    
+    def to_dict(self):
+        return {
+            'period_type': self.period_type,
+            'period_value': self.period_value,
+            'scope': self.scope,
+            'company_id': self.company_id,
+            'company': self.company,
+            'department': self.department,
+            'user_id': self.user_id,
+            'user_name': self.user_name,
+            'folder_id': self.folder_id,
+            'folder_name': self.folder_name,
+            'total_duration': str(self.total_duration),
+            'company_key': self.company_key,
+            'department_key': self.department_key,
+            'user_id_key': self.user_id_key,
+            'folder_key': self.folder_key
+        }
         
 class ContentPointRecord(db.Model):
     __tablename__ = 'content_point_record'

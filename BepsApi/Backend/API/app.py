@@ -22,7 +22,7 @@ def log_request():
 
 @app.after_request
 def log_response(response):
-    logging.info(f"응답: {response.status_code} - 데이터: {response.get_json(silent=True)}")
+    logging.info(f"응답: [{request.path}] {response.status_code} - 데이터: {response.get_json(silent=True)}")
     return response
 
 @app.errorhandler(Exception)

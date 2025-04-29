@@ -21,7 +21,7 @@ export async function activeUser(period_type, period_value)
     getTopUserConnectionDuration(period_type, period_value)
     .then(data =>
     {
-        const allTotalDurationStr = data.data.top[0][1];
+        const allTotalDurationStr = data.data.top[0][2];
 
         allTotalDuration = parseDurationToSeconds(allTotalDurationStr);
 

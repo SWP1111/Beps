@@ -633,6 +633,27 @@ try:
     ]
     #endregion
     
+    #region content_manager 테이블 (컨텐츠 담당 테이블)
+    content_manager_queries = """
+        CREATE TABLE content_manager (
+            id SERIAL PRIMARY KEY,      -- 키
+            user_id TEXT NOT NULL,      -- 사번    
+            file_id INTEGER,            -- file id
+            folder_id INTEGER,          -- folder id
+            type VARCHAR(10) NOT NULL CHECK (type IN ('file', 'folder')),   --타입(파일 담당, 폴더 담당)
+
+            CONSTRAINT fk_content_manager_user FOREIGN KEY (user_id) REFERENCES users(id),
+            CONSTRAINT fk_content_manager_file FOREIGN KEY (file_id) REFERENCES files(file_id),
+            CONSTRAINT fk_content_manager_folder FOREIGN KEY (folder_id) REFERENCES folders(folder_id),
+
+            CONSTRAINT chk_content_manager_file_or_folder CHECK (
+                (type = 'file' AND file_id IS NOT NULL AND folder_id IS NULL) OR
+                (type = 'folder' AND folder_id IS NOT NULL AND file_id IS NULL)
+            )
+        );
+    """
+    #endregion
+    
     #region stay_duration(content_viewing_history) 업데이트 트리거
     stay_duration_update_queries = [
         """
@@ -739,7 +760,8 @@ try:
         memo_replies_queries,
         login_summary_queries,
         learning_summary_queries,
-        content_point_record_queries
+        content_point_record_queries,
+        content_manager_queries
         ]
 
     for query in queries:
@@ -756,67 +778,4 @@ except Exception as e:
 finally:
     cursor.close()
     connection.close()
-
-
-# region SQL 파일 읽어서 실행하려고 하다가 포기
-
-# # SQL 파일 읽어서 해보려고 하다가 표기
-# with open(r"C:\Users\User\Documents\BEPS DB Backup\bepsDB Backup_0113_plain.sql", "r", encoding="utf-8") as file:
-#     sql_script = file.read()
-
-# filtered_commands = []
-# for line in sql_script.splitlines():
-#     stripped_line = line.strip()
-#     #주석으로 시작하는 줄 무시
-#     if stripped_line.startswith("--"):
-#         continue
-#     # SQL 문 내 주석 제거
-#     stripped_line = stripped_line.split("--")[0].strip()
-#     # 빈 줄 무시
-#     if stripped_line:
-#         filtered_commands.append(stripped_line)
-
-# # SQL 스크립트를 개별 문장으로 분리
-# sql_commands = sql_script.split(";")
-
-# # SQL 스크립트에서 주석 제거
-# filtered_commands = []
-# for line in sql_commands:
-#     # 주석 제거
-#     stripped_line = line.strip()
-#     #주석만 있는 줄 무시
-#     if stripped_line.startswith("--"):
-#         continue
-#     # SQL 문 내 주석 제거
-#     stripped_line = stripped_line.split("--")[0].strip()
-#     # 빈 줄 무시
-#     if stripped_line:
-#         filtered_commands.append(stripped_line+";")
     
-
-# # SQL 명령어 합치기 (주석 제거되 상태)
-# cleaned_script = " ".join(filtered_commands)
-
-# # SQL 스크립트를 개별 문장으로 분리
-# sql_commands = cleaned_script.split(";")
-
-
-# try:
-#     # SQL 명령어 실행
-#     for command in sql_commands:
-#         command = command.strip()   # 공백 제거
-#         if command: #빈 명령어 무시
-#             cursor.execute(command+";")
-
-#     # 변경사항 저장
-#     connection.commit()
-# except Exception as e:
-#     print(f"Error: {e}")
-#     connection.rollback()
-# finally:
-#     # 커서와 연결 종료
-#     cursor.close()
-#     connection.close()
-
-# print("데이터베이스 생성 완료")
-# endregion

@@ -101,9 +101,7 @@ def get_top_user_duration_mixed(start_date, end_date):
                 if prev:
                     user_duration_map[user_id.lower()] = (prev[0], prev[1] + duration)
                 else:
-                    user_duration_map[user_id.lower()] = (row.name, duration)
-                logging.debug(f"[get_top_user_duration_mixed] Daily summary for user {user_id}: {row.name} : {row.total}")
-                
+                    user_duration_map[user_id.lower()] = (row.name, duration)                
     
     for period_func, summary_func, period_type in [
         (get_year_period_value, loginSummaryAgg, 'year'),
@@ -127,7 +125,6 @@ def get_top_user_duration_mixed(start_date, end_date):
     current = start_date
     
     for used_start, used_end in used_ranges:
-        logging.debug(f"[get_top_user_duration_mixed] used_start: {used_start}, current: {current}, end: {used_end}")
         if current < used_start: 
             current_end = used_start - datetime.timedelta(days=1)
             if current <= current_end:
@@ -162,7 +159,6 @@ def get_top_user_duration_mixed(start_date, end_date):
                     )
                     update_user_duration(login_history_rows)                               
         current = max(current, used_end + datetime.timedelta(days=1))
-        logging.debug(f"[get_top_user_duration_mixed] current: {current}")
                    
     if current <= end_date:
         if current < (datetime.date.today() - datetime.timedelta(days=1)):
@@ -239,7 +235,6 @@ def get_top_department_duration_mixed(start_date, end_date):
     current = start_date
                     
     for used_start, used_end in used_ranges:
-        logging.debug(f"[get_top_department_duration_mixed] used_start: {used_start}, current: {current}, end: {used_end}")
         if current < used_start:
             current_end = used_start - datetime.timedelta(days=1)
             if current <= current_end:
@@ -277,12 +272,9 @@ def get_top_department_duration_mixed(start_date, end_date):
                     update_dept_duration(rows, company_filed='company', department_field='department')
        
         current = max(current, used_end + datetime.timedelta(days=1))
-        logging.debug(f"[get_top_department_duration_mixed] current: {current}")
         
     if current <= end_date:
-        logging.debug(f"[get_top_department_duration_mixed] current <= end_date {current} <= {end_date}")
         if current < (datetime.date.today() - datetime.timedelta(days=1)):
-            logging.debug(f"[get_top_department_duration_mixed]111 current {current} end_date { min(end_date, datetime.date.today() - datetime.timedelta(days=2))}")
             rows = get_summary_rows_day(
                 loginSummaryDay,
                 start_date=current,
@@ -292,13 +284,10 @@ def get_top_department_duration_mixed(start_date, end_date):
                 join_users=False
             )
             update_dept_duration(rows, company_filed='company_key', department_field='department_key')
-        logging.debug(f"[get_top_department_duration_mixed]222 current {current} end_date {end_date}")
         if end_date >= datetime.date.today() - datetime.timedelta(days=1):
-            logging.debug(f"[get_top_department_duration_mixed]333 current {current} end_date {end_date}")
             local_tz = datetime.datetime.now().astimezone().tzinfo
             utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
             utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-            logging.debug(f"[get_top_department_duration_mixed] utc_start_dt : {utc_start_dt} utc_end_dt: {utc_end_dt}")
             rows = get_summary_rows_history(
                 LoginHistory,
                 start_date=utc_start_dt,
@@ -438,100 +427,59 @@ def get_top_company_duration_mixed(start_date, end_date):
     
                
 def get_connection_summary_mixed(start_date, end_date, scope, filter_value=None):
-    total = datetime.timedelta(0)
-    work = datetime.timedelta(0)
-    off = datetime.timedelta(0)
-    internal = 0
-    external = 0
-    has_data = False
+    result = {
+        'has_data': False,
+        'total_duration': datetime.timedelta(0),
+        'worktime_duration': datetime.timedelta(0),
+        'offhour_duration': datetime.timedelta(0),
+        'internal_count': 0,
+        'external_count': 0
+    }
     
     used_ranges = []
-    
-    for period_str, y_start, y_end in get_year_period_value(start_date.year):
-        logging.debug(f"[get_connection_summary_mixed] Yearly summary for {period_str}: {y_start} - {y_end}")
-        if start_date <= y_start and end_date >= y_end:
-            data = get_connection_summary_agg('year', period_str, scope, filter_value)
-            if data['has_data']:
-                has_data = True
-                total += data['total_duration']
-                work += data['worktime_duration']
-                off += data['offhour_duration']
-                internal += data['internal_count']
-                external += data['external_count']
-                logging.debug(f"[get_connection_summary_mixed] Yearly summary data: {data}")
-                used_ranges.append((y_start, y_end))
-    
-    for period_str, h_start, h_end in get_half_period_value(start_date.year):
-        logging.debug(f"[get_connection_summary_mixed] Half yearly summary for {period_str}: {h_start} - {h_end}")
-        if start_date <= h_start and end_date >= h_end and not is_range_used(h_start, h_end, used_ranges):
-            data = get_connection_summary_agg('half', period_str, scope, filter_value)
-            if data['has_data']:
-                has_data = True
-                total += data['total_duration']
-                work += data['worktime_duration']
-                off += data['offhour_duration']
-                internal += data['internal_count']
-                external += data['external_count']
-                logging.debug(f"[get_connection_summary_mixed] Half yearly summary data: {data}")
-                used_ranges.append((h_start, h_end))
-    
-    for period_str, q_start, q_end in get_quarter_period_value(start_date.year):
-        logging.debug(f"[get_connection_summary_mixed] Quarterly summary for {start_date} {period_str}: {q_start} - {q_end}")
-        if start_date <= q_start and end_date >= q_end and not is_range_used(q_start, q_end, used_ranges):
-            data = get_connection_summary_agg('quarter', period_str, scope, filter_value)
-            if data['has_data']:
-                has_data = True
-                total += data['total_duration']
-                work += data['worktime_duration']
-                off += data['offhour_duration']
-                internal += data['internal_count']
-                external += data['external_count']
-                logging.debug(f"[get_connection_summary_mixed] Quarterly summary data: {data}")
-                used_ranges.append((q_start, q_end))
-    
+    for period_func, summary_func, period_scope in [
+        (get_year_period_value, loginSummaryAgg, 'year'),
+        (get_half_period_value, loginSummaryAgg, 'half'),
+        (get_quarter_period_value, loginSummaryAgg, 'quarter')
+    ]:
+        for period_str, p_start, p_end in period_func(start_date.year):
+            if start_date <= p_start and end_date >= p_end and not is_range_used(p_start, p_end, used_ranges):
+                data = get_connection_summary_agg(period_scope, period_str, scope, filter_value)
+                if data['has_data']:
+                    result['has_data'] = True
+                    result['total_duration'] += data['total_duration']
+                    result['worktime_duration'] += data['worktime_duration']
+                    result['offhour_duration'] += data['offhour_duration']
+                    result['internal_count'] += data['internal_count']
+                    result['external_count'] += data['external_count']
+                    used_ranges.append((p_start, p_end))
+                    
     used_ranges.sort(key=lambda x: x[0])
-    logging.debug(f"[get_connection_summary_mixed] Used ranges: {used_ranges}")
-    if used_ranges:
-        current = min(start_date, used_ranges[0][0])
-    else:
-        current = start_date
-        
+    current = start_date
+    
     for used_start, used_end in used_ranges:
-        logging.debug(f"[get_connection_summary_mixed] used_start: {used_start}, end: {used_end}")       
         if current < used_start:
-            logging.debug(f"[get_connection_summary_mixed] current: {current}, end: {used_start - datetime.timedelta(days=1)}")
-            data = get_connection_summary_day(current, used_start - datetime.timedelta(days=1), scope, filter_value)
-            if data['has_data']:
-                has_data = True
-                total += data['total_duration']
-                work += data['worktime_duration']
-                off += data['offhour_duration']
-                internal += data['internal_count']
-                external += data['external_count']
-                logging.debug(f"[get_connection_summary_mixed] Daily summary data: {data}")
+            day_data = get_connection_summary_day(current, used_start - datetime.timedelta(days=1), scope, filter_value)
+            if day_data['has_data']:
+                result['has_data'] = True
+                result['total_duration'] += day_data['total_duration']
+                result['worktime_duration'] += day_data['worktime_duration']
+                result['offhour_duration'] += day_data['offhour_duration']
+                result['internal_count'] += day_data['internal_count']
+                result['external_count'] += day_data['external_count']
         current = max(current, used_end + datetime.timedelta(days=1))
-        logging.debug(f"[get_connection_summary_mixed] current: {current}")
+        
     if current <= end_date:
-        data = get_connection_summary_day(current, end_date, scope, filter_value)
-        if data['has_data']:
-            has_data = True
-            total += data['total_duration']
-            work += data['worktime_duration']
-            off += data['offhour_duration']
-            internal += data['internal_count']
-            external += data['external_count']
-            logging.debug(f"[get_connection_summary_mixed] Daily summary data: {data}")
-    
-    logging.info(f"[get_connection_summary_mixed] Total duration: {total}, Worktime duration: {work}, Offhour duration: {off}, Internal count: {internal}, External count: {external}")
-    
-    return {
-        'has_data': has_data,
-        'total_duration': total,
-        'worktime_duration': work,
-        'offhour_duration': off,
-        'internal_count': internal,
-        'external_count': external
-    }
+        day_data = get_connection_summary_day(current, end_date, scope, filter_value)
+        if day_data['has_data']:
+            result['has_data'] = True
+            result['total_duration'] += day_data['total_duration']
+            result['worktime_duration'] += day_data['worktime_duration']
+            result['offhour_duration'] += day_data['offhour_duration']
+            result['internal_count'] += day_data['internal_count']
+            result['external_count'] += day_data['external_count']
+            
+    return result               
                     
 def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
     total = datetime.timedelta(0)
@@ -540,9 +488,7 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
     internal = 0
     external = 0
     has_data = False
-    
-    logging.debug(f"[get_connection_summary_day] start_date: {start_date}, end_date: {end_date}, scope: {scope}, filter_value: {filter_value}")
-    
+        
     if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
         filters = [
             loginSummaryDay.period_value >= start_date,
@@ -571,14 +517,12 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
             off += data.offhour_duration or datetime.timedelta(0)
             internal += data.internal_count or 0
             external += data.external_count or 0
-            logging.debug(f"[loginSummaryDay] total: {total}, work: {work}, off: {off}, internal: {internal}, external: {external}")
             
     if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
         local_tz = datetime.datetime.now().astimezone().tzinfo
         utc_start_dt = datetime.datetime.combine(max(start_date, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
         utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)       
         
-        logging.debug(f"UTC Start: {utc_start_dt}, UTC End: {utc_end_dt}")
         query = db.session.query(LoginHistory)
         
         if scope in ['department', 'company']:
@@ -601,7 +545,6 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
                 department_name = parts[0]
                 filters.append(Users.department == department_name)
         elif scope == 'company' and filter_value:
-            logging.debug(f"[get_connection_summary_day] filter_value: {filter_value}")
             filters.append(Users.company == filter_value)
         
         datas = query.filter(*filters).all()
@@ -625,10 +568,7 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
                     internal += 1 
                 else:
                     external += 1
-                logging.debug(f"[LoginHistory] User: {record.user_id}, total: {total}, duration: {duration}, work {work}, off: {off}, internal: {internal}, external: {external}")
 
-
-    logging.debug(f"[get_connection_summary_day] RESULT total: {total}, work: {work}, off: {off}, internal: {internal}, external: {external}")
     return {
         'has_data': has_data,
         'total_duration': total,
@@ -638,9 +578,7 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
         'external_count': external
     }
     
-def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):
-    logging.debug(f"[get_connection_summary_agg] period_type: {period_type}, period_value: {period_value}, scope: {scope}, filter_value: {filter_value}")
-    
+def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):    
     total = datetime.timedelta(0)
     work = datetime.timedelta(0)
     off = datetime.timedelta(0)
@@ -677,7 +615,6 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
         internal = data.internal_count or 0
         external = data.external_count or 0
         
-        logging.debug(f"[loginSummaryAgg] RESULT total: {total}, work: {work}, off: {off}, internal: {internal}, external: {external}")
         return {
             'has_data': has_data,
             'total_duration': total,
@@ -698,9 +635,7 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
 
   
         
-def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, join_users = True):
-    logging.debug(f"[get_summary_rows_agg] period_type: {period_type}, period_value: {period_value}, scope: {scope}, group_fields: {group_fields}")
-    
+def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, join_users = True, extra_filter=None):    
     query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
     
     if join_users:
@@ -710,14 +645,18 @@ def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, 
             model.period_type == period_type,
             model.period_value == period_value,
             model.scope == scope
-        ) \
-        .group_by(*group_fields)
+        )
     
-    actual_query = query.statement.compile(compile_kwargs={"literal_binds": True})
-    logging.debug(f"[get_summary_rows_agg] {actual_query}")     
+    if extra_filter is not None:
+        query = query.filter(*extra_filter)
+        
+    query = query.group_by(*group_fields)
+    
+    # actual_query = query.statement.compile(compile_kwargs={"literal_binds": True})
+    # logging.debug(f"[get_summary_rows_agg] {actual_query}")     
     return query.all()
 
-def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_users=True):
+def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_users=True, extra_filter=None):
     query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
     
     if join_users:
@@ -727,10 +666,14 @@ def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_
             model.period_value >= start_date,
             model.period_value <= end_date,
             model.scope == scope
-        ) \
-        .group_by(*group_fields)
+        )
     
-    logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
+    if extra_filter is not None:
+        query = query.filter(*extra_filter)
+        
+    query = query.group_by(*group_fields)
+    
+    # logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
     return query.all()
 
 def get_summary_rows_history(model, start_date, end_date, group_fields, join_users=True):
@@ -745,5 +688,5 @@ def get_summary_rows_history(model, start_date, end_date, group_fields, join_use
         ) \
         .group_by(*group_fields)
     
-    logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
+    # logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
     return query.all()

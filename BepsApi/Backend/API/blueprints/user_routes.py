@@ -296,14 +296,12 @@ def get_connection_duration():
         filter_value = request.args.get('filter_value')
         if filter_value:
             filter_value = unquote(filter_value)
-        logging.debug(f"[get_connection_duration]filter_type: {filter_type}, filter_value: {filter_value}")
         
         if filter_type != 'all' and filter_value is None:
             return jsonify({'error': 'Please provide filter_value'}), 400
                
         period_type = request.args.get('period_type', 'day')
         period_value = request.args.get('period_value')
-        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
@@ -324,7 +322,6 @@ def get_connection_duration():
                 return jsonify({'error': 'No data available for given parameters'}), 404     
         elif(period_type in ['quarter', 'half', 'year']):
             data = summary_service.get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
-            logging.debug(f"[get_connection_duration] get_connection_summary_agg: {data}")
             
             if data['has_data']:
                 return jsonify({
@@ -361,7 +358,6 @@ def get_top_user_duration():
     try:
         period_type = request.args.get('period_type', 'day')
         period_value = request.args.get('period_value')
-        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
@@ -436,7 +432,6 @@ def get_top_department_duration():
     try:
         period_type = request.args.get('period_type', 'day')
         period_value = request.args.get('period_value')
-        logging.debug(f"period_type: {period_type}, period_value: {period_value}")
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400

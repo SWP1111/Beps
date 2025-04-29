@@ -16,7 +16,7 @@ import os
 import pickle
 from flask import session
 from sqlalchemy import func
-import services.user_summary_service as user_summary_service
+import traceback
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
 
@@ -100,7 +100,7 @@ def try_add_point(user_id, file_id, end_time, duration, max_point=5):
     """포인트 추가 로직"""
     try:
         if duration.total_seconds() >= Config.POINT_DURATION_SECONDS:  # 5분 이상 시청한 경우
-            record = ContentPointRecord.query.filter_by(user_id=user_id, file_id=file_id).first()
+            record = ContentPointRecord.query.filter_by(user_id=user_id, file_id=file_id).firssudot()
             
             if record:
                 if record.point < max_point:
@@ -195,6 +195,7 @@ def data():
 @api_leaning_bp.route('/point', methods=['GET']) 
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def point():
+    import services.user_summary_service as user_summary_service
     try:
         period_type = request.args.get('period_type', 'year')
         period_value = request.args.get('period_value')
@@ -206,14 +207,11 @@ def point():
         
         if filter_type != 'all' and filter_type is None:
             return jsonify({'error': 'Please provide filter_type'}), 400    # 400: Bad Request
-        
-        logging.debug(f"[leaning/point] period_type: {period_type}, period_value: {period_value}, filter_type: {filter_type}, filter_value: {filter_value}")
-        
+                
         start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
         local_tz = datetime.datetime.now().astimezone().tzinfo
         utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
         utc_end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-        logging.debug(f"[leaning/point]UTC Start Date: {utc_start_date}, UTC End Date: {utc_end_date}")
         
         filters = {}
 
@@ -247,7 +245,6 @@ def point():
             filters['user_id'] = filter_value
         
         result = db.session.execute(text(base_sql), filters).scalar() or 0 # 결과가 없으면 0으로 설정
-        logging.debug(f"SQL: {base_sql}, Filters: {filters}, Result: {result}")
                 
         return jsonify({'total_points': result}), 200 # 200: OK
       
@@ -259,6 +256,7 @@ def point():
 @api_leaning_bp.route('/point/rank', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def point_rank():
+    import services.user_summary_service as user_summary_service
     try:
         period_type = request.args.get('period_type', 'year')
         period_value = request.args.get('period_value')
@@ -322,4 +320,110 @@ def point_rank():
     except Exception as e:
         return jsonify({'[point/rank] error': str(e)}), 500
         
+#🔹 GET /leaning/category_progress API 카테고리별 학습 진행률 조회       
+@api_leaning_bp.route('/category_progress', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def category_progress():
+    from services.leaning_summary_service import get_folder_progress
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
         
+        if not period_type or not period_value:
+            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
+        
+        params = {
+            'filter_type': filter_type,
+            'filter_value': filter_value,
+            'period_type': period_type,
+            'period_value': period_value
+        }
+        
+        folder_duration_map = get_folder_progress(params)
+        
+        if not folder_duration_map:
+            return jsonify({'error': 'No data found'}), 404
+        
+        total_duration = sum((duration for _, duration in folder_duration_map.values()), datetime.timedelta(0))
+        total_seconds = total_duration.total_seconds()
+        if total_seconds == 0:
+            total_seconds = 1  # Avoid division by zero
+        
+        result = []
+        for folder_id, (folder_name, duration) in folder_duration_map.items():
+            duration_seconds = duration.total_seconds() if duration else 0
+            percentage = round(duration_seconds / total_seconds * 100, 1)
+            result.append({
+                'folder_id': folder_id,
+                'folder_name': folder_name,
+                'duration': str(duration),
+                'percentage': percentage
+            })
+            
+        return jsonify({'progress': result}), 200  # 200: OK
+    
+    except Exception as e:
+        logging.debug(f"[category_progress] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[category_progress] error': str(e)}), 500
+ 
+# 🔹 GET /leaning/top_viewd_pages API 상위 조회 페이지 조회
+@api_leaning_bp.route('/top_viewed_pages', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행   
+def get_top_viewd_pages():
+    from services.user_summary_service import get_period_value
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        
+        if not period_type or not period_value:
+            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
+        
+        start_dt, end_dt = get_period_value(period_type, period_value)
+        
+        query = db.session.query(
+            ContentViewingHistory.file_id,
+            func.coalesce(Files.file_name, '[삭제된 파일]').label('file_name'),
+            func.count().label('view_count')
+        )
+        
+        if filter_type in ('company','department','user'):
+            query = query.join(Users, ContentViewingHistory.user_id == Users.id)
+            
+        query = query.outerjoin(Files, ContentViewingHistory.file_id == Files.file_id).filter(
+            ContentViewingHistory.start_time >= start_dt,
+            ContentViewingHistory.end_time <= end_dt
+        )     
+        
+        if filter_type == 'company' and filter_value:
+            query = query.filter(Users.company == filter_value)
+        elif filter_type == 'department' and filter_value:
+            parts = filter_value.split('||', 1)
+            if len(parts) == 2:
+                query = query.filter(Users.company == parts[0], Users.department == parts[1])
+            else:
+                query = query.filter(Users.company == filter_value)
+        elif filter_type == 'user' and filter_value:
+            query = query.filter(Users.id == filter_value)
+
+        query = query.group_by(ContentViewingHistory.file_id, Files.file_name).order_by(func.count().desc())
+        query = query.limit(5)  # 🔹 상위 5개 조회
+        
+        rows = query.all()
+        
+        return jsonify({
+            'top_viewd_pages': [
+                {
+                    'file_id': row.file_id,
+                    'file_name': row.file_name,
+                    'view_count': row.view_count
+                } for row in rows
+            ]
+        }), 200  # 200: OK
+        
+    except Exception as e:
+        logging.debug(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[get_top_viewd_pages] error': str(e)}), 500

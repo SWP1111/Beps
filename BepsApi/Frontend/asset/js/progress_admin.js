@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       companyRankBottonThird.textContent = `, ${data.data.bottom[2][0]} (${data.data.bottom[2][1]})`;
   });
 
+
   setOnSelectPeriodCallback(async() =>
   {
     period_type = sessionStorage.getItem("period_type");
@@ -171,6 +172,8 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     getTotalPoint();
     getRankPoint();
+    getCategoryLearingRate();
+    getTopViewdPages();
   });
 
   setOnSelectFilterCallback(async({type, company, department, user}) =>
@@ -181,6 +184,8 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     getTotalPoint();
     getRankPoint();
+    getCategoryLearingRate();
+    getTopViewdPages();
   });
 
 
@@ -235,6 +240,77 @@ document.addEventListener('DOMContentLoaded', async() => {
       }
     }
   }
+
+  async function getCategoryLearingRate() {
+    const categorArea = document.getElementById("category_area");
+    categorArea.innerHTML = ""; // Clear previous content
+
+    const element = document.createElement("span");
+    element.className = "category-item";
+    element.textContent = `카테고리 학습 현황`;
+    categorArea.appendChild(element);
+
+    let url = `${window.baseUrl}leaning/category_progress?period_value=${period_value}`;
+    if(period_type != null)
+      url += `&period_type=${period_type}`;
+    if(filter_type != null)
+      url += `&filter_type=${filter_type}`;
+    if(filter_value != null)
+      url += `&filter_value=${encodeURIComponent(filter_value)}`;
+
+    const response = await fetch(url);
+    const getCategory = await response.json();
+    
+    if(response.ok)
+    {
+      getCategory.progress.sort((a,b)=> {
+        if (a.folder_name < b.folder_name) return -1;
+        if (a.folder_name > b.folder_name) return 1;
+        return 0;
+      });
+
+      for(let i = 0; i < getCategory.progress.length; i++)
+      {
+        const element = document.createElement("span");
+        element.className = "category-item";
+        element.textContent = `${getCategory.progress[i].folder_name.replace(/^\d+_/, '')} : ${getCategory.progress[i].percentage}% (${getCategory.progress[i].duration})`;
+        categorArea.appendChild(element);
+      }
+    }
+  }
+
+  async function getTopViewdPages() {
+    const topViewdPages = document.getElementById("top_viewed_pages");
+    topViewdPages.innerHTML = ""; // Clear previous content
+
+    const element = document.createElement("span");
+    element.className = "category-item";
+    element.textContent = `많이 본 페이지 순위`;
+    topViewdPages.appendChild(element);
+
+    let url= `${window.baseUrl}leaning/top_viewed_pages?period_value=${period_value}`;
+    if(period_type != null)
+      url += `&period_type=${period_type}`;
+    if(filter_type != null)
+      url += `&filter_type=${filter_type}`;
+    if(filter_value != null)
+      url += `&filter_value=${encodeURIComponent(filter_value)}`;
+
+    const response = await fetch(url);
+    const getTopViewdPages = await response.json();
+    if(response.ok)
+    {
+      for(let i = 0; i < getTopViewdPages.top_viewd_pages.length; i++)
+      {
+        const element = document.createElement("span");
+        element.className = "category-item";
+        element.textContent = `${i+1}위: ${getTopViewdPages.top_viewd_pages[i].file_name.replace(/^\d+_/, '')} : ${getTopViewdPages.top_viewd_pages[i].view_count}회`;
+        topViewdPages.appendChild(element);
+      }
+    }
+  }
+
+
 });
 
 
