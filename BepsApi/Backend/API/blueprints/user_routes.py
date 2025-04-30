@@ -12,9 +12,10 @@ from sqlalchemy.sql import text
 import requests
 from collections import defaultdict
 from urllib.parse import unquote
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import services.user_summary_service as summary_service
 import traceback
+from sqlalchemy import case
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -51,7 +52,7 @@ def get_user():
         data = request.get_json() # JSON 데이터를 가져옴
         logging.info(f"POST /user: {data}")
         
-        user_id = data.get('id')
+        user_id = data.get('id').lower()
         password = data.get('password')
         is_encrypted = data.get('is_encrypted', True)
         id_address = data.get('ip_address')
@@ -122,7 +123,7 @@ def get_user():
 @jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
 def get_user_info():
     try:
-        user_id = request.args.get('id')
+        user_id = request.args.get('id').lower()
         if user_id is None:
             return jsonify({'error': 'Please provide id'}), 400
         
@@ -141,7 +142,7 @@ def get_user_info():
 @api_user_bp.route('/user_auth_time', methods=['GET'])
 def get_user_auth_time():
     try:
-        user_id = request.args.get('id')
+        user_id = request.args.get('id').lower()
         
         if user_id is None:
             return jsonify({'error': 'Please provide id'}), 400 # 400: Bad Request
@@ -163,7 +164,7 @@ def upsert_user():
         if not data or 'id' not in data:
             return jsonify({'error': 'Please provide id'}), 400
         
-        user_id = data.get('id')
+        user_id = data.get('id').lower()
         login = data.get('login')
         logging.info(f"login: {login}")
         
@@ -573,3 +574,126 @@ def get_test():
     url = f"http://ipinfo.io/{ip}/json"
     response = requests.get(url)
     return response.json(), 200
+
+@api_user_bp.route('/organizations', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_organizations():
+    try:
+        organizations = db.session.query(Users.company, Users.department).distinct().all()
+        
+        org_map = defaultdict(dict)
+        for company, department in organizations:
+            if not company:
+                continue
+            if not department:
+                department = '기타'
+            org_map[company][department] = []
+            
+        return jsonify(org_map), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@api_user_bp.route('/user_by_org', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_user_by_org():
+    try:
+        company = request.args.get('company')
+        department = request.args.get('department')
+        
+        if company is None:
+            return jsonify({'error': 'Please provide company'}), 400
+        
+        # 직급별 정렬 우선순위 정의
+        position_order = case(           
+            (Users.position == '사장', 1),
+            (Users.position == '부사장', 2),
+            (Users.position == '전무이사', 3),
+            (Users.position == '상무이사', 4),
+            (Users.position == '이사', 5),
+            (Users.position == '수석', 6),      
+            (Users.position == '책임', 7),                           
+            (Users.position == '부장', 8),   
+            (Users.position == '선임', 9),                             
+            (Users.position == '차장', 10),              
+            (Users.position == '과장', 11),
+            (Users.position == '대리', 12),
+            (Users.position == '연구원', 13),
+            (Users.position == '사원', 14),
+            else_=99  # 미정의 직급은 가장 뒤로
+        )
+        
+        query = db.session.query(Users).filter(Users.company == company)                       
+        if department:            
+            query = query.filter(Users.department == department)
+        
+        users = query.order_by(position_order, Users.name).all()
+        
+        seen = set()
+        unique_users = []
+        for user in users:
+            normalized_id = user.id.lower()
+            if normalized_id not in seen:
+                seen.add(normalized_id)
+                unique_users.append({
+                    'id': user.id,
+                    'name': user.name,
+                    'company': user.company,
+                    'department': user.department,
+                    'position': user.position
+                })
+                
+        return jsonify(unique_users), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+    
+@api_user_bp.route('/search', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_search():
+    try:
+        keyword = request.args.get('keyword','').lower().strip()
+        if keyword is None:
+            return jsonify({'error': 'Please provide keyword'}), 400
+        
+        result_map = defaultdict(lambda: defaultdict(list))
+        seen = set()
+        
+        users = db.session.query(Users.id,
+                                Users.name,
+                                Users.company,
+                                Users.department,
+                                Users.position).filter(
+                                    Users.is_deleted == False,
+                                    or_(
+                                        func.lower(Users.company).like(f'%{keyword}%'),
+                                        func.lower(Users.department).like(f'%{keyword}%'),
+                                        func.lower(Users.name).like(f'%{keyword}%'),
+                                        func.lower(Users.position).like(f'%{keyword}%')
+                                    )
+                                ).all()
+        
+        logging.debug(f"Users: {users}")
+                                
+        for u in users:
+            company = u.company or ''
+            department = u.department or ''
+            norm_id = u.id.lower()
+            key = (company, department, norm_id)
+            
+            if keyword in (company.lower(), department.lower()):
+                result_map[company][department]
+            
+            if keyword in (u.name or '').lower() and key not in seen:
+                result_map[company][department].append({
+                    'id': u.id,
+                    'name': u.name,
+                    'company': company,
+                    'department': department,
+                    'position': u.position
+                })
+                seen.add(key)
+                
+        return jsonify(result_map), 200 
+    except Exception as e:
+        logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500

@@ -54,7 +54,8 @@ def end():
         data = request.get_json() # 🔹 JSON 데이터를 가져옴
         logging.info(f"POST /leaning/end: {data}")
         
-        user_id = data.get('user_id')
+        user_id = data.get('user_id').lower() 
+        logging.debug(f"[end] user_id: {user_id}")
         file_id = data.get('file_id')
         file_name = data.get('file_name')
         ip_address = data.get('ip_address')

@@ -1,0 +1,24 @@
+
+ID 중복 체크
+SELECT LOWER(id), COUNT(*) FROM users GROUP BY LOWER(id) HAVING COUNT(*) > 1;
+
+같은 ID(Lower(id)) 중에서 최근 timestamp 제외 모든 중복 id 데이터 제거
+WITH ranked_users AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY LOWER(id)
+    ORDER BY time_stamp DESC
+  ) AS rn
+  FROM users
+)
+DELETE FROM users
+WHERE id IN (
+  SELECT id FROM ranked_users WHERE rn > 1
+);
+
+남은 ID는 모두 소문자로 통일
+UPDATE users
+SET id = LOWER(id);
+
+
+중복 방지용 인덱스 추가 (선택)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_id ON users (LOWER(id));

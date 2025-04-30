@@ -7,74 +7,75 @@ export const SELECTION_TYPE = {
   USER: 'USER'              // 직원
 };
 
-let data = {
-    '삼안': {
-      '기획팀': [
-          {id: 'b0001', name: '홍길동', position: '대리', progress: 0.15},
-          {id: 'b0002', name: '김철수', position: '사원', progress: 0.25},
-      ],
-      '설계팀': [
-          {id: 'b0003', name: '이영희', position: '대리', progress: 0.35},
-          {id: 'b0004', name: '박진수', position: '사원', progress: 0.45},
-      ]
-    },
-    '한맥': {
-      '개발팀': [
-          {id: 'b0004',name: '최유리', position: '대리', progress: 0.55},
-      ],
-      '운영팀': [
-          {id: 'b0005',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0006',name: '박보검', position: '사원', progress: 0.75},
-      ]
-    },
-    '바론': {
-      '개발팀': [{id: 'b0007',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ 
-          {id: 'b0008',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0009',name: '박보검', position: '사원', progress: 0.75},
-      ]
-    },
-    '장헌': {
-      '개발팀': [{id: 'b0010',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ {id: 'b0011',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0012',name: '박보검', position: '사원', progress: 0.75},]
-    },
-    '한라': {
-      '개발팀': [{id: 'b0013',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ {id: 'b0014',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0015',name: '박보검', position: '사원', progress: 0.75},]
-    },
-    'PTC': {
-      '개발팀': [{id: 'b0016',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ {id: 'b0017',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0018',name: '박보검', position: '사원', progress: 0.75},]
-    },
-    '기술개발센터': {
-      '그래픽스 개발팀': [
-          {id: 'b23009',name: '정나래', position: '선임', progress: 0.65},
-          {id: 'b23042',name: '한성일', position: '책임', progress: 0.75},
-      ],
-      '기술기획팀': [
-          {id: 'b0019',name: '김혜인', position: '선임', progress: 0.65},
-          {id: 'b0020',name: '이태윤', position: '사원', progress: 0.75},
-      ],
-    },
-    '총괄기획실': {
-     '개발팀': [{id: 'b0021',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ {id: 'b0022',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0023',name: '박보검', position: '사원', progress: 0.75},]
-    },
-    '기타': {
-     '개발팀': [{id: 'b0024',name: '최유리', position: '대리', progress: 0.55},],
-      '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
-    },
-    'TEST': {
-     '기술개발센터': [{id: 'b0024',name: '최유리', position: '대리', progress: 0.55},],
-     '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
-          {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
-    },
-  };
+let data = {};
+//  = {
+//     '삼안': {
+//       '기획팀': [
+//           {id: 'b0001', name: '홍길동', position: '대리', progress: 0.15},
+//           {id: 'b0002', name: '김철수', position: '사원', progress: 0.25},
+//       ],
+//       '설계팀': [
+//           {id: 'b0003', name: '이영희', position: '대리', progress: 0.35},
+//           {id: 'b0004', name: '박진수', position: '사원', progress: 0.45},
+//       ]
+//     },
+//     '한맥': {
+//       '개발팀': [
+//           {id: 'b0004',name: '최유리', position: '대리', progress: 0.55},
+//       ],
+//       '운영팀': [
+//           {id: 'b0005',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0006',name: '박보검', position: '사원', progress: 0.75},
+//       ]
+//     },
+//     '바론': {
+//       '개발팀': [{id: 'b0007',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ 
+//           {id: 'b0008',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0009',name: '박보검', position: '사원', progress: 0.75},
+//       ]
+//     },
+//     '장헌': {
+//       '개발팀': [{id: 'b0010',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ {id: 'b0011',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0012',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//     '한라': {
+//       '개발팀': [{id: 'b0013',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ {id: 'b0014',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0015',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//     'PTC': {
+//       '개발팀': [{id: 'b0016',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ {id: 'b0017',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0018',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//     '기술개발센터': {
+//       '그래픽스 개발팀': [
+//           {id: 'b23009',name: '정나래', position: '선임', progress: 0.65},
+//           {id: 'b23042',name: '한성일', position: '책임', progress: 0.75},
+//       ],
+//       '기술기획팀': [
+//           {id: 'b0019',name: '김혜인', position: '선임', progress: 0.65},
+//           {id: 'b0020',name: '이태윤', position: '사원', progress: 0.75},
+//       ],
+//     },
+//     '총괄기획실': {
+//      '개발팀': [{id: 'b0021',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ {id: 'b0022',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0023',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//     '기타': {
+//      '개발팀': [{id: 'b0024',name: '최유리', position: '대리', progress: 0.55},],
+//       '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//     'TEST': {
+//      '기술개발센터': [{id: 'b0024',name: '최유리', position: '대리', progress: 0.55},],
+//      '운영팀': [ {id: 'b0025',name: '정해인', position: '사원', progress: 0.65},
+//           {id: 'b0026',name: '박보검', position: '사원', progress: 0.75},]
+//     },
+//   };
 
 let onSelectCallback = null;
 
@@ -102,6 +103,8 @@ export async function setupUI(container) {
     const searchInput = document.getElementById('filter-search');
     const searchIcon = document.getElementById('filter-search-icon');
     
+    await getOrganizations();
+    
     function handleSearch() {
       const keyword = searchInput.value.trim().toLowerCase();
 
@@ -112,7 +115,7 @@ export async function setupUI(container) {
         renderSearchResults(keyword);
     }
 
-    function renderSearchResults(keyword) {
+    async function renderSearchResults(keyword) {
       container.innerHTML = '';
     
       const allBtn = document.createElement('button');
@@ -147,6 +150,29 @@ export async function setupUI(container) {
       }
     
       if (results.length === 0) {
+
+        const url = `${window.baseUrl}/user/search?keyword=${keyword}`;
+        const response = await fetch(url);
+        const getData = await response.json();
+        if (response.ok) {
+         
+          if(Object.keys(getData).length > 0){
+            for(const company in getData) {
+
+              if(!data[company]) data[company] = {};
+
+              for (const department in getData[company]) {
+                if(!data[company][department])
+                  data[company][department] = getData[company][department];
+                else
+                  data[company][department].push(...getData[company][department]);
+              }
+            }         
+            renderSearchResults(keyword);
+            return;
+          }
+        }
+
         const empty = document.createElement('div');
         empty.innerText = '검색 결과가 없습니다.';
         container.appendChild(empty);
@@ -268,9 +294,10 @@ export async function setupUI(container) {
         Object.keys(data[selectedCompany]).forEach(team => {
           const btn = document.createElement('button');
           btn.innerText = team;
-          btn.onclick = () => {
+          btn.onclick = async() => {
             selectedTeam = team;
             selectedUserId = null;
+            await getUsers(selectedCompany, selectedTeam);
             renderUserList();
           };
           if (team === selectedTeam) {
@@ -324,10 +351,11 @@ export async function setupUI(container) {
           userName: null
         });
       };
-      teamBtn.onclick = () => 
+      teamBtn.onclick = async() => 
       {
         selectedUserId = null;
         renderTeamList();
+        await getUsers(selectedCompany, selectedTeam);
         renderUserList();
       }
       container.appendChild(teamBtn);
@@ -390,3 +418,22 @@ export async function setupUI(container) {
       renderCompanyList();
 }
 
+async function getOrganizations() {
+  const url = `${window.baseUrl}/user/organizations`;
+  const response = await fetch(url);
+  const getData = await response.json();
+  
+  if(response.ok) {
+    data = getData;
+  }
+}
+
+async function getUsers(company, department) {
+  const url = `${window.baseUrl}/user/user_by_org?company=${company}&department=${department}`;
+  const response = await fetch(url);
+  const getData = await response.json();
+  
+  if(response.ok) {
+    data[company][department] = getData;
+  }
+}

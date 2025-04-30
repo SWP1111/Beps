@@ -253,7 +253,8 @@ try:
     #endregion
 
     #region users 테이블
-    users_queries =  """
+    users_queries =  [
+        """
         CREATE TABLE public.users (
         id text NOT NULL,
         password text NOT NULL,  
@@ -271,7 +272,11 @@ try:
         CONSTRAINT access_group_id FOREIGN KEY (access_group_id) REFERENCES public.content_access_groups(access_group_id) ON DELETE SET NULL,
         CONSTRAINT role_id FOREIGN KEY (role_id) REFERENCES public.roles(role_id) ON DELETE SET NULL NOT VALID 
         );
+        """,
         """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_id ON users (LOWER(id)); -- 대소문자 구분 없이 유일한 인덱스 생성
+        """
+    ]
     #endregion
 
     #region login_history 테이블
