@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from API.models import Files
 from extensions import db
+import urllib.parse
 
 file_bp = Blueprint('file_bp', __name__)
 
@@ -8,9 +9,9 @@ file_bp = Blueprint('file_bp', __name__)
 def get_file_info_by_path():
     """Get file_id and folder_id for a given file_path"""
     file_path = request.args.get('file_path')
-    
     if not file_path:
         return jsonify({'error': 'Missing file_path parameter'}), 400
+    file_path = urllib.parse.unquote(file_path)
     
     file = Files.query.filter_by(file_path=file_path, is_deleted=False).first()
     
