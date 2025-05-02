@@ -1,8 +1,8 @@
 
-ID 중복 체크
+# ID 중복 체크
 SELECT LOWER(id), COUNT(*) FROM users GROUP BY LOWER(id) HAVING COUNT(*) > 1;
 
-같은 ID(Lower(id)) 중에서 최근 timestamp 제외 모든 중복 id 데이터 제거
+# 같은 ID(Lower(id)) 중에서 최근 timestamp 제외 모든 중복 id 데이터 제거
 WITH ranked_users AS (
   SELECT id, ROW_NUMBER() OVER (
     PARTITION BY LOWER(id)
@@ -15,10 +15,31 @@ WHERE id IN (
   SELECT id FROM ranked_users WHERE rn > 1
 );
 
-남은 ID는 모두 소문자로 통일
+# 남은 ID는 모두 소문자로 통일
 UPDATE users
 SET id = LOWER(id);
 
 
 중복 방지용 인덱스 추가 (선택)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_id ON users (LOWER(id));
+
+함수 등록
+sudo -u postgres psql -d beps -f Backend/DB/login_summary_daily.sql
+sudo -u postgres psql -d beps -f Backend/DB/login_summary_halfyearly.sql
+sudo -u postgres psql -d beps -f Backend/DB/login_summary_yearly.sql
+sudo -u postgres psql -d beps -f Backend/DB/learning_summary.sql
+
+학습 현황 일일 집계 (KST 자정에 맞춘 시간을 UTC 변환해서 전달) - 수동 사용 시
+SELECT aggregate_learning_summary_daily((TIMESTAMP '2025-03-13' AT TIME ZONE 'Asia/Seoul') AT TIME ZONE 'UTC');
+
+로그인 현황 일일 집계
+SELECT aggregate_daily_stats((TIMESTAMP '2025-04-02' AT TIME ZONE 'Asia/Seoul' - INTERVAL '1 day') AT TIME ZONE 'UTC');
+로그인 현황 분기 집계
+aggregate_quarterly_stats(2025, 01) # year, 분기(01,02,03,04)
+로그인 현황 반기 집계
+aggregate_halfyearly_stats(2025, 01) # year, 반기(01,02)
+로그인 현황 연간 집계
+aggregate_yearly_stats(2025)  # year
+
+folders 테이블에 최상위 카테고리 폴더 id 업데이트
+UPDATE folders SET top_category_folder_id = get_top_category_folder(folder_id);

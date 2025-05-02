@@ -17,13 +17,13 @@ log_handler = ConcurrentRotatingFileHandler(
     backupCount=10,         # 최대 10개 파일 보관
     encoding="utf-8",
 )
-log_handler.setLevel(logging.INFO)
+log_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 log_handler.setFormatter(formatter)
 
 # 🔹 기존 로거 가져오기 (Gunicorn 등에서 사용 시 필요)
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
     logger.addHandler(log_handler)

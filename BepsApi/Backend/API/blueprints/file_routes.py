@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from API.models import Files
+from models import Files
 from extensions import db
 import urllib.parse
 
