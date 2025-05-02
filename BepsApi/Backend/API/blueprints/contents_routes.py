@@ -132,7 +132,6 @@ def file_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @api_contents_bp.route('/file/get_by_path', methods=['GET'])
 def get_file_by_path():
     try:
