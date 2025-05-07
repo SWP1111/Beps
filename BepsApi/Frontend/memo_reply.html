@@ -356,22 +356,31 @@ td:nth-child(even) {
                             if (window.chrome && window.chrome.webview) {
                                 // For WebView2
                                 window.chrome.webview.postMessage({
+                                    type: 'command',
                                     action: 'replySaved',
                                     memo_id: memo.value.id,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null,
                                     reply_data: data
                                 });
                             } else if (window.external && typeof window.external.notify === "function") {
                                 // For older WebBrowser control
                                 window.external.notify(JSON.stringify({
+                                    type: 'command',
                                     action: 'replySaved',
                                     memo_id: memo.value.id,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null,
                                     reply_data: data
                                 }));
                             } else if (window.external && window.external.postMessage) {
                                 // Alternative approach
                                 window.external.postMessage(JSON.stringify({
+                                    type: 'command',
                                     action: 'replySaved',
                                     memo_id: memo.value.id,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null,
                                     reply_data: data
                                 }));
                             }
@@ -464,20 +473,29 @@ td:nth-child(even) {
                         if (window.chrome && window.chrome.webview) {
                             // For WebView2
                             window.chrome.webview.postMessage({
+                                type: 'command',
                                 action: 'replyCancelled',
-                                memo_id: memo.value.id
+                                memo_id: memo.value.id,
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             });
                         } else if (window.external && typeof window.external.notify === "function") {
                             // For older WebBrowser control
                             window.external.notify(JSON.stringify({
+                                type: 'command',
                                 action: 'replyCancelled',
-                                memo_id: memo.value.id
+                                memo_id: memo.value.id,
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             }));
                         } else if (window.external && window.external.postMessage) {
                             // Alternative approach
                             window.external.postMessage(JSON.stringify({
+                                type: 'command',
                                 action: 'replyCancelled',
-                                memo_id: memo.value.id
+                                memo_id: memo.value.id,
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             }));
                         }
                         console.log('Cancel message sent to host application');
@@ -497,22 +515,31 @@ td:nth-child(even) {
                         if (window.chrome && window.chrome.webview) {
                             // For WebView2
                             window.chrome.webview.postMessage({
+                                type: 'command',
                                 action: 'checkAppRunning',
-                                appName: 'BEPsApp'
+                                appName: 'BEPsApp',
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             });
                             isAppRunning = true;
                         } else if (window.external && typeof window.external.notify === "function") {
                             // For older WebBrowser control
                             window.external.notify(JSON.stringify({
+                                type: 'command',
                                 action: 'checkAppRunning',
-                                appName: 'BEPsApp'
+                                appName: 'BEPsApp',
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             }));
                             isAppRunning = true;
                         } else if (window.external && window.external.postMessage) {
                             // Alternative approach
                             window.external.postMessage(JSON.stringify({
+                                type: 'command',
                                 action: 'checkAppRunning',
-                                appName: 'BEPsApp'
+                                appName: 'BEPsApp',
+                                file_id: memo.value.file_id || null,
+                                folder_id: memo.value.folder_id || null
                             }));
                             isAppRunning = true;
                         } else {
@@ -526,18 +553,27 @@ td:nth-child(even) {
                             // Send message to navigate to the path
                             if (window.chrome && window.chrome.webview) {
                                 window.chrome.webview.postMessage({
+                                    type: 'navigation',
                                     action: 'navigateTo',
-                                    path: memo.value.path
+                                    path: memo.value.path,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null
                                 });
                             } else if (window.external && typeof window.external.notify === "function") {
                                 window.external.notify(JSON.stringify({
+                                    type: 'navigation',
                                     action: 'navigateTo',
-                                    path: memo.value.path
+                                    path: memo.value.path,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null
                                 }));
                             } else if (window.external && window.external.postMessage) {
                                 window.external.postMessage(JSON.stringify({
+                                    type: 'navigation',
                                     action: 'navigateTo',
-                                    path: memo.value.path
+                                    path: memo.value.path,
+                                    file_id: memo.value.file_id || null,
+                                    folder_id: memo.value.folder_id || null
                                 }));
                             }
                             console.log('Navigation message sent to BEPsApp');
