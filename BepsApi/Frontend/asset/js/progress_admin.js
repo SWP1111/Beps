@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     element.textContent = `메모 랭킹`;
     memoRank.appendChild(element);
 
-    let url = `${window.baseUrl}leaning/memo_rank?period_value=${period_value}`;
+    let url = `${window.baseUrl}memo/memo_rank?period_value=${period_value}`;
     if(period_type != null)
       url += `&period_type=${period_type}`;
     if(filter_type != null)

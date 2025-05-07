@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
 from extensions import db
 from models import MemoData
 import logging
-from sqlalchemy import func
+from sqlalchemy import func, text
+import traceback
 from datetime import datetime, timezone
 
 api_memo_bp = Blueprint('memo', __name__)
@@ -135,3 +137,58 @@ def delete_memo(id):
     db.session.delete(memo)
     db.session.commit()
     return '', 204 
+
+
+# 🔹 GET /leaning/memo_rank API 메모 랭킹 조회    
+@api_memo_bp.route('/memo_rank', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def memo_rank():
+    from services.user_summary_service import get_period_value
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        
+        if not period_type or not period_value:
+            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
+        
+        start_dt, end_dt = get_period_value(period_type, period_value)
+        
+        base_query = """
+            SELECT m.path, COUNT(*) AS cnt
+            FROM memos m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.path IS NOT NULL AND {filter_clause}
+            GROUP BY m.path
+            ORDER BY cnt DESC
+            LIMIT 5
+            """
+        
+        if filter_type == 'company':
+            filter_clause = "u.company = :filter_value"
+        elif filter_type == 'department':
+            filter_clause = "u.department = :filter_value"
+        elif filter_type == 'user':
+            filter_clause = "u.id = :filter_value"
+        else:
+            filter_clause = "1=1"
+        
+        query = text(base_query.format(filter_clause=filter_clause))
+        
+        params = {
+            'start_date': start_dt,
+            'end_date': end_dt
+        }
+        if filter_type in ('company', 'department', 'user'):
+            params['filter_value'] = filter_value
+            
+        result = db.session.execute(query, params).mappings().all()
+        if not result:
+            return jsonify({'error': 'No data found'}), 404
+        
+        return jsonify({'data': [dict(row) for row in result]}), 200  # 200: OK
+    
+    except Exception as e:
+        logging.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[memo_rank] error': str(e)}), 500
