@@ -247,6 +247,13 @@ background-color: #f0f0f0;
     margin-top: 20px;
     margin-left: 150px;   
 }
+.top_viewed_memos{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 20px;
+    margin-left: 150px;   
+}
 @media (min-width: 3400px){
     #map {
         height: 443px;

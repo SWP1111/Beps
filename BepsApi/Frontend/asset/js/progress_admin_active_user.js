@@ -21,12 +21,9 @@ export async function activeUser(period_type, period_value)
     getTopUserConnectionDuration(period_type, period_value)
     .then(data =>
     {
-        const allTotalDurationStr = data.data.top[0][2];
+        allTotalDuration = data.data.top[0][2];
 
-        allTotalDuration = parseDurationToSeconds(allTotalDurationStr);
-
-        for (const {userId, element, durationStr} of pendingUsers) {
-            const duration = parseDurationToSeconds(durationStr);
+        for (const {userId, element, duration} of pendingUsers) {
             const percentage = ((duration / allTotalDuration) * 100).toFixed(2);
             const status = element.querySelector('.status');
             status.className = (percentage <= 20) ? "yellow-RedBorder" : "yellow";
@@ -61,11 +58,11 @@ export async function activeUser(period_type, period_value)
                 .map(async user => {
                 const info = await getUserInfo(user);
                 const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
-                const userDurationStr = userDuration.total_duration;
-                return { user, info, userDurationStr};
+                const userDurationSec = userDuration.total_duration;
+                return { user, info, userDurationSec};
             }));
 
-            for (const {user, info, userDurationStr} of userInfos) {
+            for (const {user, info, userDurationSec} of userInfos) {
                 
                 const item = document.createElement("div");
                 item.contentEditable = false;
@@ -86,9 +83,8 @@ export async function activeUser(period_type, period_value)
 
                 if(allTotalDuration)
                 {
-                    const userDuration = parseDurationToSeconds(userDurationStr);
                     const userPercentage = (allTotalDuration > 0) 
-                        ? parseFloat(((userDuration / allTotalDuration) * 100).toFixed(2))
+                        ? parseFloat(((userDurationSec / allTotalDuration) * 100).toFixed(2))
                         : parseFloat("0.00");
 
                     if(userPercentage <= 20)
@@ -97,7 +93,7 @@ export async function activeUser(period_type, period_value)
                         status.className = "yellow";
                 }
                 else
-                    pendingUsers.push({userId: user.user_id, element: item, durationStr: userDurationStr});
+                    pendingUsers.push({userId: user.user_id, element: item, duration: userDurationSec});
             }
 
             refresh();

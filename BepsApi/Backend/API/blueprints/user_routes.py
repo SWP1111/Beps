@@ -313,9 +313,9 @@ def get_connection_duration():
                                 
             if data['has_data']:
                 return jsonify({
-                    'total_duration': str(data['total_duration']),
-                    'worktime_duration': str(data['worktime_duration']),
-                    'offhour_duration': str(data['offhour_duration']),
+                    'total_duration': data['total_duration'].total_seconds(),
+                    'worktime_duration': data['worktime_duration'].total_seconds(),
+                    'offhour_duration': data['offhour_duration'].total_seconds(),
                     'internal_count': data['internal_count'],
                     'external_count': data['external_count']
                 })
@@ -326,9 +326,9 @@ def get_connection_duration():
             
             if data['has_data']:
                 return jsonify({
-                    'total_duration': str(data['total_duration']),
-                    'worktime_duration': str(data['worktime_duration']),
-                    'offhour_duration': str(data['offhour_duration']),
+                    'total_duration': data['total_duration'].total_seconds(),
+                    'worktime_duration': data['worktime_duration'].total_seconds(),
+                    'offhour_duration': data['offhour_duration'].total_seconds(),
                     'internal_count': data['internal_count'],
                     'external_count': data['external_count']
                 })
@@ -338,9 +338,9 @@ def get_connection_duration():
                                
                 if data['has_data']:
                     return jsonify({
-                        'total_duration': str(data['total_duration']),
-                        'worktime_duration': str(data['worktime_duration']),
-                        'offhour_duration': str(data['offhour_duration']),
+                        'total_duration': data['total_duration'].total_seconds(),
+                        'worktime_duration': data['worktime_duration'].total_seconds(),
+                        'offhour_duration': data['offhour_duration'].total_seconds(),
                         'internal_count': data['internal_count'],
                         'external_count': data['external_count']
                     })
@@ -380,7 +380,7 @@ def get_top_user_duration():
             
             all_user = db.session.query(Users.id, Users.name).all()
             for user in all_user:
-                user_duration_map[user.id.lower()] = (user.name, datetime.timedelta(0))
+                user_duration_map[user.id.lower()] = (user.name, 0)
                 
             summary_day_rows = summary_service.get_summary_rows_agg(
                 loginSummaryAgg,
@@ -394,7 +394,7 @@ def get_top_user_duration():
                 for record in summary_day_rows:
                     if record.user_id:
                         prev = user_duration_map.get(record.user_id.lower())
-                        duration = record.total or datetime.timedelta(0)
+                        duration = record.total.total_seconds() or 0
                         if prev:
                             user_duration_map[record.user_id.lower()] = (record.name, prev[1] + duration)
                         else:
@@ -405,8 +405,8 @@ def get_top_user_duration():
                     sorted_users_by_low = sorted(user_duration_map.items(), key=lambda x: x[1][1])
                     return jsonify({
                         'data': {
-                            'top': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_user[:3]],
-                            'bottom': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users_by_low[:3]],
+                            'top': [(user_id, name, duration) for user_id, (name, duration) in sorted_user[:3]],
+                            'bottom': [(user_id, name, duration) for user_id, (name, duration) in sorted_users_by_low[:3]],
                         }
                     }),200
                 else:
@@ -425,6 +425,7 @@ def get_top_user_duration():
                     return jsonify({'error': 'No data found'}), 404 
                                     
     except Exception as e:
+        logging.error(f"예외 발생: {str(e)}, {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @api_user_bp.route('/get_top_department_duration', methods=['GET'])
@@ -453,7 +454,7 @@ def get_top_department_duration():
             
             all_dept = db.session.query(Users.company, Users.department).all()
             for company, department in all_dept:
-                dept_duration_map[(company, department)] = datetime.timedelta(0)
+                dept_duration_map[(company, department)] = 0
                 
             summary_rows = summary_service.get_summary_rows_agg(
                 loginSummaryAgg,
@@ -469,17 +470,17 @@ def get_top_department_duration():
                     logging.debug(f"Row: {row}")
                     key = (row.company, row.department)
                     if dept_duration_map.get(key):
-                        dept_duration_map[key] += row.total or datetime.timedelta(0)
+                        dept_duration_map[key] += row.total.total_seconds() or 0
                     else:
-                        dept_duration_map[key] = row.total or datetime.timedelta(0)
+                        dept_duration_map[key] = row.total.total_seconds() or 0
                 
                 if(len(dept_duration_map) > 0):
                     sorted_dept = sorted(dept_duration_map.items(), key=lambda x: x[1], reverse=True)
                     sorted_dept_by_low = sorted(dept_duration_map.items(), key=lambda x: x[1])
                     return jsonify({
                         'data': {
-                            'top': [(company, department, str(duration)) for (company, department), duration in sorted_dept[:3]],
-                            'bottom': [(company, department, str(duration)) for (company, department), duration in sorted_dept_by_low[:3]],
+                            'top': [(company, department, duration) for (company, department), duration in sorted_dept[:3]],
+                            'bottom': [(company, department, duration) for (company, department), duration in sorted_dept_by_low[:3]],
                         }
                     }),200
                 else:
@@ -523,7 +524,7 @@ def get_top_company_duration():
             
             all_company = db.session.query(Users.company).distinct().all()
             for (company,) in all_company:
-                company_duration_map[company] = datetime.timedelta(0)
+                company_duration_map[company] = 0
                 
             summary_rows = summary_service.get_summary_rows_agg(
                 loginSummaryAgg,
@@ -537,17 +538,17 @@ def get_top_company_duration():
             if summary_rows:
                 for row in summary_rows:
                     if company_duration_map.get(row.company):
-                        company_duration_map[row.company] += row.total or datetime.timedelta(0)
+                        company_duration_map[row.company] += row.total.total_seconds() or 0
                     else:
-                        company_duration_map[row.company] = row.total or datetime.timedelta(0)
+                        company_duration_map[row.company] = row.total.total_seconds() or 0
 
                 if(len(company_duration_map) > 0):
                     sorted_company = sorted(company_duration_map.items(), key=lambda x: x[1], reverse=True)
                     sorted_company_by_low = sorted(company_duration_map.items(), key=lambda x: x[1])
                     return jsonify({
                         'data': {
-                            'top': [(company, str(duration)) for company, duration in sorted_company[:3]],
-                            'bottom': [(company, str(duration)) for company, duration in sorted_company_by_low[:3]],
+                            'top': [(company, duration) for company, duration in sorted_company[:3]],
+                            'bottom': [(company, duration) for company, duration in sorted_company_by_low[:3]],
                         }
                     }),200
                 else:                    

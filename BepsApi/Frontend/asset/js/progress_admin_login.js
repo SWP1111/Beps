@@ -11,28 +11,30 @@ export async function setLoginData(period_type, period_value, filter_type, filte
 
     const value = await getUserConnectionDuration(period_type, period_value, filter_type, filter_value);
 
-    const total_duration = value.total_duration ?? "00:00:00";
-    const worktime_duration_value = value.worktime_duration ?? "00:00:00";
-    const offhour_duration_value = value.offhour_duration ?? "00:00:00";
+    const total_duration = value.total_duration ?? "0";
+    const worktime_duration_value = value.worktime_duration ?? "0";
+    const offhour_duration_value = value.offhour_duration ?? "0";
     const internal_count_value = value.internal_count ?? 0;
     const external_count_value = value.external_count ?? 0;
     const total_login_count_value = internal_count_value + external_count_value;
 
-    totalLoginTime.textContent = `총 접속 시간: ${total_duration} (${durationToHours(total_duration)} 시간)`;
-    worktime_duration.textContent = `근무 시간 내: ${worktime_duration_value} (${durationToHours(worktime_duration_value)} 시간)`;
-    offhour_duration.textContent = `근무 시간 외: ${offhour_duration_value} (${durationToHours(offhour_duration_value)} 시간)`;
+    totalLoginTime.textContent = `총 접속 시간: ${formatSecondsToHHMMSS(total_duration)} (${formatSecondsToHoursFloat(total_duration)})`;
+    worktime_duration.textContent = `근무 시간 내: ${formatSecondsToHHMMSS(worktime_duration_value)} (${formatSecondsToHoursFloat(worktime_duration_value)})`;
+    offhour_duration.textContent = `근무 시간 외: ${formatSecondsToHHMMSS(offhour_duration_value)} (${formatSecondsToHoursFloat(offhour_duration_value)})`;
     total_login_count.textContent = `총 접속 횟수: ${total_login_count_value}`;
     internal_count.textContent = `내부 접속 횟수: ${internal_count_value}`;
     external_count.textContent = `외부 접속 횟수: ${external_count_value}`;
 }
 
-function durationToHours(durationStar) {
-    if (durationStar == undefined || durationStar == "00:00:00") return 0;
+export function formatSecondsToHHMMSS(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secondsRemainder = Math.floor(seconds % 60);
 
-    const [hms, factional = '0' ] = durationStar.split('.');
-    const [h, m, s] = hms.split(':').map(Number);
-    const fractionalSeconds = parseFloat('0.'+factional);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secondsRemainder).padStart(2, '0')}`;
+}
 
-    const totalHours = h + (m / 60) + ((s + fractionalSeconds) / 3600);
-    return totalHours.toFixed(2);
+function formatSecondsToHoursFloat(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    return `${hours.toFixed(1)} 시간`;
 }

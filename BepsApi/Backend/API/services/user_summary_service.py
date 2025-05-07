@@ -90,14 +90,14 @@ def get_top_user_duration_mixed(start_date, end_date):
 
     all_users = db.session.query(Users.id, Users.name).all()
     for user in all_users:
-        user_duration_map[user.id.lower()] = (user.name, datetime.timedelta(0))
+        user_duration_map[user.id.lower()] = (user.name, 0)
     
     def update_user_duration(rows, user_id_fields='user_id'):
         for row in rows:
             user_id = getattr(row, user_id_fields, None)
             if user_id:
                 prev = user_duration_map.get(user_id.lower())
-                duration = row.total or datetime.timedelta(0)
+                duration = row.total.total_seconds() or 0
                 if prev:
                     user_duration_map[user_id.lower()] = (prev[0], prev[1] + duration)
                 else:
@@ -144,7 +144,7 @@ def get_top_user_duration_mixed(start_date, end_date):
                         return {
                             'has_data': False,
                             'user_id': None,
-                            'duration': datetime.timedelta(0)
+                            'duration': 0
                         }
                             
                 elif used_start - datetime.timedelta(days=1) in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
@@ -187,14 +187,14 @@ def get_top_user_duration_mixed(start_date, end_date):
         sorted_users_by_low = sorted(user_duration_map.items(), key=lambda x: x[1][1])
         return {
             'has_data': True,
-            'top':  [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users[:3]],
-            'bottom': [(user_id, name, str(duration)) for user_id, (name, duration) in sorted_users_by_low[:3]],
+            'top':  [(user_id, name, duration) for user_id, (name, duration) in sorted_users[:3]],
+            'bottom': [(user_id, name, duration) for user_id, (name, duration) in sorted_users_by_low[:3]],
         }
     else:
         return {
             'has_data': False,
             'user_id': None,
-            'duration': datetime.timedelta(0)
+            'duration': 0
         }
 
 def get_top_department_duration_mixed(start_date, end_date):
@@ -203,14 +203,14 @@ def get_top_department_duration_mixed(start_date, end_date):
     
     all_departments = db.session.query(Users.company, Users.department).distinct().all()
     for company, department in all_departments:
-        dept_duration_map[(company, department)] = datetime.timedelta(0)
+        dept_duration_map[(company, department)] = 0
     
     def update_dept_duration(rows, company_filed='company_key', department_field='department_key'):
         for row in rows:
             key = (getattr(row, company_filed, None), getattr(row, department_field, None))
             if key not in dept_duration_map:
-                dept_duration_map[key] = datetime.timedelta(0)
-            dept_duration_map[key] += row.total or datetime.timedelta(0)
+                dept_duration_map[key] = 0
+            dept_duration_map[key] += row.total.total_seconds() or 0
         
     for period_func, summary_func, period_type in [
         (get_year_period_value, loginSummaryAgg, 'year'),
@@ -256,7 +256,7 @@ def get_top_department_duration_mixed(start_date, end_date):
                             'has_data': False,
                             'company': None,
                             'department': None,
-                            'duration': datetime.timedelta(0)
+                            'duration': 0
                         }
                             
                 if current_end >= datetime.date.today() - datetime.timedelta(days=1):
@@ -301,15 +301,15 @@ def get_top_department_duration_mixed(start_date, end_date):
         sorted_departments_by_low = sorted(dept_duration_map.items(), key=lambda x: x[1])
         return {
             'has_data': True,
-            'top': [(company, department, str(duration)) for (company, department), duration in sorted_departments[:3]],
-            'bottom': [(company, department, str(duration)) for (company, department), duration in sorted_departments_by_low[:3]],
+            'top': [(company, department, duration) for (company, department), duration in sorted_departments[:3]],
+            'bottom': [(company, department, duration) for (company, department), duration in sorted_departments_by_low[:3]],
         }
     else:
         return {
             'has_data': False,
             'company': None,
             'department': None,
-            'duration': datetime.timedelta(0)
+            'duration': 0
         }
 
 def get_top_company_duration_mixed(start_date, end_date):
@@ -318,14 +318,14 @@ def get_top_company_duration_mixed(start_date, end_date):
     
     all_companies = db.session.query(Users.company).distinct().all()
     for (company,) in all_companies:
-        company_duaration_map[company] = datetime.timedelta(0)
+        company_duaration_map[company] = 0
     
     def update_company_duration(rows, company_field='company_key'):
         for row in rows:
             company = getattr(row, company_field, None)
             if company not in company_duaration_map:
-                company_duaration_map[company] = datetime.timedelta(0)
-            company_duaration_map[company] += row.total or datetime.timedelta(0)
+                company_duaration_map[company] = 0
+            company_duaration_map[company] += row.total.total_seconds() or 0
     
     for period_func, summary_func, period_type in [
         (get_year_period_value, loginSummaryAgg, 'year'),
@@ -370,7 +370,7 @@ def get_top_company_duration_mixed(start_date, end_date):
                         return {
                             'has_data': False,
                             'company': None,
-                            'duration': datetime.timedelta(0)
+                            'duration': 0
                         }
                 
                 if current_end >= datetime.date.today() - datetime.timedelta(days=1):
@@ -415,14 +415,14 @@ def get_top_company_duration_mixed(start_date, end_date):
         sorted_companies_by_low = sorted(company_duaration_map.items(), key=lambda x: x[1])
         return {
             'has_data': True,
-            'top': [(company, str(duration)) for company, duration in sorted_companies[:3]],
-            'bottom': [(company, str(duration)) for company, duration in sorted_companies_by_low[:3]],
+            'top': [(company, duration) for company, duration in sorted_companies[:3]],
+            'bottom': [(company, duration) for company, duration in sorted_companies_by_low[:3]],
         }
     else:
         return {
             'has_data': False,
             'company': None,
-            'duration': datetime.timedelta(0)
+            'duration': 0
         }
     
                

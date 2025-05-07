@@ -101,7 +101,7 @@ def try_add_point(user_id, file_id, end_time, duration, max_point=5):
     """포인트 추가 로직"""
     try:
         if duration.total_seconds() >= Config.POINT_DURATION_SECONDS:  # 5분 이상 시청한 경우
-            record = ContentPointRecord.query.filter_by(user_id=user_id, file_id=file_id).firssudot()
+            record = ContentPointRecord.query.filter_by(user_id=user_id, file_id=file_id).first()
             
             if record:
                 if record.point < max_point:
@@ -356,10 +356,13 @@ def category_progress():
         for folder_id, (folder_name, duration) in folder_duration_map.items():
             duration_seconds = duration.total_seconds() if duration else 0
             percentage = round(duration_seconds / total_seconds * 100, 1)
+            hour = duration_seconds // 3600
+            minute = (duration_seconds % 3600) // 60
+            second = duration_seconds % 60
             result.append({
                 'folder_id': folder_id,
                 'folder_name': folder_name,
-                'duration': str(duration),
+                'duration': f"{int(hour):02}:{int(minute):02}:{int(second):02}",
                 'percentage': percentage
             })
             
@@ -428,3 +431,57 @@ def get_top_viewd_pages():
     except Exception as e:
         logging.debug(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
+    
+# 🔹 GET /leaning/memo_rank API 메모 랭킹 조회    
+@api_leaning_bp.route('/memo_rank', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def memo_rank():
+    from services.user_summary_service import get_period_value
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        
+        if not period_type or not period_value:
+            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
+        
+        start_dt, end_dt = get_period_value(period_type, period_value)
+        
+        base_query = """
+            SELECT m.path, COUNT(*) AS cnt
+            FROM memos m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.path IS NOT NULL AND {filter_clause}
+            GROUP BY m.path
+            ORDER BY cnt DESC
+            LIMIT 5
+            """
+        
+        if filter_type == 'company':
+            filter_clause = "u.company = :filter_value"
+        elif filter_type == 'department':
+            filter_clause = "u.department = :filter_value"
+        elif filter_type == 'user':
+            filter_clause = "u.id = :filter_value"
+        else:
+            filter_clause = "1=1"
+        
+        query = text(base_query.format(filter_clause=filter_clause))
+        
+        params = {
+            'start_date': start_dt,
+            'end_date': end_dt
+        }
+        if filter_type in ('company', 'department', 'user'):
+            params['filter_value'] = filter_value
+            
+        result = db.session.execute(query, params).mappings().all()
+        if not result:
+            return jsonify({'error': 'No data found'}), 404
+        
+        return jsonify({'data': [dict(row) for row in result]}), 200  # 200: OK
+    
+    except Exception as e:
+        logging.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[memo_rank] error': str(e)}), 500
