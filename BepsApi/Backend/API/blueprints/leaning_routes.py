@@ -217,7 +217,21 @@ def point():
         filters = {}
 
         base_sql = """
-            SELECT SUM(cpr.point) AS total_points
+            SELECT SUM(cpr.point) AS total_points,
+            (
+                SELECT AVG(COALESCE(points_per_user, 0)) FROM (
+                    SELECT u2.id, SUM(cpr2.point) AS points_per_user
+                    FROM users u2
+                    LEFT JOIN content_point_record cpr2 ON u2.id = cpr2.user_id
+                    LEFT JOIN LATERAL jsonb_array_elements_text(cpr2.earned_times) AS et ON TRUE
+                    WHERE (
+                        et::timestamp BETWEEN :start_date AND :end_date
+                        OR et IS NULL
+                    )
+                    {inner_clause}
+                    GROUP BY u2.id
+                ) AS avg_points_sub
+            ) AS average_points
             FROM content_point_record cpr
             JOIN users u ON cpr.user_id = u.id
             JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
@@ -226,28 +240,37 @@ def point():
         filters['start_date'] = utc_start_date
         filters['end_date'] = utc_end_date
         
-        # 포인트 조회        
+        # 포인트 조회
+        innter_clause = ""       
         if filter_type == 'company' and filter_value:
             base_sql += " AND u.company = :filter_value"
+            innter_clause += " AND u2.company = :filter_value"
             filters['filter_value'] = filter_value
         elif filter_type == 'department' and filter_value:
             parts = filter_value.split('||',1)
             if len(parts) == 2:
                 company_name, department_name = parts
                 base_sql += " AND u.company = :company_name AND u.department = :department_name"
+                innter_clause += " AND u2.company = :company_name AND u2.department = :department_name"
                 filters['company_name'] = company_name
                 filters['department_name'] = department_name
             else:
                 department_name = parts[0]
                 base_sql += " AND u.department = :department_name"
+                innter_clause += " AND u2.department = :department_name"
                 filters['department_name'] = department_name
         elif filter_type == 'user' and filter_value:
             base_sql += " AND u.id = :user_id"
+            innter_clause += " AND u2.id = :user_id"
             filters['user_id'] = filter_value
         
-        result = db.session.execute(text(base_sql), filters).scalar() or 0 # 결과가 없으면 0으로 설정
+        final_sql = base_sql.format(inner_clause=innter_clause)
+        result = db.session.execute(text(final_sql), filters).first()
                 
-        return jsonify({'total_points': result}), 200 # 200: OK
+        return jsonify({
+            'total_points': result.total_points or 0,
+            'average_points': result.average_points or 0,
+            }), 200 # 200: OK
       
     except Exception as e:
         return jsonify({'[point] error': str(e)}), 500
@@ -399,7 +422,7 @@ def get_top_viewd_pages():
             
         query = query.outerjoin(Files, ContentViewingHistory.file_id == Files.file_id).filter(
             ContentViewingHistory.start_time >= start_dt,
-            ContentViewingHistory.end_time <= end_dt
+            ContentViewingHistory.start_time < end_dt
         )     
         
         if filter_type == 'company' and filter_value:

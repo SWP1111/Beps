@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     const getPoint = await response.json();
     if(response.ok)
     {
-      totalPoint.textContent = `총 포인트 : ${getPoint.total_points} P`;
+      totalPoint.innerHTML = `총 포인트 : ${getPoint.total_points} P <br> 평균 포인트: ${Number(getPoint.average_points).toFixed(2)} P`;
     }
   }
 
