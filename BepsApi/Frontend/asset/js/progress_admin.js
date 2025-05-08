@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     const getPoint = await response.json();
     if(response.ok)
     {
-      totalPoint.textContent = `총 포인트 : ${getPoint.total_points} P`;
+      totalPoint.innerHTML = `총 포인트 : ${getPoint.total_points} P <br> 평균 포인트: ${Number(getPoint.average_points).toFixed(2)} P`;
     }
   }
 
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     element.textContent = `메모 랭킹`;
     memoRank.appendChild(element);
 
-    let url = `${window.baseUrl}leaning/memo_rank?period_value=${period_value}`;
+    let url = `${window.baseUrl}memo/memo_rank?period_value=${period_value}`;
     if(period_type != null)
       url += `&period_type=${period_type}`;
     if(filter_type != null)

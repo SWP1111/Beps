@@ -394,7 +394,7 @@ def get_top_user_duration():
                 for record in summary_day_rows:
                     if record.user_id:
                         prev = user_duration_map.get(record.user_id.lower())
-                        duration = record.total.total_seconds() or 0
+                        duration = (record.total.total_seconds() if record.total else 0)
                         if prev:
                             user_duration_map[record.user_id.lower()] = (record.name, prev[1] + duration)
                         else:
@@ -470,9 +470,9 @@ def get_top_department_duration():
                     logging.debug(f"Row: {row}")
                     key = (row.company, row.department)
                     if dept_duration_map.get(key):
-                        dept_duration_map[key] += row.total.total_seconds() or 0
+                        dept_duration_map[key] += (row.total.total_seconds() if row.total else 0)
                     else:
-                        dept_duration_map[key] = row.total.total_seconds() or 0
+                        dept_duration_map[key] = (row.total.total_seconds() if row.total else 0)
                 
                 if(len(dept_duration_map) > 0):
                     sorted_dept = sorted(dept_duration_map.items(), key=lambda x: x[1], reverse=True)
@@ -538,9 +538,9 @@ def get_top_company_duration():
             if summary_rows:
                 for row in summary_rows:
                     if company_duration_map.get(row.company):
-                        company_duration_map[row.company] += row.total.total_seconds() or 0
+                        company_duration_map[row.company] += (row.total.total_seconds() if row.total else 0)
                     else:
-                        company_duration_map[row.company] = row.total.total_seconds() or 0
+                        company_duration_map[row.company] = (row.total.total_seconds() if row.total else 0)
 
                 if(len(company_duration_map) > 0):
                     sorted_company = sorted(company_duration_map.items(), key=lambda x: x[1], reverse=True)

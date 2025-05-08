@@ -97,7 +97,7 @@ def get_top_user_duration_mixed(start_date, end_date):
             user_id = getattr(row, user_id_fields, None)
             if user_id:
                 prev = user_duration_map.get(user_id.lower())
-                duration = row.total.total_seconds() or 0
+                duration = (row.total.total_seconds() if row.total else 0)
                 if prev:
                     user_duration_map[user_id.lower()] = (prev[0], prev[1] + duration)
                 else:
@@ -210,7 +210,7 @@ def get_top_department_duration_mixed(start_date, end_date):
             key = (getattr(row, company_filed, None), getattr(row, department_field, None))
             if key not in dept_duration_map:
                 dept_duration_map[key] = 0
-            dept_duration_map[key] += row.total.total_seconds() or 0
+            dept_duration_map[key] += (row.total.total_seconds() if row.total else 0)
         
     for period_func, summary_func, period_type in [
         (get_year_period_value, loginSummaryAgg, 'year'),
@@ -325,7 +325,7 @@ def get_top_company_duration_mixed(start_date, end_date):
             company = getattr(row, company_field, None)
             if company not in company_duaration_map:
                 company_duaration_map[company] = 0
-            company_duaration_map[company] += row.total.total_seconds() or 0
+            company_duaration_map[company] += (row.total.total_seconds() if row.total else 0)
     
     for period_func, summary_func, period_type in [
         (get_year_period_value, loginSummaryAgg, 'year'),

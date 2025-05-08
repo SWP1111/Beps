@@ -217,7 +217,21 @@ def point():
         filters = {}
 
         base_sql = """
-            SELECT SUM(cpr.point) AS total_points
+            SELECT SUM(cpr.point) AS total_points,
+            (
+                SELECT AVG(COALESCE(points_per_user, 0)) FROM (
+                    SELECT u2.id, SUM(cpr2.point) AS points_per_user
+                    FROM users u2
+                    LEFT JOIN content_point_record cpr2 ON u2.id = cpr2.user_id
+                    LEFT JOIN LATERAL jsonb_array_elements_text(cpr2.earned_times) AS et ON TRUE
+                    WHERE (
+                        et::timestamp BETWEEN :start_date AND :end_date
+                        OR et IS NULL
+                    )
+                    {inner_clause}
+                    GROUP BY u2.id
+                ) AS avg_points_sub
+            ) AS average_points
             FROM content_point_record cpr
             JOIN users u ON cpr.user_id = u.id
             JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
@@ -226,28 +240,37 @@ def point():
         filters['start_date'] = utc_start_date
         filters['end_date'] = utc_end_date
         
-        # 포인트 조회        
+        # 포인트 조회
+        innter_clause = ""       
         if filter_type == 'company' and filter_value:
             base_sql += " AND u.company = :filter_value"
+            innter_clause += " AND u2.company = :filter_value"
             filters['filter_value'] = filter_value
         elif filter_type == 'department' and filter_value:
             parts = filter_value.split('||',1)
             if len(parts) == 2:
                 company_name, department_name = parts
                 base_sql += " AND u.company = :company_name AND u.department = :department_name"
+                innter_clause += " AND u2.company = :company_name AND u2.department = :department_name"
                 filters['company_name'] = company_name
                 filters['department_name'] = department_name
             else:
                 department_name = parts[0]
                 base_sql += " AND u.department = :department_name"
+                innter_clause += " AND u2.department = :department_name"
                 filters['department_name'] = department_name
         elif filter_type == 'user' and filter_value:
             base_sql += " AND u.id = :user_id"
+            innter_clause += " AND u2.id = :user_id"
             filters['user_id'] = filter_value
         
-        result = db.session.execute(text(base_sql), filters).scalar() or 0 # 결과가 없으면 0으로 설정
+        final_sql = base_sql.format(inner_clause=innter_clause)
+        result = db.session.execute(text(final_sql), filters).first()
                 
-        return jsonify({'total_points': result}), 200 # 200: OK
+        return jsonify({
+            'total_points': result.total_points or 0,
+            'average_points': result.average_points or 0,
+            }), 200 # 200: OK
       
     except Exception as e:
         return jsonify({'[point] error': str(e)}), 500
@@ -399,7 +422,7 @@ def get_top_viewd_pages():
             
         query = query.outerjoin(Files, ContentViewingHistory.file_id == Files.file_id).filter(
             ContentViewingHistory.start_time >= start_dt,
-            ContentViewingHistory.end_time <= end_dt
+            ContentViewingHistory.start_time < end_dt
         )     
         
         if filter_type == 'company' and filter_value:
@@ -431,57 +454,3 @@ def get_top_viewd_pages():
     except Exception as e:
         logging.debug(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
-    
-# 🔹 GET /leaning/memo_rank API 메모 랭킹 조회    
-@api_leaning_bp.route('/memo_rank', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
-def memo_rank():
-    from services.user_summary_service import get_period_value
-    try:
-        filter_type = request.args.get('filter_type', 'all')
-        filter_value = request.args.get('filter_value')
-        period_type = request.args.get('period_type', 'year')
-        period_value = request.args.get('period_value')
-        
-        if not period_type or not period_value:
-            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
-        
-        start_dt, end_dt = get_period_value(period_type, period_value)
-        
-        base_query = """
-            SELECT m.path, COUNT(*) AS cnt
-            FROM memos m
-            JOIN users u ON m.user_id = u.id
-            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.path IS NOT NULL AND {filter_clause}
-            GROUP BY m.path
-            ORDER BY cnt DESC
-            LIMIT 5
-            """
-        
-        if filter_type == 'company':
-            filter_clause = "u.company = :filter_value"
-        elif filter_type == 'department':
-            filter_clause = "u.department = :filter_value"
-        elif filter_type == 'user':
-            filter_clause = "u.id = :filter_value"
-        else:
-            filter_clause = "1=1"
-        
-        query = text(base_query.format(filter_clause=filter_clause))
-        
-        params = {
-            'start_date': start_dt,
-            'end_date': end_dt
-        }
-        if filter_type in ('company', 'department', 'user'):
-            params['filter_value'] = filter_value
-            
-        result = db.session.execute(query, params).mappings().all()
-        if not result:
-            return jsonify({'error': 'No data found'}), 404
-        
-        return jsonify({'data': [dict(row) for row in result]}), 200  # 200: OK
-    
-    except Exception as e:
-        logging.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")
-        return jsonify({'[memo_rank] error': str(e)}), 500

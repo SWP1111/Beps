@@ -54,6 +54,27 @@ UPDATE folders SET top_category_folder_id = get_top_category_folder(folder_id);
 # 실행 권한(cronjob에서 실행되게 하려면 실행권한을 부여해야 함함)
 chmod +x /home/user_ccp/service/BepsApi/Backend/DB/summary_executor.bash
 
+# 테이블 비우기
+DELETE FROM table_name;   # 모든 row 제거
+TRUNCATE table_name;      # 모든 row 제거(더 빠름)
+TRUNCATE table_name RESTART IDENTITY; #모든 row 제거, id 시퀀스 초기화(1)
+TRUNCATE table_name RESTART IDENTITY CASCADE; # foreign key 제약 존재 시, CASCADE 옵션 추가하면 연관 테이블도 비움움
+
+
+# 인덱스 사용 확인
+SELECT
+  relname AS table_name,
+  indexrelname AS index_name,
+  idx_scan AS index_scan_count,
+  idx_tup_read AS tuples_read,
+  idx_tup_fetch AS tuples_fetched
+FROM
+  pg_stat_user_indexes
+WHERE
+  relname = 'content_viewing_history'   #테이블 이름름
+ORDER BY
+  idx_scan DESC;
+
 #################cronjob###########################
 
 0 0 1 * * /bin/bash /home/user_ccp/service/BepsApi/Backend/DB/archive_executor.bash >> /home/user_ccp/service/BepsApi/Backend/DB/log/archive_automation.log 2>&1
