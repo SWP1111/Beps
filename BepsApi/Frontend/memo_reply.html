@@ -534,13 +534,17 @@ td:nth-child(even) {
                     return new Promise((resolve) => {
                         // Create a flag to track if we got a response
                         let receivedResponse = false;
+                        console.log('Starting app running check...');
                         
                         // Function to handle response from the app
                         const handleAppResponse = (event) => {
+                            console.log('Message received:', event);
                             // Check if it's our ping response
                             try {
                                 const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                                console.log('Parsed message data:', data);
                                 if (data && data.type === 'response' && data.action === 'pong') {
+                                    console.log('Pong response received - app is running!');
                                     receivedResponse = true;
                                     window.removeEventListener('message', handleAppResponse);
                                     resolve(true);
@@ -557,16 +561,24 @@ td:nth-child(even) {
                         try {
                             if (window.chrome && window.chrome.webview) {
                                 // For WebView2
-                                window.chrome.webview.postMessage({
+                                console.log('WebView2 detected, sending ping...');
+                                
+                                // First ensure message event handler is attached directly to webview
+                                window.chrome.webview.addEventListener('message', event => {
+                                    console.log('Direct WebView2 message received:', event);
+                                    handleAppResponse(event);
+                                });
+                                
+                                const pingMessage = {
                                     type: 'command',
                                     action: 'ping',
                                     timestamp: Date.now()
-                                });
-                                
-                                // WebView2 also has a message received handler
-                                window.chrome.webview.addEventListener('message', handleAppResponse);
+                                };
+                                console.log('Sending ping message:', pingMessage);
+                                window.chrome.webview.postMessage(pingMessage);
                             } else if (window.external && typeof window.external.notify === "function") {
                                 // For older WebBrowser control
+                                console.log('Using window.external.notify for communication');
                                 window.external.notify(JSON.stringify({
                                     type: 'command',
                                     action: 'ping',
@@ -574,6 +586,7 @@ td:nth-child(even) {
                                 }));
                             } else if (window.external && window.external.postMessage) {
                                 // Alternative approach
+                                console.log('Using window.external.postMessage for communication');
                                 window.external.postMessage(JSON.stringify({
                                     type: 'command',
                                     action: 'ping',
@@ -581,6 +594,7 @@ td:nth-child(even) {
                                 }));
                             } else {
                                 // No communication method available
+                                console.log('No communication method available');
                                 resolve(false);
                                 return;
                             }
@@ -593,13 +607,18 @@ td:nth-child(even) {
                         // Set timeout to resolve with false if no response received
                         setTimeout(() => {
                             if (!receivedResponse) {
+                                console.log('Timeout reached - no response from app');
                                 window.removeEventListener('message', handleAppResponse);
                                 if (window.chrome && window.chrome.webview) {
-                                    window.chrome.webview.removeEventListener('message', handleAppResponse);
+                                    try {
+                                        window.chrome.webview.removeEventListener('message', handleAppResponse);
+                                    } catch (err) {
+                                        console.error('Error removing event listener:', err);
+                                    }
                                 }
                                 resolve(false);
                             }
-                        }, 1000); // 1 second timeout
+                        }, 2000); // 2 second timeout for better debugging
                     });
                 };
 
