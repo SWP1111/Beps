@@ -507,82 +507,129 @@ td:nth-child(even) {
                 };
 
                 const handleGoToClick = () => {
-                    // Try to communicate with BEPsApp
-                    let isAppRunning = false;
-                    
+                    // Check if BEPsApp is running using a promise-based approach
+                    checkIfAppIsRunning()
+                        .then(isRunning => {
+                            if (isRunning) {
+                                // App is running, send navigation message
+                                sendNavigationRequest();
+                            } else {
+                                // App is not running
+                                showAppNotRunningMessage();
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error checking if app is running:', err);
+                            showAppNotRunningMessage();
+                        });
+                };
+
+                // Function to check if app is running with timeout
+                const checkIfAppIsRunning = () => {
+                    return new Promise((resolve) => {
+                        // Create a flag to track if we got a response
+                        let receivedResponse = false;
+                        
+                        // Function to handle response from the app
+                        const handleAppResponse = (event) => {
+                            // Check if it's our ping response
+                            try {
+                                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                                if (data && data.type === 'response' && data.action === 'pong') {
+                                    receivedResponse = true;
+                                    window.removeEventListener('message', handleAppResponse);
+                                    resolve(true);
+                                }
+                            } catch (err) {
+                                console.error('Error parsing response:', err);
+                            }
+                        };
+                        
+                        // Listen for response
+                        window.addEventListener('message', handleAppResponse);
+                        
+                        // Try to communicate with the app
+                        try {
+                            if (window.chrome && window.chrome.webview) {
+                                // For WebView2
+                                window.chrome.webview.postMessage({
+                                    type: 'command',
+                                    action: 'ping',
+                                    timestamp: Date.now()
+                                });
+                                
+                                // WebView2 also has a message received handler
+                                window.chrome.webview.addEventListener('message', handleAppResponse);
+                            } else if (window.external && typeof window.external.notify === "function") {
+                                // For older WebBrowser control
+                                window.external.notify(JSON.stringify({
+                                    type: 'command',
+                                    action: 'ping',
+                                    timestamp: Date.now()
+                                }));
+                            } else if (window.external && window.external.postMessage) {
+                                // Alternative approach
+                                window.external.postMessage(JSON.stringify({
+                                    type: 'command',
+                                    action: 'ping',
+                                    timestamp: Date.now()
+                                }));
+                            } else {
+                                // No communication method available
+                                resolve(false);
+                                return;
+                            }
+                        } catch (err) {
+                            console.error('Error sending ping:', err);
+                            resolve(false);
+                            return;
+                        }
+                        
+                        // Set timeout to resolve with false if no response received
+                        setTimeout(() => {
+                            if (!receivedResponse) {
+                                window.removeEventListener('message', handleAppResponse);
+                                if (window.chrome && window.chrome.webview) {
+                                    window.chrome.webview.removeEventListener('message', handleAppResponse);
+                                }
+                                resolve(false);
+                            }
+                        }, 1000); // 1 second timeout
+                    });
+                };
+
+                // Function to send navigation request
+                const sendNavigationRequest = () => {
                     try {
-                        // Check if we can communicate with the app
+                        // Send message to navigate to the path
                         if (window.chrome && window.chrome.webview) {
-                            // For WebView2
                             window.chrome.webview.postMessage({
-                                type: 'command',
-                                action: 'checkAppRunning',
-                                appName: 'BEPsApp',
+                                type: 'navigation',
+                                action: 'navigateTo',
+                                path: memo.value.path,
                                 file_id: memo.value.file_id || null,
                                 folder_id: memo.value.folder_id || null
                             });
-                            isAppRunning = true;
                         } else if (window.external && typeof window.external.notify === "function") {
-                            // For older WebBrowser control
                             window.external.notify(JSON.stringify({
-                                type: 'command',
-                                action: 'checkAppRunning',
-                                appName: 'BEPsApp',
+                                type: 'navigation',
+                                action: 'navigateTo',
+                                path: memo.value.path,
                                 file_id: memo.value.file_id || null,
                                 folder_id: memo.value.folder_id || null
                             }));
-                            isAppRunning = true;
                         } else if (window.external && window.external.postMessage) {
-                            // Alternative approach
                             window.external.postMessage(JSON.stringify({
-                                type: 'command',
-                                action: 'checkAppRunning',
-                                appName: 'BEPsApp',
+                                type: 'navigation',
+                                action: 'navigateTo',
+                                path: memo.value.path,
                                 file_id: memo.value.file_id || null,
                                 folder_id: memo.value.folder_id || null
                             }));
-                            isAppRunning = true;
-                        } else {
-                            // No communication method available
-                            isAppRunning = false;
                         }
-                        
-                        // If we get here, we should be able to communicate with the host app
-                        // Now send the navigation request
-                        if (isAppRunning) {
-                            // Send message to navigate to the path
-                            if (window.chrome && window.chrome.webview) {
-                                window.chrome.webview.postMessage({
-                                    type: 'navigation',
-                                    action: 'navigateTo',
-                                    path: memo.value.path,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null
-                                });
-                            } else if (window.external && typeof window.external.notify === "function") {
-                                window.external.notify(JSON.stringify({
-                                    type: 'navigation',
-                                    action: 'navigateTo',
-                                    path: memo.value.path,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null
-                                }));
-                            } else if (window.external && window.external.postMessage) {
-                                window.external.postMessage(JSON.stringify({
-                                    type: 'navigation',
-                                    action: 'navigateTo',
-                                    path: memo.value.path,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null
-                                }));
-                            }
-                            console.log('Navigation message sent to BEPsApp');
-                        } else {
-                            // App is not running
-                            showAppNotRunningMessage();
-                        }
+                        console.log('Navigation message sent to BEPsApp');
                     } catch (err) {
-                        console.error('Failed to communicate with BEPsApp:', err);
+                        console.error('Failed to send navigation message:', err);
                         showAppNotRunningMessage();
                     }
                 };
