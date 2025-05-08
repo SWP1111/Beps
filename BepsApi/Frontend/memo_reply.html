@@ -233,7 +233,7 @@ td:nth-child(even) {
     </div>
 
     <script>
-        const { createApp, ref, onMounted } = Vue;
+        const { createApp, ref, onMounted, onUnmounted } = Vue;
         const url = typeof baseUrl != "undefined" ? baseUrl : "http://172.16.8.208:20000/";
 
         createApp({
@@ -472,188 +472,124 @@ td:nth-child(even) {
                     });
                 };
 
-                const cancelReply = () => {
-                    // Send message to local window process before closing
-                    try {
-                        if (window.chrome && window.chrome.webview) {
-                            // For WebView2
-                            window.chrome.webview.postMessage({
-                                type: 'command',
-                                action: 'replyCancelled',
-                                memo_id: memo.value.id,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            });
-                        } else if (window.external && typeof window.external.notify === "function") {
-                            // For older WebBrowser control
-                            window.external.notify(JSON.stringify({
-                                type: 'command',
-                                action: 'replyCancelled',
-                                memo_id: memo.value.id,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            }));
-                        } else if (window.external && window.external.postMessage) {
-                            // Alternative approach
-                            window.external.postMessage(JSON.stringify({
-                                type: 'command',
-                                action: 'replyCancelled',
-                                memo_id: memo.value.id,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            }));
-                        }
-                        console.log('Cancel message sent to host application');
-                    } catch (err) {
-                        console.error('Failed to send cancel message to host application:', err);
-                    }
+                const setupWebSocket = () => {
+                    // Connect to the local BepsApp on the user's machine
+                    const ws = new WebSocket('ws://127.0.0.1:8080');
+                    const pingInterval = ref(null);
+                    const isConnected = ref(false);
+                    const reconnectTimeout = ref(null);
                     
-                    window.close();
-                };
-
-                const handleGoToClick = () => {
-                    // Check if BEPsApp is running using a promise-based approach
-                    checkIfAppIsRunning()
-                        .then(isRunning => {
-                            if (isRunning) {
-                                // App is running, send navigation message
-                                sendNavigationRequest();
-                            } else {
-                                // App is not running
-                                showAppNotRunningMessage();
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Error checking if app is running:', err);
-                            showAppNotRunningMessage();
-                        });
-                };
-
-                // Function to check if app is running with timeout
-                const checkIfAppIsRunning = () => {
-                    return new Promise((resolve) => {
-                        // Create a flag to track if we got a response
-                        let receivedResponse = false;
-                        console.log('Starting app running check...');
+                    const connect = () => {
+                        console.log('Attempting to connect to BEPsApp WebSocket server...');
                         
-                        // Function to handle response from the app
-                        const handleAppResponse = (event) => {
-                            console.log('Message received:', event);
-                            // Check if it's our ping response
+                        ws.onopen = () => {
+                            console.log('WebSocket connection established with BEPsApp');
+                            isConnected.value = true;
+                            
+                            // Send a ping immediately on connection to verify it's working
+                            ws.send(JSON.stringify({
+                                type: 'command',
+                                action: 'ping',
+                                timestamp: Date.now()
+                            }));
+                            
+                            // Set up regular pings to keep connection alive
+                            pingInterval.value = setInterval(() => {
+                                if (ws.readyState === WebSocket.OPEN) {
+                                    ws.send(JSON.stringify({
+                                        type: 'command',
+                                        action: 'ping',
+                                        timestamp: Date.now()
+                                    }));
+                                }
+                            }, 30000); // Send a ping every 30 seconds
+                        };
+                        
+                        ws.onmessage = (event) => {
                             try {
-                                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                                console.log('Parsed message data:', data);
-                                if (data && data.type === 'response' && data.action === 'pong') {
-                                    console.log('Pong response received - app is running!');
-                                    receivedResponse = true;
-                                    window.removeEventListener('message', handleAppResponse);
-                                    resolve(true);
+                                const data = JSON.parse(event.data);
+                                console.log('Received message from BEPsApp:', data);
+                                
+                                // Handle different message types
+                                if (data.type === 'response' && data.action === 'pong') {
+                                    console.log('Received pong from BEPsApp - connection confirmed');
+                                } else if (data.type === 'navigationResult') {
+                                    console.log('Navigation result:', data);
                                 }
                             } catch (err) {
-                                console.error('Error parsing response:', err);
+                                console.error('Error processing WebSocket message:', err);
                             }
                         };
                         
-                        // Listen for response
-                        window.addEventListener('message', handleAppResponse);
+                        ws.onclose = (event) => {
+                            console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+                            isConnected.value = false;
+                            clearInterval(pingInterval.value);
+                            
+                            // Attempt to reconnect after a delay
+                            reconnectTimeout.value = setTimeout(() => {
+                                console.log('Attempting to reconnect...');
+                                connect();
+                            }, 5000); // Try to reconnect after 5 seconds
+                        };
                         
-                        // Try to communicate with the app
-                        try {
-                            if (window.chrome && window.chrome.webview) {
-                                // For WebView2
-                                console.log('WebView2 detected, sending ping...');
-                                
-                                // First ensure message event handler is attached directly to webview
-                                window.chrome.webview.addEventListener('message', event => {
-                                    console.log('Direct WebView2 message received:', event);
-                                    handleAppResponse(event);
-                                });
-                                
-                                const pingMessage = {
-                                    type: 'command',
-                                    action: 'ping',
-                                    timestamp: Date.now()
-                                };
-                                console.log('Sending ping message:', pingMessage);
-                                window.chrome.webview.postMessage(pingMessage);
-                            } else if (window.external && typeof window.external.notify === "function") {
-                                // For older WebBrowser control
-                                console.log('Using window.external.notify for communication');
-                                window.external.notify(JSON.stringify({
-                                    type: 'command',
-                                    action: 'ping',
-                                    timestamp: Date.now()
-                                }));
-                            } else if (window.external && window.external.postMessage) {
-                                // Alternative approach
-                                console.log('Using window.external.postMessage for communication');
-                                window.external.postMessage(JSON.stringify({
-                                    type: 'command',
-                                    action: 'ping',
-                                    timestamp: Date.now()
-                                }));
-                            } else {
-                                // No communication method available
-                                console.log('No communication method available');
-                                resolve(false);
-                                return;
-                            }
-                        } catch (err) {
-                            console.error('Error sending ping:', err);
-                            resolve(false);
-                            return;
+                        ws.onerror = (error) => {
+                            console.error('WebSocket error:', error);
+                        };
+                    };
+                    
+                    // Initial connection attempt
+                    connect();
+                    
+                    // Cleanup function to be called on component unmount
+                    const cleanup = () => {
+                        clearInterval(pingInterval.value);
+                        clearTimeout(reconnectTimeout.value);
+                        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                            ws.close();
                         }
-                        
-                        // Set timeout to resolve with false if no response received
-                        setTimeout(() => {
-                            if (!receivedResponse) {
-                                console.log('Timeout reached - no response from app');
-                                window.removeEventListener('message', handleAppResponse);
-                                if (window.chrome && window.chrome.webview) {
-                                    try {
-                                        window.chrome.webview.removeEventListener('message', handleAppResponse);
-                                    } catch (err) {
-                                        console.error('Error removing event listener:', err);
-                                    }
-                                }
-                                resolve(false);
-                            }
-                        }, 2000); // 2 second timeout for better debugging
+                    };
+                    
+                    // Method to send a message to BEPsApp
+                    const sendMessage = (message) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify(message));
+                            return true;
+                        } else {
+                            console.error('WebSocket is not connected');
+                            return false;
+                        }
+                    };
+                    
+                    return {
+                        isConnected,
+                        sendMessage,
+                        cleanup
+                    };
+                };
+
+                const { isConnected, sendMessage, cleanup } = setupWebSocket();
+
+                const checkIfAppIsRunning = () => {
+                    return new Promise((resolve) => {
+                        if (isConnected.value) {
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
                     });
                 };
 
-                // Function to send navigation request
-                const sendNavigationRequest = () => {
-                    try {
-                        // Send message to navigate to the path
-                        if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({
-                                type: 'navigation',
-                                action: 'navigateTo',
-                                path: memo.value.path,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            });
-                        } else if (window.external && typeof window.external.notify === "function") {
-                            window.external.notify(JSON.stringify({
-                                type: 'navigation',
-                                action: 'navigateTo',
-                                path: memo.value.path,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            }));
-                        } else if (window.external && window.external.postMessage) {
-                            window.external.postMessage(JSON.stringify({
-                                type: 'navigation',
-                                action: 'navigateTo',
-                                path: memo.value.path,
-                                file_id: memo.value.file_id || null,
-                                folder_id: memo.value.folder_id || null
-                            }));
-                        }
-                        console.log('Navigation message sent to BEPsApp');
-                    } catch (err) {
-                        console.error('Failed to send navigation message:', err);
+                const handleGoToClick = () => {
+                    if (isConnected.value) {
+                        sendMessage({
+                            type: 'navigation',
+                            action: 'navigateTo',
+                            path: memo.value.path,
+                            file_id: memo.value.file_id || null,
+                            folder_id: memo.value.folder_id || null
+                        });
+                    } else {
                         showAppNotRunningMessage();
                     }
                 };
@@ -662,8 +598,25 @@ td:nth-child(even) {
                     alert("BEPs가 실행중이 아닙니다. BEPs를 실행한 후 다시 시도하세요.");
                 };
 
+                const cancelReply = () => {
+                    if (isConnected.value) {
+                        sendMessage({
+                            type: 'command',
+                            action: 'replyCancelled',
+                            memo_id: memo.value.id,
+                            file_id: memo.value.file_id || null,
+                            folder_id: memo.value.folder_id || null
+                        });
+                    }
+                    window.close();
+                };
+
                 onMounted(() => {
                     loadData();
+                });
+
+                onUnmounted(() => {
+                    cleanup();
                 });
 
                 return {
