@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     displayCompanyTopBottom(data);
   });
 
+  getStatisticsPreview();
 
   setOnSelectPeriodCallback(async() =>
   {
@@ -257,6 +258,22 @@ document.addEventListener('DOMContentLoaded', async() => {
         element.textContent = `${i+1}위: ${path} (${data[i].cnt}회)`;
         memoRank.appendChild(element);
       }
+    }
+  }
+
+  async function getStatisticsPreview() {
+    let url = `${window.baseUrl}statistics/preview?period_value=${period_value}`;
+    if(period_type != null)
+      url += `&period_type=${period_type}`;
+    if(filter_type != null)
+      url += `&filter_type=${filter_type}`;
+    if(filter_value != null)
+      url += `&filter_value=${encodeURIComponent(filter_value)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if(response.ok)
+    {
+      ;
     }
   }
 

@@ -11,3 +11,5 @@ concurrent-log-handler==0.9.25
 six>=1.17.0
 pandas==2.2.3
 websockets
+apscheduler
+openpyxl
