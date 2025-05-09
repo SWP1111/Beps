@@ -352,6 +352,23 @@ class Files(db.Model):
        
         }
 
+class ContentManager(db.Model):
+    __tablename__ = 'content_manager'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'), nullable=True)
+    type = db.Column(db.String(10), nullable=False)  # 'file' or 'folder'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'file_id': self.file_id,
+            'folder_id': self.folder_id,
+            'type': self.type
+        }
 class MemoData(db.Model):
     __tablename__ = 'memos'
     

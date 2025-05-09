@@ -58,7 +58,11 @@ document.addEventListener('DOMContentLoaded', async() => {
     displayCompanyTopBottom(data);
   });
 
-  getStatisticsPreview();
+  
+  const exportBtn = document.getElementById("export-button");
+  exportBtn.addEventListener("click", () => {
+    getStatisticsPreview();
+  });
 
   setOnSelectPeriodCallback(async() =>
   {

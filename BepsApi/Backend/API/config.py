@@ -12,5 +12,6 @@ class Config:
     SECRET_KEY = os.getenv("JWT_SECRET_KEY","default-secret-key")   # 🔹 JWT 암호화 키
     BACKUP_DIR = os.path.expanduser("~/BepsApi/DB/backup")  # 🔹 DB content_viewing_history 테이블 백업 폴더
     POINT_DURATION_SECONDS = int(os.getenv("POINT_DURATION_SECONDS", 30))  # 🔹 학습 포인트 적립 기준 시간(5분) 테스트용으로 30초
-    
+    UPLOAD_DIR = '/tmp/generated_excels'  # 엑셀 파일 저장 경로
+
     
