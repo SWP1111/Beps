@@ -267,7 +267,7 @@ td:nth-child(even) {
                                 if (memo.value.folder_id) pathParams.push(`folder_id=${memo.value.folder_id}`);
                                 
                                 if (pathParams.length > 0) {
-                                    fetch(`${url}get_file_path?${pathParams.join('&')}`, {
+                                    fetch(`${url}file_bp/get_file_path?${pathParams.join('&')}`, {
                                         method: "GET",
                                         credentials: "include",
                                         headers: {

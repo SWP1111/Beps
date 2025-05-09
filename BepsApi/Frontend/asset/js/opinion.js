@@ -209,7 +209,7 @@ createApp({
                             if (memo.folder_id) pathParams.push(`folder_id=${memo.folder_id}`);
                             
                             if (pathParams.length > 0) {
-                                const pathResponse = await fetch(`${url}get_file_path?${pathParams.join('&')}`, {
+                                const pathResponse = await fetch(`${url}file_bp/get_file_path?${pathParams.join('&')}`, {
                                     method: "GET",
                                     credentials: "include",
                                     headers: {
