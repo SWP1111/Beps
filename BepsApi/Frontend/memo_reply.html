@@ -259,6 +259,36 @@ td:nth-child(even) {
                         const memoData = JSON.parse(localStorage.getItem('replyMemo'));
                         if (memoData) {
                             memo.value = memoData;
+                            
+                            // Fetch path if not provided but file_id or folder_id exists
+                            if (!memo.value.path && (memo.value.file_id || memo.value.folder_id)) {
+                                let pathParams = [];
+                                if (memo.value.file_id) pathParams.push(`file_id=${memo.value.file_id}`);
+                                if (memo.value.folder_id) pathParams.push(`folder_id=${memo.value.folder_id}`);
+                                
+                                if (pathParams.length > 0) {
+                                    fetch(`${url}get_file_path?${pathParams.join('&')}`, {
+                                        method: "GET",
+                                        credentials: "include",
+                                        headers: {
+                                            "Accept": "application/json"
+                                        }
+                                    })
+                                    .then(response => {
+                                        if (response.ok) {
+                                            return response.json();
+                                        }
+                                        throw new Error('Failed to fetch file path');
+                                    })
+                                    .then(data => {
+                                        memo.value.path = data.file_path;
+                                    })
+                                    .catch(error => {
+                                        console.error("Error fetching file path:", error);
+                                    });
+                                }
+                            }
+                            
                             // Load replies for this memo
                             fetchReplies(memoData.id);
                         } else {

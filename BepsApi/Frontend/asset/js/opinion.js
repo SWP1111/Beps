@@ -201,6 +201,32 @@ createApp({
 
                 // Get user information for each memo
                 const promises = filteredData.map(async memo => {
+                    // Fetch path if not provided but file_id or folder_id exists
+                    if (!memo.path && (memo.file_id || memo.folder_id)) {
+                        try {
+                            let pathParams = [];
+                            if (memo.file_id) pathParams.push(`file_id=${memo.file_id}`);
+                            if (memo.folder_id) pathParams.push(`folder_id=${memo.folder_id}`);
+                            
+                            if (pathParams.length > 0) {
+                                const pathResponse = await fetch(`${url}get_file_path?${pathParams.join('&')}`, {
+                                    method: "GET",
+                                    credentials: "include",
+                                    headers: {
+                                        "Accept": "application/json"
+                                    }
+                                });
+                                
+                                if (pathResponse.ok) {
+                                    const pathData = await pathResponse.json();
+                                    memo.path = pathData.file_path;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching file path for memo ID ${memo.id}:`, error);
+                        }
+                    }
+                    
                     if (memo.user_id) {
                         // Try to get current user info from localStorage if it's the same user
                         try {

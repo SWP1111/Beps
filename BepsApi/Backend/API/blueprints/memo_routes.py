@@ -109,6 +109,38 @@ def get_memo(id):
     memo = MemoData.query.get_or_404(id)
     return jsonify(memo.to_dict())
 
+@api_memo_bp.route('/by-serial/<int:serial_number>', methods=['PUT'])
+def update_memo_by_serial(serial_number):
+    try:
+        memo = MemoData.query.filter_by(serial_number=serial_number).first_or_404()
+        data = request.json
+        logging.info(f"Received PUT request to /memo/by-serial/{serial_number} with data: {data}")
+        
+        # Update fields matching the JSON case
+        memo.content = data.get('content', memo.content)
+        memo.title = data.get('title', memo.title)  # Add title field
+        memo.user_id = data.get('user_id', memo.user_id)
+        memo.path = data.get('path', memo.path)
+        memo.file_id = data.get('file_id', memo.file_id)
+        memo.folder_id = data.get('folder_id', memo.folder_id)
+        memo.rel_position_x = data.get('relPositionX', memo.rel_position_x)
+        memo.rel_position_y = data.get('relPositionY', memo.rel_position_y)
+        memo.world_position_x = data.get('worldPositionX', memo.world_position_x)
+        memo.world_position_y = data.get('worldPositionY', memo.world_position_y)
+        memo.world_position_z = data.get('worldPositionZ', memo.world_position_z)
+        memo.status = data.get('status', memo.status)
+        
+        # Update modified_at timestamp
+        memo.modified_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        logging.info(f"Successfully updated memo with serial_number: {memo.serial_number}")
+        return jsonify(memo.to_dict()), 200
+    except Exception as e:
+        logging.error(f"Error updating memo: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 @api_memo_bp.route('/<id>', methods=['PUT'])
 def update_memo(id):
     try:
