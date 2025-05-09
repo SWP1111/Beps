@@ -179,9 +179,19 @@ td:nth-child(even) {
                 <td colspan="5" class="content-cell">{{ memo.content }}</td>
             </tr>
             <tr>
+                <td>경로</td>
+                <td colspan="5">{{ memo.path }}</td>
+            </tr>
+            <tr>
+                <td>파일 ID</td>
+                <td colspan="2">{{ memo.file_id }}</td>
+                <td>폴더 ID</td>
+                <td colspan="2">{{ memo.folder_id }}</td>
+            </tr>
+            <tr>
                 <td>바로가기</td>
                 <td colspan="5">
-                    <button v-if="memo.path" @click="handleGoToClick" style="cursor: pointer; background-color: #2196F3; color: white;">[바로가기]</button>
+                    <button v-if="memo.path || memo.file_id || memo.folder_id" @click="handleGoToClick" style="cursor: pointer; background-color: #2196F3; color: white;">[바로가기]</button>
                 </td>
             </tr>
         </table>
@@ -582,13 +592,21 @@ td:nth-child(even) {
 
                 const handleGoToClick = () => {
                     if (isConnected.value) {
-                        sendMessage({
+                        const navigationData = {
                             type: 'navigation',
-                            action: 'navigateTo',
-                            path: memo.value.path,
-                            file_id: memo.value.file_id || null,
-                            folder_id: memo.value.folder_id || null
-                        });
+                            action: 'navigateTo'
+                        };
+                        
+                        // Add relevant navigation parameters based on what's available
+                        if (memo.value.file_id) {
+                            navigationData.file_id = memo.value.file_id;
+                        } else if (memo.value.folder_id) {
+                            navigationData.folder_id = memo.value.folder_id;
+                        } else if (memo.value.path) {
+                            navigationData.path = memo.value.path;
+                        }
+                        
+                        sendMessage(navigationData);
                     } else {
                         showAppNotRunningMessage();
                     }
@@ -600,13 +618,21 @@ td:nth-child(even) {
 
                 const cancelReply = () => {
                     if (isConnected.value) {
-                        sendMessage({
+                        const cancelData = {
                             type: 'command',
                             action: 'replyCancelled',
-                            memo_id: memo.value.id,
-                            file_id: memo.value.file_id || null,
-                            folder_id: memo.value.folder_id || null
-                        });
+                            memo_id: memo.value.id
+                        };
+                        
+                        // Add relevant navigation parameters based on what's available
+                        if (memo.value.file_id) {
+                            cancelData.file_id = memo.value.file_id;
+                        }
+                        if (memo.value.folder_id) {
+                            cancelData.folder_id = memo.value.folder_id;
+                        }
+                        
+                        sendMessage(cancelData);
                     }
                     window.close();
                 };

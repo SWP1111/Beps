@@ -18,6 +18,12 @@ createApp({
         const searchContent = ref('');
         const searchStartDate = ref('');
         const searchEndDate = ref('');
+        
+        // URL params for file_id and folder_id
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileId = urlParams.get('file_id');
+        const folderId = urlParams.get('folder_id');
+        const path = urlParams.get('path');
 
         // Current user data
         const currentUser = ref({});
@@ -130,10 +136,27 @@ createApp({
             
             currentPage.value = page;
             
-            // Update the URL to match the backend API endpoint
-            const fullUrl = `${url}memo/`;
+            // Build URL with query parameters
+            let fetchUrl = `${url}memo/`;
+            let queryParams = [];
             
-            fetch(fullUrl, {
+            if (fileId) {
+                queryParams.push(`file_id=${fileId}`);
+            }
+            
+            if (folderId) {
+                queryParams.push(`folder_id=${folderId}`);
+            }
+            
+            if (path) {
+                queryParams.push(`path=${encodeURIComponent(path)}`);
+            }
+            
+            if (queryParams.length > 0) {
+                fetchUrl += `?${queryParams.join('&')}`;
+            }
+            
+            fetch(fetchUrl, {
                 method: "GET",
                 credentials: "include",
                 headers: {

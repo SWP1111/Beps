@@ -34,6 +34,8 @@
                         <th>처리상태</th>
                         <th>작업</th>
                         <th>경로</th>
+                        <th>파일 ID</th>
+                        <th>폴더 ID</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,6 +61,8 @@
                             <button class="reply-button" @click="replyToMemo(memo)">답변</button>
                         </td>
                         <td>{{ memo.path }}</td>
+                        <td>{{ memo.file_id }}</td>
+                        <td>{{ memo.folder_id }}</td>
                     </tr>
                 </tbody>
             </table>

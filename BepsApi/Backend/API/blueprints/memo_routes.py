@@ -28,6 +28,8 @@ def create_memo():
             title=data.get('title'),  # Add title field
             content=data.get('content', ''),
             path=data.get('path'),
+            file_id=data.get('file_id'),
+            folder_id=data.get('folder_id'),
             rel_position_x=float(data['relPositionX']),  # Convert to float
             rel_position_y=float(data['relPositionY']),
             world_position_x=float(data['worldPositionX']),
@@ -54,10 +56,16 @@ def get_all_memos():
         logging.info("Received GET request to /memo")
         user_id = request.args.get('user_id')
         path = request.args.get('path')
+        file_id = request.args.get('file_id')
+        folder_id = request.args.get('folder_id')
 
         query = MemoData.query
         if path:
             query = query.filter(MemoData.path == path)
+        if file_id:
+            query = query.filter(MemoData.file_id == file_id)
+        if folder_id:
+            query = query.filter(MemoData.folder_id == folder_id)
 
         # Initialize memos as empty list
         memos = []
@@ -113,6 +121,8 @@ def update_memo(id):
         memo.title = data.get('title', memo.title)  # Add title field
         memo.user_id = data.get('user_id', memo.user_id)
         memo.path = data.get('path', memo.path)
+        memo.file_id = data.get('file_id', memo.file_id)
+        memo.folder_id = data.get('folder_id', memo.folder_id)
         memo.rel_position_x = data.get('relPositionX', memo.rel_position_x)
         memo.rel_position_y = data.get('relPositionY', memo.rel_position_y)
         memo.world_position_x = data.get('worldPositionX', memo.world_position_x)
@@ -149,6 +159,7 @@ def memo_rank():
         filter_value = request.args.get('filter_value')
         period_type = request.args.get('period_type', 'year')
         period_value = request.args.get('period_value')
+        rank_by = request.args.get('rank_by', 'path')  # Default to path, can be 'file_id' or 'folder_id'
         
         if not period_type or not period_value:
             return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
@@ -156,11 +167,11 @@ def memo_rank():
         start_dt, end_dt = get_period_value(period_type, period_value)
         
         base_query = """
-            SELECT m.path, COUNT(*) AS cnt
+            SELECT m.{rank_column} AS item, COUNT(*) AS cnt
             FROM memos m
             JOIN users u ON m.user_id = u.id
-            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.path IS NOT NULL AND {filter_clause}
-            GROUP BY m.path
+            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.{rank_column} IS NOT NULL AND {filter_clause}
+            GROUP BY m.{rank_column}
             ORDER BY cnt DESC
             LIMIT 5
             """
@@ -174,7 +185,14 @@ def memo_rank():
         else:
             filter_clause = "1=1"
         
-        query = text(base_query.format(filter_clause=filter_clause))
+        if rank_by == 'file_id':
+            rank_column = 'file_id'
+        elif rank_by == 'folder_id':
+            rank_column = 'folder_id'
+        else:
+            rank_column = 'path'
+        
+        query = text(base_query.format(filter_clause=filter_clause, rank_column=rank_column))
         
         params = {
             'start_date': start_dt,

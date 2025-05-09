@@ -362,6 +362,8 @@ class MemoData(db.Model):
     title = db.Column(db.String, nullable=True)
     content = db.Column(db.String, nullable=True)
     path = db.Column(db.String, nullable=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'), nullable=True)
     rel_position_x = db.Column(db.Float, nullable=False)  # double in C#
     rel_position_y = db.Column(db.Float, nullable=False)  # double in C#
     world_position_x = db.Column(db.Float, nullable=False)  # double in C#
@@ -371,6 +373,8 @@ class MemoData(db.Model):
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
 
     user = db.relationship('Users', backref=db.backref('memos', lazy=True))
+    file = db.relationship('Files', backref=db.backref('memos', lazy=True))
+    folder = db.relationship('Folders', backref=db.backref('memos', lazy=True))
 
     def to_dict(self):
         return {
@@ -381,6 +385,8 @@ class MemoData(db.Model):
             'title': self.title,
             'content': self.content,
             'path': self.path,
+            'file_id': self.file_id,
+            'folder_id': self.folder_id,
             'relPositionX': self.rel_position_x,  # Match C# JsonPropertyName
             'relPositionY': self.rel_position_y,  # Match C# JsonPropertyName
             'worldPositionX': self.world_position_x,  # Match C# JsonPropertyName
