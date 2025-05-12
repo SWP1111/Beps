@@ -166,6 +166,11 @@ createApp({
             })
             .then(response => {
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        // Redirect to login page if unauthorized
+                        window.top.location.href = "login.html";
+                        throw new Error('Unauthorized, redirecting to login');
+                    }
                     throw new Error('Network response was not ok');
                 }
                 return response.json();

@@ -51,6 +51,7 @@ def create_memo():
         return jsonify({"error": str(e)}), 500
 
 @api_memo_bp.route('/', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
 def get_all_memos():
     try:
         logging.info("Received GET request to /memo")
@@ -59,14 +60,20 @@ def get_all_memos():
         file_id = request.args.get('file_id')
         folder_id = request.args.get('folder_id')
         
+        logging.info(f"Request parameters: user_id={user_id}, path={path}, file_id={file_id}, folder_id={folder_id}")
+        
         # Get JWT identity (user_id from token)
         jwt_user_id = get_jwt_identity()
+        logging.info(f"Authenticated user_id: {jwt_user_id}")
         
         # Fetch user information to check role
         user = Users.query.filter_by(id=jwt_user_id).first()
         
         if not user:
+            logging.error(f"User not found for ID: {jwt_user_id}")
             return jsonify({"error": "User not found"}), 404
+        
+        logging.info(f"User role_id: {user.role_id}")
         
         # Base query
         query = MemoData.query
@@ -84,23 +91,34 @@ def get_all_memos():
             query = query.filter(MemoData.user_id == jwt_user_id)
         else:
             # If role_id is not null (user is a manager)
-            managed_memos_query = """
-                SELECT m.id
-                FROM memos m
-                JOIN content_manager cm ON 
-                    (cm.type = 'file' AND cm.file_id = m.file_id AND m.file_id IS NOT NULL) OR 
-                    (cm.type = 'folder' AND cm.folder_id = m.folder_id AND m.folder_id IS NOT NULL)
-                WHERE cm.user_id = :user_id
-            """
-            
-            managed_memos = db.session.execute(text(managed_memos_query), {"user_id": jwt_user_id}).all()
-            managed_memo_ids = [memo[0] for memo in managed_memos]
-            
-            # Combine user's own memos and managed memos
-            query = query.filter(
-                (MemoData.user_id == jwt_user_id) | 
-                (MemoData.id.in_(managed_memo_ids))
-            )
+            try:
+                managed_memos_query = """
+                    SELECT m.id
+                    FROM memos m
+                    JOIN content_manager cm ON 
+                        (cm.type = 'file' AND cm.file_id = m.file_id AND m.file_id IS NOT NULL) OR 
+                        (cm.type = 'folder' AND cm.folder_id = m.folder_id AND m.folder_id IS NOT NULL)
+                    WHERE cm.user_id = :user_id
+                """
+                
+                logging.info(f"Executing content_manager query for user_id: {jwt_user_id}")
+                managed_memos = db.session.execute(text(managed_memos_query), {"user_id": jwt_user_id}).all()
+                managed_memo_ids = [memo[0] for memo in managed_memos]
+                logging.info(f"Found {len(managed_memo_ids)} managed memos for user_id: {jwt_user_id}")
+                
+                # Combine user's own memos and managed memos
+                if managed_memo_ids:
+                    query = query.filter(
+                        (MemoData.user_id == jwt_user_id) | 
+                        (MemoData.id.in_(managed_memo_ids))
+                    )
+                else:
+                    # If no managed memos, just show user's own memos
+                    query = query.filter(MemoData.user_id == jwt_user_id)
+            except Exception as e:
+                logging.error(f"Error querying content_manager: {str(e)}")
+                # If the query fails, fall back to showing only the user's own memos
+                query = query.filter(MemoData.user_id == jwt_user_id)
         
         # Initialize memos as empty list
         memos = []
@@ -131,6 +149,7 @@ def get_all_memos():
             memos = query.all()
             
         memos_list = [memo.to_dict() for memo in memos]
+        logging.info(f"Returning {len(memos_list)} memos")
         return jsonify(memos_list), 200
     except Exception as e:
         logging.error(f"Error retrieving memos: {str(e)}")
