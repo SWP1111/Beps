@@ -440,26 +440,3 @@ class MemoReply(db.Model):
             'user': self.user.to_dict() if self.user else None
         }
 
-class ContentManager(db.Model):
-    __tablename__ = 'content_manager'
-    
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
-    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=True)
-    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'), nullable=True)
-    type = db.Column(db.String(10), nullable=False)
-    
-    # Relationships
-    user = db.relationship('Users', backref=db.backref('managed_content', lazy=True))
-    file = db.relationship('Files', backref=db.backref('managers', lazy=True))
-    folder = db.relationship('Folders', backref=db.backref('managers', lazy=True))
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'file_id': self.file_id,
-            'folder_id': self.folder_id,
-            'type': self.type,
-            'user': self.user.to_dict() if self.user else None
-        }
