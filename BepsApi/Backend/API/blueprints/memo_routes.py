@@ -5,7 +5,7 @@ from models import MemoData, Users
 import logging
 from sqlalchemy import func, text
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 
 api_memo_bp = Blueprint('memo', __name__)
 
@@ -223,19 +223,22 @@ def memo_rank():
         filter_value = request.args.get('filter_value')
         period_type = request.args.get('period_type', 'year')
         period_value = request.args.get('period_value')
-        rank_by = request.args.get('rank_by', 'path')  # Default to path, can be 'file_id' or 'folder_id'
         
         if not period_type or not period_value:
             return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
         
         start_dt, end_dt = get_period_value(period_type, period_value)
+        local_tz = datetime.now().astimezone().tzinfo
+        utc_start_dt = datetime.combine(start_dt, time.min, tzinfo=local_tz).astimezone(timezone.utc)
+        utc_end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)                  
         
         base_query = """
-            SELECT m.{rank_column} AS item, COUNT(*) AS cnt
+            SELECT m.file_id AS item, COUNT(*) AS cnt, f.file_path AS path
             FROM memos m
             JOIN users u ON m.user_id = u.id
-            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.{rank_column} IS NOT NULL AND {filter_clause}
-            GROUP BY m.{rank_column}
+            JOIN files f ON m.file_id = f.file_id
+            WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.file_id IS NOT NULL AND {filter_clause}
+            GROUP BY m.file_id, f.file_path
             ORDER BY cnt DESC
             LIMIT 5
             """
@@ -249,22 +252,15 @@ def memo_rank():
         else:
             filter_clause = "1=1"
         
-        if rank_by == 'file_id':
-            rank_column = 'file_id'
-        elif rank_by == 'folder_id':
-            rank_column = 'folder_id'
-        else:
-            rank_column = 'path'
-        
-        query = text(base_query.format(filter_clause=filter_clause, rank_column=rank_column))
+        query = text(base_query.format(filter_clause=filter_clause))
         
         params = {
-            'start_date': start_dt,
-            'end_date': end_dt
+            'start_date': utc_start_dt,
+            'end_date': utc_end_dt
         }
         if filter_type in ('company', 'department', 'user'):
             params['filter_value'] = filter_value
-            
+                 
         result = db.session.execute(query, params).mappings().all()
         if not result:
             return jsonify({'error': 'No data found'}), 404

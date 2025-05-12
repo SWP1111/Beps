@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 def init_scheduler(app):
     try:
-        from blueprints.statistics_routes import scheduled_cleanup
+        from services.statistics_excel_service import scheduled_cleanup
         with app.app_context():
             lock_acquired = db.session.execute(db.text("SELECT pg_try_advisory_lock(1234567890)")).scalar()
             if not lock_acquired:
