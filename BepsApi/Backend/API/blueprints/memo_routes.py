@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from models import MemoData
+from models import MemoData, Users
 import logging
 from sqlalchemy import func, text
 import traceback
@@ -58,15 +58,50 @@ def get_all_memos():
         path = request.args.get('path')
         file_id = request.args.get('file_id')
         folder_id = request.args.get('folder_id')
-
+        
+        # Get JWT identity (user_id from token)
+        jwt_user_id = get_jwt_identity()
+        
+        # Fetch user information to check role
+        user = Users.query.filter_by(id=jwt_user_id).first()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Base query
         query = MemoData.query
+        
+        # Apply filters based on parameters
         if path:
             query = query.filter(MemoData.path == path)
         if file_id:
             query = query.filter(MemoData.file_id == file_id)
         if folder_id:
             query = query.filter(MemoData.folder_id == folder_id)
-
+            
+        # If role_id is null, user can see only their own memos
+        if user.role_id is None:
+            query = query.filter(MemoData.user_id == jwt_user_id)
+        else:
+            # If role_id is not null (user is a manager)
+            managed_memos_query = """
+                SELECT m.id
+                FROM memos m
+                JOIN content_manager cm ON 
+                    (cm.type = 'file' AND cm.file_id = m.file_id AND m.file_id IS NOT NULL) OR 
+                    (cm.type = 'folder' AND cm.folder_id = m.folder_id AND m.folder_id IS NOT NULL)
+                WHERE cm.user_id = :user_id
+            """
+            
+            managed_memos = db.session.execute(text(managed_memos_query), {"user_id": jwt_user_id}).all()
+            managed_memo_ids = [memo[0] for memo in managed_memos]
+            
+            # Combine user's own memos and managed memos
+            query = query.filter(
+                (MemoData.user_id == jwt_user_id) | 
+                (MemoData.id.in_(managed_memo_ids))
+            )
+        
         # Initialize memos as empty list
         memos = []
         
@@ -91,11 +126,8 @@ def get_all_memos():
                     
                     logging.info(f"No results for user_id: {user_id}, trying alternative: {alt_user_id}")
                     memos = query.filter(MemoData.user_id == alt_user_id).all()
-                    
-                    # At this point, if memos is still empty, we'll return an empty list
-            
         else:
-            # If no user_id provided, get all memos
+            # If no user_id provided, use the query we've built
             memos = query.all()
             
         memos_list = [memo.to_dict() for memo in memos]

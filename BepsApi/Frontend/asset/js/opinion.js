@@ -196,11 +196,24 @@ createApp({
                 }
                 
                 // Since the backend returns an array directly, we need to handle pagination on the client side
+                totalPages.value = Math.ceil(filteredData.length / pageSize);
+                
                 const start = (page - 1) * pageSize;
                 const end = start + pageSize;
+                const paginatedData = filteredData.slice(start, end);
+
+                // Add serial numbers if not present
+                paginatedData.forEach((memo, index) => {
+                    if (!memo.serial_number) {
+                        memo.serial_number = start + index + 1;
+                    }
+                });
 
                 // Get user information for each memo
-                const promises = filteredData.map(async memo => {
+                const promises = paginatedData.map(async memo => {
+                    // Add status_text property
+                    memo.status_text = formatStatus(memo.status);
+                    
                     // Fetch path if not provided but file_id or folder_id exists
                     if (!memo.path && (memo.file_id || memo.folder_id)) {
                         try {
@@ -227,135 +240,77 @@ createApp({
                         }
                     }
                     
-                    if (memo.user_id) {
-                        // Try to get current user info from localStorage if it's the same user
+                    // Fetch user data if not already present
+                    if (memo.user_id && !memo.user) {
                         try {
+                            // Check userCache first
+                            if (userCache[memo.user_id]) {
+                                memo.user = userCache[memo.user_id];
+                                return memo;
+                            }
+                            
+                            // Check if it's the current user
                             const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
                             if (loggedInUser && loggedInUser.user && loggedInUser.user.id === memo.user_id) {
-                                console.log("Using logged in user data for user_id:", memo.user_id);
-                                // Store in cache for future use
                                 userCache[memo.user_id] = {
                                     company: loggedInUser.user.company || '-',
                                     department: loggedInUser.user.department || '-',
                                     name: loggedInUser.user.name || '-',
                                     position: loggedInUser.user.position || ''
                                 };
-                                return {
-                                    ...memo,
-                                    user: userCache[memo.user_id],
-                                    status_text: formatStatus(memo.status)
-                                };
+                                memo.user = userCache[memo.user_id];
+                                return memo;
                             }
-                        } catch (error) {
-                            console.error("Error retrieving user data from localStorage:", error);
-                        }
-
-                        // Check if user is already in cache
-                        if (userCache[memo.user_id]) {
-                            console.log("Using cached user data for user_id:", memo.user_id);
-                            return {
-                                ...memo,
-                                user: userCache[memo.user_id],
-                                status_text: formatStatus(memo.status)
-                            };
-                        }
-
-                        // If not the current user, try the API
-                        try {
-                            const userResponse = await fetch(`${url}users/${memo.user_id}`, {
+                            
+                            // Fetch from API if not in cache or current user
+                            const userResponse = await fetch(`${url}user/${memo.user_id}`, {
                                 method: "GET",
                                 credentials: "include",
                                 headers: {
-                                    "Accept": "application/json",
-                                    "Content-Type": "application/json"
+                                    "Accept": "application/json"
                                 }
                             });
                             
-                            if (!userResponse.ok) {
-                                if (userResponse.status === 401) {
-                                    window.top.location.href = "login.html";
-                                    throw new Error("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
-                                }
-                                // If response is not OK but not a 401, just return memo without user data
-                                return {
-                                    ...memo,
-                                    user: { 
-                                        company: '-', 
-                                        department: '-', 
-                                        name: '-',
-                                        position: '' 
-                                    },
-                                    status_text: formatStatus(memo.status)
-                                };
-                            }
-                            
-                            // Check content type to avoid parsing HTML as JSON
-                            const contentType = userResponse.headers.get('content-type');
-                            if (contentType && contentType.includes('application/json')) {
+                            if (userResponse.ok) {
                                 const userData = await userResponse.json();
-                                return {
-                                    ...memo,
-                                    user: userData,
-                                    status_text: formatStatus(memo.status)
+                                userCache[memo.user_id] = {
+                                    company: userData.company || '-',
+                                    department: userData.department || '-',
+                                    name: userData.name || '-',
+                                    position: userData.position || ''
                                 };
+                                memo.user = userCache[memo.user_id];
                             } else {
-                                console.error("Received non-JSON response for user ID", memo.user_id);
-                                
-                                // Cache the failure to avoid repeated attempts
-                                if (!userCache[memo.user_id]) {
-                                    userCache[memo.user_id] = {
-                                        company: '-',
-                                        department: '-',
-                                        name: '-',
-                                        position: ''
-                                    };
-                                }
-                                
-                                return {
-                                    ...memo,
-                                    user: userCache[memo.user_id],
-                                    status_text: formatStatus(memo.status)
+                                // If API call fails, use placeholder
+                                memo.user = {
+                                    company: '-',
+                                    department: '-',
+                                    name: '-',
+                                    position: ''
                                 };
                             }
                         } catch (error) {
-                            console.error(`Error fetching user data for user ID ${memo.user_id}:`, error);
-                            return {
-                                ...memo,
-                                user: userCache[memo.user_id] || { 
-                                    company: '-', 
-                                    department: '-', 
-                                    name: '-',
-                                    position: '' 
-                                },
-                                status_text: formatStatus(memo.status)
+                            console.error(`Error fetching user data for memo ID ${memo.id}:`, error);
+                            memo.user = {
+                                company: '-',
+                                department: '-',
+                                name: '-',
+                                position: ''
                             };
                         }
                     }
                     
-                    return {
-                        ...memo,
-                        user: { 
-                            company: '-', 
-                            department: '-', 
-                            name: '-',
-                            position: '' 
-                        },
-                        status_text: formatStatus(memo.status)
-                    };
+                    return memo;
                 });
                 
-                Promise.all(promises)
-                    .then(memoWithUserData => {
-                        memoList.value = memoWithUserData.slice(start, end);
-                        totalPages.value = Math.ceil(filteredData.length / pageSize);
-                        console.log("Loaded memo data:", memoList.value);
-                    })
-                    .catch(error => {
-                        console.error("Error processing user data:", error);
-                    });
+                // Process all user data requests
+                Promise.all(promises).then(updatedMemos => {
+                    memoList.value = updatedMemos;
+                });
             })
             .catch(error => {
                 console.error("Error loading memo data:", error);
+                alert("데이터 로드 실패: " + error.message);
             });
         };
 
