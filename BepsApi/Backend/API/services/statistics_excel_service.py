@@ -7,6 +7,7 @@ import time
 import traceback
 from config import Config
 from services.statistics_excel_sheet_content import get_statistics_data, format_seconds_to_hhmmss
+from services.statistics_excel_sheet_user import get_statistics_user_data
 
 def delete_old_files(folder_path, max_age_seconds=3600):
     """
@@ -23,7 +24,7 @@ def delete_old_files(folder_path, max_age_seconds=3600):
             file_age = now - os.path.getmtime(file_path)
             if file_age > max_age_seconds:
                 os.remove(file_path)
-                logging.info(f"Deleted old file: {file_path}")
+                logging.debug(f"Deleted old file: {file_path}")
 
 def scheduled_cleanup():
     """
@@ -77,19 +78,54 @@ def export_statistics_to_excel(path, filename, start_date, end_date, filter_type
     
     df = pd.DataFrame(rows)
     
+    usres = get_statistics_user_data(start_date, end_date, filter_type, filter_value)  # 사용자 통계 데이터 가져오기
+    user_rows = []
+    if usres:
+        prev_company = prev_department = None
+        for u in usres:
+            company = u.company
+            department = u.department
+            
+            row = {
+                '회사': company if company != prev_company else '',
+                '부서': department if department != prev_department else '',
+                '이름': u.name,
+            }
+            user_rows.append(row)
+            prev_company = company
+            prev_department = department
+            
+    df_user = pd.DataFrame(user_rows)
+        
     excel_path = f"{path}/{filename}.xlsx"
     logging.info(f"엑셀 파일 저장 경로: {excel_path}")
     os.makedirs(path, exist_ok=True)  # 디렉토리 생성
     
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='전체컨텐츠',index=False,startrow=2)
+        df_user.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=2)
    
     wb = load_workbook(excel_path)
     ws = wb['전체컨텐츠']
     ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
     wb.save(excel_path)
+    wb.close()
     
-    return excel_path
+    wb_user = load_workbook(excel_path)
+    ws_user = wb_user['회사&팀&직원']
+    ws_user.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
+    ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+    wb_user.save(excel_path)
+    wb_user.close()
+    
+    df_content_html = df.to_html(index=False, classes='content_table', border=1)
+    df_user_html = df_user.to_html(index=False, classes='user_table', border=1)
+    
+    return {
+        'excel_path': excel_path,
+        'html_content': df_content_html,
+        'html_user': df_user_html
+    }
     
                          
 

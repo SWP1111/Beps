@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>통계 미리보기</title>
+  <script src="asset/js/config.js"></script>
+  <style>
+    body 
+    { 
+        font-family: Arial, 
+        sans-serif; 
+        padding: 20px;
+        padding-bottom: 80px; 
+    }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ccc; padding: 3px 4px; text-align: center; }
+    th { background-color: #f5f5f5; }
+    td { font-size: 12px;}
+
+    .tab-btn {
+        padding: 8px 16px;
+        background-color: #f2f2f2;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+    
+      .tab-btn.active {
+        background-color: #d0e1ff;
+        font-weight: bold;
+      }
+    
+      .sheet {
+        margin-top: 20px;
+      }
+
+      #sheet-tabs {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: white;
+        border-top: 1px solid #ddd;
+        padding: 10px 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-start;
+      }
+  </style>
+</head>
+<body>
+    <h2 id="date-range">통계 미리보기</h2>
+
+    <!-- 탭 콘텐츠 -->
+    <div id="sheet-content" class="sheet active">
+      <h3>전체 컨텐츠</h3>
+      <div id="content-html"></div>
+    </div>
+  
+    <div id="sheet-user" class="sheet" style="display:none;">
+      <h3>회사 & 팀 & 직원</h3>
+      <div id="user-html"></div>
+    </div>
+  
+    <!-- 하단 시트 버튼 -->
+    <div id="sheet-tabs" style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; display: flex; gap: 10px;">
+      <button onclick="showSheet('content')" class="tab-btn active">전체컨텐츠</button>
+      <button onclick="showSheet('user')" class="tab-btn">회사&팀&직원</button>
+    </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const apiUrl = `${window.baseUrl}statistics/preview?${params.toString()}`;
+
+    fetch(apiUrl)
+      .then(res => res.json())
+      .then(data => {
+        console.log(data.content_html);  // ← 이게 진짜 <table>로 보이면 OK
+        document.getElementById('content-html').innerHTML = data.content_html;
+        document.getElementById('user-html').innerHTML = data.user_html;
+      })
+      .catch(() => {
+        document.body.innerHTML = '<p>통계 데이터를 불러오지 못했습니다.</p>';
+      });
+
+    function showSheet(type) {
+    // 콘텐츠 토글
+    document.getElementById('sheet-content').style.display = type === 'content' ? 'block' : 'none';
+    document.getElementById('sheet-user').style.display = type === 'user' ? 'block' : 'none';
+    
+    // 버튼 상태 갱신
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick*="${type}"]`).classList.add('active');
+    }
+
+  </script>
+</body>
+</html>

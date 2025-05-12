@@ -23,7 +23,9 @@ def preview_statistics():
     filename = str(uuid.uuid4()) 
     result = export_statistics_to_excel(Config.UPLOAD_DIR, filename, start_date, end_date, filter_type, filter_value)  # 엑셀 파일 생성
     return jsonify({
-        'filename': result
+        'filename': result['excel_path'],
+        'content_html': result['html_content'],
+        'user_html': result['html_user']
     })
     
     
