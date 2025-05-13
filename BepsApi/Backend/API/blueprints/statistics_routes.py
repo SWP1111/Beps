@@ -2,7 +2,7 @@ import logging
 import log_config
 import os
 import uuid
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, send_from_directory
 from services.statistics_excel_service import export_statistics_to_excel
 from config import Config
 
@@ -21,27 +21,30 @@ def preview_statistics():
     
     start_date, end_date = get_period_value(period_type, period_value)
     filename = str(uuid.uuid4()) 
-    result = export_statistics_to_excel(Config.UPLOAD_DIR, filename, start_date, end_date, filter_type, filter_value)  # 엑셀 파일 생성
+    result = export_statistics_to_excel(Config.UPLOAD_DIR, filename, period_type, period_value, filter_type, filter_value)  # 엑셀 파일 생성
     return jsonify({
         'filename': result['excel_path'],
-        'content_html': result['html_content'],
-        'user_html': result['html_user']
+        'content_html_name': f'statistics/preview/html/{result['html_content_name']}',
+        'user_html_name': f'statistics/preview/html/{result['html_user_name']}'
     })
     
-    
+@api_statistics_bp.route('/preview/html/<path:filename>', methods=['GET'])
+def preview_html(filename):
+    return send_from_directory(Config.UPLOAD_DIR, filename)
+  
+
 @api_statistics_bp.route('/download', methods=['GET'])
 def download_statistics():
     """
     엑셀 다운로드
     """
-    id = str(uuid.uuid4())
-    filename = f"{Config.UPLOAD_DIR}/{id}.xlsx"
+    file_path = request.args.get('file_path')
     
-    if not os.path.exists(filename):
+    if not os.path.exists(file_path):
         return jsonify({
             'error': 'File not found'
         }), 404
         
-    resposne = send_file(filename, download_name=f"beps 관리자 페이지.xlsx", as_attachment=True)
-    os.remove(filename)  # 다운로드 후 파일 삭제
+    resposne = send_file(file_path, download_name=f"beps 관리자 페이지.xlsx", as_attachment=True)
+    #os.remove(file_path)  # 다운로드 후 파일 삭제
     return resposne

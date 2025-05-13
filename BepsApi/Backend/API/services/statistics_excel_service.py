@@ -9,6 +9,31 @@ from config import Config
 from services.statistics_excel_sheet_content import get_statistics_data, format_seconds_to_hhmmss
 from services.statistics_excel_sheet_user import get_statistics_user_data
 
+STYLE = """
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 30px;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 3px 4px;
+    text-align: center;
+  }
+  th {
+    background-color: #f5f5f5;
+  }
+  td {
+    font-size: 12px;
+  }
+</style>
+"""
+
 def delete_old_files(folder_path, max_age_seconds=3600):
     """
     지정된 폴더에서 오래된 파일 삭제
@@ -35,10 +60,14 @@ def scheduled_cleanup():
     except Exception as e:
         logging.error(f"Error during scheduled cleanup: {str(e)}, {traceback.format_exc()}")
 
-def export_statistics_to_excel(path, filename, start_date, end_date, filter_type, filter_value):
+def export_statistics_to_excel(path, filename, period_type, period_value, filter_type, filter_value):
     """
     통계 데이터를 엑셀로 내보내기
     """
+    from services.user_summary_service import get_period_value
+    
+    start_date, end_date = get_period_value(period_type, period_value)
+    
     files = get_statistics_data(start_date, end_date, filter_type, filter_value)  # 통계 데이터 가져오기
     rows = []
 
@@ -78,27 +107,41 @@ def export_statistics_to_excel(path, filename, start_date, end_date, filter_type
     
     df = pd.DataFrame(rows)
     
-    usres = get_statistics_user_data(start_date, end_date, filter_type, filter_value)  # 사용자 통계 데이터 가져오기
+    usres = get_statistics_user_data(period_type, period_value, filter_type, filter_value)  # 사용자 통계 데이터 가져오기
     user_rows = []
     if usres:
-        prev_company = prev_department = None
+        prev_company = prev_department = prev_name = None
         for u in usres:
-            company = u.company
-            department = u.department
+            company = u['company']
+            department = u['department']
+            name = u['name']
             
             row = {
-                '회사': company if company != prev_company else '',
-                '부서': department if department != prev_department else '',
-                '이름': u.name,
+                '회사': '',
+                '부서': '',
+                '이름': name if name != prev_name else '',
+                '총학습시간': '',
+                '평균학습시간': '',
+                '카테고리': u['category_name'],
+                '학습시간': u['learning_time'],
+                '의견서 수': f'{u['memo_count']}건',
             }
+            if (company != prev_company) or (department != prev_department) or (name != prev_name):
+                row['회사'] = company
+                row['부서'] = department if department != '' else '-'
+                row['이름'] = name if name != '' else '-'
+                row['총학습시간'] = u['total_learning_time']
+                row['평균학습시간'] = u['avg_learning_time']
+            
             user_rows.append(row)
             prev_company = company
             prev_department = department
+            prev_name = name
             
     df_user = pd.DataFrame(user_rows)
         
     excel_path = f"{path}/{filename}.xlsx"
-    logging.info(f"엑셀 파일 저장 경로: {excel_path}")
+    logging.debug(f"엑셀 파일 저장 경로: {excel_path}")
     os.makedirs(path, exist_ok=True)  # 디렉토리 생성
     
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
@@ -118,15 +161,37 @@ def export_statistics_to_excel(path, filename, start_date, end_date, filter_type
     wb_user.save(excel_path)
     wb_user.close()
     
-    df_content_html = df.to_html(index=False, classes='content_table', border=1)
-    df_user_html = df_user.to_html(index=False, classes='user_table', border=1)
+    df_content_html = generate_html_with_style(df) #df.to_html(index=False, classes='content_table', border=1)
+    df_user_html = generate_html_with_style(df_user) #df_user.to_html(index=False, classes='user_table', border=1)
+    
+    content_html_path = os.path.join(path, f"{filename}_content.html")
+    user_html_path = os.path.join(path, f"{filename}_user.html")
+    
+    with open(content_html_path, 'w', encoding='utf-8') as f:
+        f.write(df_content_html)
+    with open(user_html_path, 'w', encoding='utf-8') as f:
+        f.write(df_user_html)
     
     return {
         'excel_path': excel_path,
-        'html_content': df_content_html,
-        'html_user': df_user_html
+        'html_content_name': f"{filename}_content.html",
+        'html_user_name': f"{filename}_user.html"
     }
     
-                         
+
+def generate_html_with_style(df):
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+      <meta charset="UTF-8">
+      <title>미리보기</title>
+      {STYLE}
+    </head>
+    <body>
+      {df.to_html(index=False)}
+    </body>
+    </html>
+    """              
 
     

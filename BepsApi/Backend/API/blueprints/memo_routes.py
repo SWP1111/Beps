@@ -262,23 +262,26 @@ def memo_rank():
             LIMIT 5
             """
         
-        if filter_type == 'company':
-            filter_clause = "u.company = :filter_value"
-        elif filter_type == 'department':
-            filter_clause = "u.department = :filter_value"
-        elif filter_type == 'user':
-            filter_clause = "u.id = :filter_value"
-        else:
-            filter_clause = "1=1"
-        
-        query = text(base_query.format(filter_clause=filter_clause))
-        
         params = {
             'start_date': utc_start_dt,
             'end_date': utc_end_dt
         }
-        if filter_type in ('company', 'department', 'user'):
+        
+        if filter_type == 'company':
+            filter_clause = "u.company = :filter_value"
             params['filter_value'] = filter_value
+        elif filter_type == 'department':
+            filter_clause = "u.company = :company AND u.department = :department"
+            company, department = filter_value.split('||')
+            params['company'] = company
+            params['department'] = department
+        elif filter_type == 'user':
+            filter_clause = "u.id = :filter_value"
+            params['filter_value'] = filter_value
+        else:
+            filter_clause = "1=1"
+        
+        query = text(base_query.format(filter_clause=filter_clause))
                  
         result = db.session.execute(query, params).mappings().all()
         if not result:

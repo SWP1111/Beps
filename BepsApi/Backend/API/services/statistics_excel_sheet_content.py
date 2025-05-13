@@ -13,7 +13,7 @@ def get_statistics_data(start_date, end_date, filter_type, filter_value):
     files = get_normal_files_width_category_names() 
     avgtimes = get_avg_learning_time_per_file(start_date, end_date, filter_type, filter_value)
     memocounts = get_memo_count_per_file(start_date, end_date, filter_type, filter_value)
-    managers = get_file_managers()
+    managers = get_folder_managers()
     
     if not files:
         logging.error("No files found")
@@ -22,7 +22,7 @@ def get_statistics_data(start_date, end_date, filter_type, filter_value):
     for f in files:
         f['avg_stay_duration'] = round(avgtimes.get(f['file_id'], 0), 1)
         f['memo_count'] = memocounts.get(f['file_id'], 0)
-        f['manager_name'] = managers.get(f['file_id'], '')
+        f['manager_name'] = managers.get(f['mid_folder_id'], '')
         
     return files
                 
@@ -42,7 +42,10 @@ def get_normal_files_width_category_names():
             Files.file_name, 
             Files.file_path, 
             Files.update_at,
-            FolderTop.folder_name.label('top_name')).join(
+            Files.folder_id,
+            FolderTop.folder_id.label('top_folder_id'),
+            FolderTop.folder_name.label('top_name')
+        ).join(
             FolderCur, Files.folder_id == FolderCur.folder_id
         ).join(
             FolderTop, FolderCur.top_category_folder_id == FolderTop.folder_id
@@ -51,24 +54,26 @@ def get_normal_files_width_category_names():
             FolderCur.folder_type == 'normal',
         ).order_by(Files.file_path)
         
+        # 전체 폴더를 가져와 dict로 구성
+        all_folders = db.session.query(Folders).all()
+        folder_map = {f.folder_id: f for f in all_folders}
+        
         results = []
-        for file_id,file_name,file_path,update_at,top_name in query.all():
-            parts = file_path.split('/')
-            try:
-                top_index = parts.index(top_name)
-                mid_name = parts[top_index + 1] if top_index + 1 < len(parts) else ''
-            except ValueError:
-                mid_name = ''
+        for file_id,file_name,file_path,update_at,folder_id,top_folder_id,top_name in query.all():
+            mid_folder = get_mid_folder_from_cache(folder_id, top_folder_id, folder_map)
             
             top_name = clean_name(top_name)
-            mid_name = clean_name(mid_name)
+            mid_name = clean_name(mid_folder.folder_name)
             bottom_name = clean_name(file_name)
             
             result = {
                 'file_id': file_id,
                 'file_name': file_name,
                 'file_path': file_path,
+                'folder_id': folder_id,
+                'top_folder_id': top_folder_id,
                 'top_name': top_name,
+                'mid_folder_id' : mid_folder.folder_id if mid_folder else None,
                 'mid_name': mid_name,
                 'bottom_name': bottom_name,
                 'update_at': update_at.strftime('%Y-%m-%d')
@@ -79,6 +84,19 @@ def get_normal_files_width_category_names():
     except Exception as e:
         logging.error(f"[get_normal_files]: {str(e)}, {traceback.format_exc()}")
         return None
+
+def get_mid_folder_from_cache(folder_id, top_id, folder_map):
+    """
+    folder_id에서 시작해 parent_id를 따라 올라가며 parent_id가 top_id인 폴더를 찾는다.
+    """
+    while folder_id:
+        folder = folder_map.get(folder_id)
+        if folder is None:
+            return None
+        if folder.parent_id == top_id:
+            return folder
+        folder_id = folder.parent_id
+    return None 
 
 def get_avg_learning_time_per_file(start_dt, end_dt, scope, filter_value):
     """
@@ -132,6 +150,19 @@ def get_file_managers():
     ).filter(ContentManager.type == 'file')
         
     return {row.file_id: row.manager_name for row in query.all()}
+
+def get_folder_managers():
+    """
+    폴더 관리자 목록 가져오기
+    """
+    query = db.session.query(
+        ContentManager.folder_id,
+        Users.name.label('manager_name')
+    ).join(
+        Users, ContentManager.user_id == Users.id
+    ).filter(ContentManager.type == 'folder')
+        
+    return {row.folder_id: row.manager_name for row in query.all()}
 
 def get_user_ids_by_scope(scope, filter_value):
     """

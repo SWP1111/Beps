@@ -57,7 +57,11 @@ def create_app():
 
     @app.after_request
     def log_response(response):
-        logging.info(f"응답: [{request.path}] {response.status_code} - 데이터: {response.get_json(silent=True)}")
+        data = response.get_json(silent=True)
+        data_str = str(data) if data else ''
+        if len(data_str) > 1000:
+            data_str = data_str[:1000] + '...(truncated)'
+        logging.info(f"응답: [{request.path}] {response.status_code} - 데이터: {data_str}")
         return response
 
     @app.errorhandler(Exception)

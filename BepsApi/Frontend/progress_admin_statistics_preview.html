@@ -46,10 +46,18 @@
         gap: 10px;
         justify-content: flex-start;
       }
+
   </style>
 </head>
 <body>
+    <div style="text-align: right; margin-bottom: 10px;">
+        <button onclick="downloadExcel()" id="download-button" class="tab-btn" disabled>엑셀 다운로드</button>
+    </div>
+    <a id="download-link" style="display: none;"></a>
+
     <h2 id="date-range">통계 미리보기</h2>
+
+    <div id="loading-message" style="display:none;">📊 로딩 중입니다... 잠시만 기다려주세요.</div>
 
     <!-- 탭 콘텐츠 -->
     <div id="sheet-content" class="sheet active">
@@ -69,18 +77,40 @@
     </div>
 
   <script>
+    let download_button;
+    let loading_message;
+    document.addEventListener("DOMContentLoaded", function() {
+        download_button = document.getElementById("download-button");
+        loading_message = document.getElementById("loading-message");
+        download_button.disabled = true;
+        loading_message.style.display = "block";
+
+        window.addEventListener("resize", updateIframeHeights);
+        updateIframeHeights();
+    });
+
     const params = new URLSearchParams(window.location.search);
     const apiUrl = `${window.baseUrl}statistics/preview?${params.toString()}`;
+    let filepath = null;
 
     fetch(apiUrl)
       .then(res => res.json())
       .then(data => {
-        console.log(data.content_html);  // ← 이게 진짜 <table>로 보이면 OK
-        document.getElementById('content-html').innerHTML = data.content_html;
-        document.getElementById('user-html').innerHTML = data.user_html;
+        filepath = data.filename;
+
+        //document.getElementById('content-html').innerHTML = 
+        //  `<iframe src="${window.baseUrl}${data.content_html_name}" width="100%" style="border:none;"></iframe>`//data.content_html;
+        //document.getElementById('user-html').innerHTML = 
+        //  `<iframe src="${window.baseUrl}${data.user_html_name}" width="100%" style="border:none;"></iframe>`//data.user_html;
+
+        insertIframe('content-html', data.content_html_name);
+        insertIframe('user-html', data.user_html_name);
       })
       .catch(() => {
         document.body.innerHTML = '<p>통계 데이터를 불러오지 못했습니다.</p>';
+      }).finally(() => {
+        loading_message.style.display = "none";
+        download_button.disabled = false;
       });
 
     function showSheet(type) {
@@ -91,6 +121,46 @@
     // 버튼 상태 갱신
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`.tab-btn[onclick*="${type}"]`).classList.add('active');
+    }
+
+    function downloadExcel() {
+        if(!filepath) {
+            alert('엑셀 파일이 준비되지 않았습니다.');
+            return;
+        }
+        
+        const encoded = encodeURIComponent(filepath);   // filepath는 서버에서 제공 -> encodeURIComponent로 인코딩
+        const link = document.getElementById('download-link');   // 다운로드 링크 생성
+        link.href = `${window.baseUrl}statistics/download?file_path=${encoded}`;
+        link.download ='';
+        link.click();   // 다운로드 링크를 클릭하여 파일 다운로드
+    }
+
+    function updateIframeHeights() {
+      const topOffset = document.getElementById('sheet-tabs').offsetHeight + 160;
+      const height = window.innerHeight - topOffset- 80;
+    
+      document.querySelectorAll('#content-html iframe, #user-html iframe').forEach(iframe => {
+        iframe.style.height = `${height}px`;
+      });
+    }
+
+    function insertIframe(targetId, src) {
+      const topOffset = document.getElementById('sheet-tabs').offsetHeight + 160;
+      const height = window.innerHeight - topOffset - 80;
+    
+      const container = document.getElementById(targetId);
+      const iframe = document.createElement('iframe');
+      iframe.src = `${window.baseUrl}${src}`;
+      iframe.width = '100%';
+      iframe.style.border = 'none';
+      iframe.style.height = `${height}px`;
+    
+      // 로드 완료 후에도 높이 다시 적용 (resize 대응 포함)
+      iframe.onload = () => updateIframeHeights();
+    
+      container.innerHTML = '';
+      container.appendChild(iframe);
     }
 
   </script>

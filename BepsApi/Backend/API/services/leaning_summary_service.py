@@ -7,6 +7,18 @@ from extensions import db
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 
+def get_all_top_folders():
+    FoldersTop = aliased(Folders)
+    top_folders = db.session.query(
+        FoldersTop.folder_id,
+        FoldersTop.folder_name
+    ).filter(
+        FoldersTop.is_deleted == False,
+        FoldersTop.folder_id == FoldersTop.top_category_folder_id  # ✅ 대분류 필터 조건
+    ).all()
+
+    return {f.folder_id: (f.folder_name, datetime.timedelta(0)) for f in top_folders}
+
 def get_folder_progress(params):
     """
     카테고리별 학습 진행률을 가져오는 함수
@@ -20,7 +32,7 @@ def get_folder_progress(params):
     start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
     
     # 카테고리별 학습 진행률 결과 저장
-    folder_duration_map = {}
+    folder_duration_map = get_all_top_folders()
     
     used_range = []
     
@@ -155,7 +167,7 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
              
         query = query.group_by(FoldersTop.folder_id, FoldersTop.folder_name)
         
-        logging.debug(f"[add_summary_day_date] {query.statement.compile(compile_kwargs={"literal_binds": True})}")
+        # logging.debug(f"[add_summary_day_date] {query.statement.compile(compile_kwargs={"literal_binds": True})}")
         rows = query.all()
         update_folder_duration_map(folder_duration_map, rows)
         

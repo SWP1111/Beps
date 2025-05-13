@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     const element = document.createElement("span");
     element.className = "category-item";
-    element.textContent = `메모 랭킹`;
+    element.textContent = `의견서 순위`;
     memoRank.appendChild(element);
 
     let url = `${window.baseUrl}memo/memo_rank?period_value=${period_value}`;
