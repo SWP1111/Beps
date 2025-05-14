@@ -6,7 +6,7 @@ from datetime import timezone
 from datetime import timedelta
 from extensions import db
 from flask_jwt_extended import jwt_required
-from models import Users, ContentViewingHistory, Files, ContentPointRecord
+from models import Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, ContentRelPageDetails
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 from config import Config
@@ -57,18 +57,14 @@ def end():
         user_id = data.get('user_id').lower() 
         logging.debug(f"[end] user_id: {user_id}")
         file_id = data.get('file_id')
-        file_name = data.get('file_name')
+        file_type = data.get('file_type')
         ip_address = data.get('ip_address')
         start_time_str = data.get('start_time')
         start_time = datetime.datetime.fromisoformat(start_time_str)
         
-        if user_id is None or (file_id is None and file_name is None) or ip_address is None:
+        if user_id is None or file_id is None or ip_address is None:
             return jsonify({'error': 'Please provide id'}), 400 # 400: Bad Request
-        
-        # file_id가 없는 경우 file_name으로 file_id를 조회
-        if file_id is None and file_name:
-            file_id = Files.query.filter_by(file_name=file_name).first().file_id
-        
+               
         end_time = datetime.datetime.now(timezone.utc)
         duration = end_time - start_time
         
@@ -77,6 +73,7 @@ def end():
             learning = ContentViewingHistory(
                 user_id=user_id,
                 file_id=file_id,
+                file_type=file_type,
                 start_time=start_time, # - timedelta(seconds=15),
                 end_time=end_time,
                 ip_address=ip_address,
@@ -413,14 +410,14 @@ def get_top_viewd_pages():
         
         query = db.session.query(
             ContentViewingHistory.file_id,
-            func.coalesce(Files.file_name, '[삭제된 파일]').label('file_name'),
+            func.coalesce(ContentRelPages.name, '[삭제된 파일]').label('file_name'),
             func.count().label('view_count')
         )
         
         if filter_type in ('company','department','user'):
             query = query.join(Users, ContentViewingHistory.user_id == Users.id)
             
-        query = query.outerjoin(Files, ContentViewingHistory.file_id == Files.file_id).filter(
+        query = query.outerjoin(ContentRelPages, ContentViewingHistory.file_id == ContentRelPages.id).filter(
             ContentViewingHistory.start_time >= start_dt,
             ContentViewingHistory.start_time < end_dt
         )     
@@ -436,7 +433,7 @@ def get_top_viewd_pages():
         elif filter_type == 'user' and filter_value:
             query = query.filter(Users.id == filter_value)
 
-        query = query.group_by(ContentViewingHistory.file_id, Files.file_name).order_by(func.count().desc())
+        query = query.group_by(ContentViewingHistory.file_id, ContentRelPages.name).order_by(func.count().desc())
         query = query.limit(5)  # 🔹 상위 5개 조회
         
         rows = query.all()

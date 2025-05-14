@@ -17,7 +17,7 @@ def is_media_file(filename):
     return filename.lower().endswith(('.pdf', '.png', '.jpg', '.jpeg', '.gif', '.mp4', '.webm'))
 
 def now():
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
 def escape(s):
     return s.replace("'", "''")

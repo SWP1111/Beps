@@ -1,3 +1,4 @@
+from sqlalchemy import CheckConstraint
 from extensions import db
 from sqlalchemy.sql import func, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -174,17 +175,23 @@ class ContentViewingHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Text, db.ForeignKey('users.id'))
     file_id = db.Column(db.Text, db.ForeignKey('files.file_id'))
+    file_type = db.Column(db.String(10), nullable=False, server_default='page')
     start_time = db.Column(db.DateTime(timezone=True))
     end_time = db.Column(db.DateTime(timezone=True))
     stay_duration = db.Column(db.Interval)
     ip_address = db.Column(db.Text)
     time_stamp = db.Column(db.BigInteger)
 
+    __table_args__ = (
+        CheckConstraint("file_type IN ('page', 'detail')", name='check_file_type'),
+    )
+    
     def to_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
             'file_id': self.file_id,
+            'file_type': self.file_type,
             'start_time': self.start_time,
             'end_time': self.end_time,
             'stay_duration': self.stay_duration,
@@ -294,7 +301,94 @@ class ContentPointRecord(db.Model):
             'point': self.point,
             'earned_times': self.earned_times
         }
-        
+
+class ContentRelChannels(db.Model):
+    __tablename__ = 'content_rel_channels'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'is_deleted': self.is_deleted
+        }
+
+class ContentRelFolders(db.Model):
+    __tablename__ = 'content_rel_folders'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.folder_id'))
+    channel_id = db.Column(db.Integer, db.ForeignKey('content_rel_channels.id'))
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.Text)
+    crated_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'parent_id': self.parent_id,
+            'channel_id': self.channel_id,
+            'name': self.name,
+            'description': self.description,
+            'crated_at': self.crated_at,
+            'updated_at': self.updated_at,
+            'is_deleted': self.is_deleted
+        }
+
+class ContentRelPages(db.Model):
+    __tablename__ = 'content_rel_pages'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'))
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.Text)
+    object_id = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'folder_id': self.folder_id,
+            'name': self.name,
+            'description': self.description,
+            'object_id': self.object_id,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'is_deleted': self.is_deleted
+        }
+
+class ContentRelPageDetails(db.Model):
+    __tablename__ = 'content_rel_page_details'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    page_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'))
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.Text)
+    object_id = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'page_id': self.page_id,
+            'name': self.name,
+            'description': self.description,
+            'object_id': self.object_id,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'is_deleted': self.is_deleted
+        }
 class Folders(db.Model):
     __tablename__ = 'folders'
     folder_id = db.Column(db.Integer, primary_key=True)
