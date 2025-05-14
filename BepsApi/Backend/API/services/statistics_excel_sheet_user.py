@@ -21,6 +21,7 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
             comapny_rows = {
                 'company': company,
                 'department': '',
+                'user_id': '',
                 'name': '',
                 'total_learning_time': learnings['total_learning_time'],
                 'avg_learning_time': learnings['avg_learning_time']
@@ -45,6 +46,7 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
                 dept_row = {
                     'company': company,
                     'department': department,
+                    'user_id': '',
                     'name': '',
                     'total_learning_time': learnings['total_learning_time'],
                     'avg_learning_time': learnings['avg_learning_time']
@@ -68,6 +70,7 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
                 user_row = {
                     'company': company,
                     'department': department,
+                    'user_id': user['user_id'],
                     'name': user['name'],
                     'total_learning_time': learnings['total_learning_time'],
                     'avg_learning_time': learnings['avg_learning_time']

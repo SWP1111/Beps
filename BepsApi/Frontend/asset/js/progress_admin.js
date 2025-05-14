@@ -275,8 +275,12 @@ document.addEventListener('DOMContentLoaded', async() => {
     if(filter_value != null)
       url += `&filter_value=${encodeURIComponent(filter_value)}`;
 
-    if(statisticsPopup == null || statisticsPopup.closed)
-      statisticsPopup = window.open(url, "통계미리보기",'width=1200,height=700,resizable=yes,scrollbars=yes');
+    if(statisticsPopup == null || statisticsPopup.closed){
+      const width = screen.availWidth;
+      const height = screen.availHeight;
+
+      statisticsPopup = window.open(url, `통계미리보기`,`width=${width},height=${height},resizable=yes,scrollbars=yes`);
+    }
     else{
       statisticsPopup.location.href = url;
       statisticsPopup.focus();

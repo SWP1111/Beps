@@ -335,6 +335,7 @@ try:
             id SERIAL NOT NULL,
             user_id text,                                   -- 사용자 ID
             file_id integer,                                -- 컨텐츠(파일) ID
+            file_type varchar(10) DEFAULT 'page' CHECK (file_type IN ('page','detail')), -- 파일 타입(페이지, 상세)
             start_time timestamp with time zone NOT NULL,   -- 시작 시간
             end_time timestamp with time zone,              -- 종료 시간
             stay_duration interval,                         -- 체류 시간
@@ -356,6 +357,7 @@ try:
             id integer NOT NULL,
             user_id text,                                   -- 사용자 ID
             file_id integer,                                -- 컨텐츠(파일) ID
+            file_type varchar(10) CHECK (file_type IN ('page','detail')), -- 파일 타입(페이지, 상세)
             start_time timestamp with time zone NOT NULL,   -- 시작 시간
             end_time timestamp with time zone,              -- 종료 시간
             stay_duration interval,                         -- 체류 시간
@@ -370,6 +372,7 @@ try:
             id,
             user_id,
             file_id,
+            file_type,
             start_time,
             end_time,
             stay_duration,
@@ -381,6 +384,7 @@ try:
             id,
             user_id,
             file_id,
+            file_type,
             start_time,
             end_time,
             stay_duration,

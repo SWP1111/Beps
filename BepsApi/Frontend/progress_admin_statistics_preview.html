@@ -61,13 +61,12 @@
 
     <!-- 탭 콘텐츠 -->
     <div id="sheet-content" class="sheet active">
-      <h3>전체 컨텐츠</h3>
       <div id="content-html"></div>
     </div>
   
     <div id="sheet-user" class="sheet" style="display:none;">
-      <h3>회사 & 팀 & 직원</h3>
       <div id="user-html"></div>
+      <div id="user-pagination" style="display: flex; justify-content: center; text-align: center; margin-top: 10px; margin-bottom: 80px; gap: 5px;"></div>
     </div>
   
     <!-- 하단 시트 버튼 -->
@@ -79,11 +78,20 @@
   <script>
     let download_button;
     let loading_message;
+
+    let userHtmlFile = null;
+    let currentPage = 1;
+    let totalPages = 10; // 나중엔 서버에서 받아올 수도 있음
+
     document.addEventListener("DOMContentLoaded", function() {
         download_button = document.getElementById("download-button");
         loading_message = document.getElementById("loading-message");
         download_button.disabled = true;
         loading_message.style.display = "block";
+
+        const title =  window.opener.document.getElementById("selected-period").textContent;
+        const dateRange = document.getElementById("date-range");
+        dateRange.textContent = `[통계 미리보기] ${title}`;
 
         window.addEventListener("resize", updateIframeHeights);
         updateIframeHeights();
@@ -98,13 +106,10 @@
       .then(data => {
         filepath = data.filename;
 
-        //document.getElementById('content-html').innerHTML = 
-        //  `<iframe src="${window.baseUrl}${data.content_html_name}" width="100%" style="border:none;"></iframe>`//data.content_html;
-        //document.getElementById('user-html').innerHTML = 
-        //  `<iframe src="${window.baseUrl}${data.user_html_name}" width="100%" style="border:none;"></iframe>`//data.user_html;
-
         insertIframe('content-html', data.content_html_name);
-        insertIframe('user-html', data.user_html_name);
+        userHtmlFile = data.user_html_name.split('/').pop();
+        loadUserHtmlPage(1);
+        //insertIframe('user-html', data.user_html_name);
       })
       .catch(() => {
         document.body.innerHTML = '<p>통계 데이터를 불러오지 못했습니다.</p>';
@@ -129,9 +134,11 @@
             return;
         }
         
+        const title =  window.opener.document.getElementById("selected-period").textContent;
+
         const encoded = encodeURIComponent(filepath);   // filepath는 서버에서 제공 -> encodeURIComponent로 인코딩
         const link = document.getElementById('download-link');   // 다운로드 링크 생성
-        link.href = `${window.baseUrl}statistics/download?file_path=${encoded}`;
+        link.href = `${window.baseUrl}statistics/download?file_path=${encoded}&download_name=${title}`;
         link.download ='';
         link.click();   // 다운로드 링크를 클릭하여 파일 다운로드
     }
@@ -161,6 +168,36 @@
     
       container.innerHTML = '';
       container.appendChild(iframe);
+    }
+
+    function loadUserHtmlPage(page) {
+      const url = `${window.baseUrl}statistics/preview/html_segment?filename=${userHtmlFile}&page=${page}&per_page=500`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("user-html").innerHTML = data.html;
+          totalPages = data.total_page;
+          renderPagination(page);
+        })
+        .catch(() => {
+          document.getElementById("user-html").innerHTML = "<p>불러오기 실패</p>";
+        });
+    }
+
+    function renderPagination(currentPage) {
+      const container = document.getElementById("user-pagination");
+      container.innerHTML = "";
+    
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.innerText = i;
+        btn.className = "tab-btn";
+        if (i === currentPage) btn.classList.add("active");
+    
+        btn.onclick = () => loadUserHtmlPage(i);  // ✔ 호출 연결
+        container.appendChild(btn);
+      }
     }
 
   </script>

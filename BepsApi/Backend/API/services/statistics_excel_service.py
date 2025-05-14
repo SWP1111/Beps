@@ -110,33 +110,33 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     usres = get_statistics_user_data(period_type, period_value, filter_type, filter_value)  # 사용자 통계 데이터 가져오기
     user_rows = []
     if usres:
-        prev_company = prev_department = prev_name = None
+        prev_company = prev_department = prev_id = None
         for u in usres:
             company = u['company']
             department = u['department']
-            name = u['name']
+            user_id = u['user_id']
             
             row = {
                 '회사': '',
                 '부서': '',
-                '이름': name if name != prev_name else '',
+                '이름': u['name'] if user_id != prev_id else '',
                 '총학습시간': '',
                 '평균학습시간': '',
                 '카테고리': u['category_name'],
                 '학습시간': u['learning_time'],
                 '의견서 수': f'{u['memo_count']}건',
             }
-            if (company != prev_company) or (department != prev_department) or (name != prev_name):
+            if (company != prev_company) or (department != prev_department) or (user_id != prev_id):
                 row['회사'] = company
                 row['부서'] = department if department != '' else '-'
-                row['이름'] = name if name != '' else '-'
+                row['이름'] = u['name'] if u['name'] != '' else '-'
                 row['총학습시간'] = u['total_learning_time']
                 row['평균학습시간'] = u['avg_learning_time']
             
             user_rows.append(row)
             prev_company = company
             prev_department = department
-            prev_name = name
+            prev_id = user_id
             
     df_user = pd.DataFrame(user_rows)
         

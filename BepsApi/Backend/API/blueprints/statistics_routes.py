@@ -32,6 +32,81 @@ def preview_statistics():
 def preview_html(filename):
     return send_from_directory(Config.UPLOAD_DIR, filename)
   
+@api_statistics_bp.route('/preview/html_segment', methods=['GET'])
+def preview_html_segment():
+    """
+    HTML 행 단위 분할 미리보기 API (논리 단위 끊김 없이 그룹별 잘라서 제공)
+    GET params:
+        - filename: HTML 파일명
+        - page: 페이지 번호
+        - per_page: 최대 행 수 (기본 500)
+    """
+    import re
+    from flask import Response
+
+    filename = request.args.get('filename')
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 500))
+
+    full_path = os.path.join(Config.UPLOAD_DIR, filename)
+    if not os.path.exists(full_path):
+        return jsonify({'error': 'HTML 파일이 존재하지 않습니다.'}), 404
+
+    with open(full_path, 'r', encoding='utf-8') as f:
+        html = f.read()
+
+    style_match = re.search(r'<style.*?>.*?</style>', html, flags=re.DOTALL)
+    style = style_match.group(0) if style_match else ''
+
+    thead_match = re.search(r'<thead.*?>.*?</thead>', html, flags=re.DOTALL)
+    thead = thead_match.group(0) if thead_match else ''
+
+    rows = re.findall(r'<tr.*?>.*?</tr>', html, flags=re.DOTALL)
+
+    # 그룹 기준: 대분류/중분류/소분류 등으로 연속된 그룹 자르기
+    blocks = []
+    current_block = []
+    row_count = 0
+
+    for row in rows:
+        current_block.append(row)
+        row_count += 1
+        if row_count >= per_page:
+            blocks.append(current_block)
+            current_block = []
+            row_count = 0
+
+    if current_block:
+        blocks.append(current_block)
+
+    if page > len(blocks) or page < 1:
+        return jsonify({'error': '페이지 범위를 벗어났습니다.'}), 400
+
+    selected_rows = blocks[page - 1]
+    thread_html = thead if page != 1 else ''
+    html_response = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        {style}
+    </head>
+    <body>
+        <table>
+            {thread_html}
+            <tbody>
+                {''.join(selected_rows)}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    
+    return jsonify({
+        'html' : html_response,
+        'total_page': len(blocks)
+    })
+
 
 @api_statistics_bp.route('/download', methods=['GET'])
 def download_statistics():
@@ -39,12 +114,13 @@ def download_statistics():
     엑셀 다운로드
     """
     file_path = request.args.get('file_path')
+    download_name = request.args.get('download_name')
     
     if not os.path.exists(file_path):
         return jsonify({
             'error': 'File not found'
         }), 404
         
-    resposne = send_file(file_path, download_name=f"beps 관리자 페이지.xlsx", as_attachment=True)
+    resposne = send_file(file_path, download_name=f"beps_{download_name}.xlsx", as_attachment=True)
     #os.remove(file_path)  # 다운로드 후 파일 삭제
     return resposne

@@ -48,8 +48,8 @@ aggregate_halfyearly_stats(2025, 01) # year, 반기(01,02)
 # 로그인 현황 연간 집계
 aggregate_yearly_stats(2025)  # year
 
-# folders 테이블에 최상위 카테고리 폴더 id 업데이트
-UPDATE folders SET top_category_folder_id = get_top_category_folder(folder_id);
+# [deprecated] folders 테이블에 최상위 카테고리 폴더 id 업데이트 - folders 테이블 제거거
+# UPDATE folders SET top_category_folder_id = get_top_category_folder(folder_id);
 
 # 실행 권한(cronjob에서 실행되게 하려면 실행권한을 부여해야 함함)
 chmod +x /home/user_ccp/service/BepsApi/Backend/DB/summary_executor.bash

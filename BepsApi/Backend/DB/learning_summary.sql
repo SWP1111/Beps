@@ -1,25 +1,3 @@
--- 최상위 카테고리 폴더 id 조회
-CREATE OR REPLACE FUNCTION get_top_category_folder(fid INT)
-RETURNS INT AS $$
-WITH RECURSIVE parent_tree AS (
-    SELECT folder_id, parent_id
-    FROM folders
-    WHERE folder_id = fid
-    UNION ALL
-    SELECT f.folder_id, f.parent_id
-    FROM folders f
-    JOIN parent_tree pt ON f.folder_id = pt.parent_id
-)
-SELECT folder_id
-FROM parent_tree
-WHERE parent_id IN (SELECT folder_id FROM folders WHERE parent_id IS NULL)
-LIMIT 1;
-$$ LANGUAGE SQL STABLE;
-
--- folders 테이블에 최상위 카테고리 폴더 id 업데이트
--- UPDATE folders SET top_category_folder_id = get_top_category_folder(folder_id);
-
-
 CREATE OR REPLACE FUNCTION aggregate_learning_summary_daily(
     p_start_utc TIMESTAMPTZ
 ) RETURNS VOID AS $$
@@ -34,17 +12,21 @@ BEGIN
     SELECT
         v_start_value, 'all', d.folder_id, d.folder_name,SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
-    JOIN files f ON f.file_id = cvh.file_id
-    JOIN folders fd ON fd.folder_id = f.folder_id
-    -- 재귀호출로 최상위 카테고리 폴더 id 조회
-    -- JOIN (
-    --     SELECT folder_id, folder_name
-    --     FROM folders
-    --     WHERE parent_id IN (SELECT folder_id FROM folders WHERE parent_id IS NULL)
-    -- )d ON get_top_level_folder(fd.folder_id) = d.folder_id
-    JOIN folders d ON fd.top_category_folder_id = d.folder_id   -- 최상위 카테고리 폴더 id
+     -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    LEFT JOIN (
+        SELECT id, folder_id
+        FROM content_rel_pages
+        UNION ALL
+        SELECT dt.id, pg.folder_id
+        FROM content_rel_page_detail dt
+        JOIN content_rel_pages pg ON dt.page_id = pg.id
+    ) f ON f.id = cvh.file_id
+    -- 폴더 ID를 통해 channel 추출출
+    JOIN content_rel_folders fd ON fd.id = f.folder_id
+    JOIN content_rel_channels c ON c.id = fd.channel_id
+    -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
-    GROUP BY d.folder_id, d.folder_name
+    GROUP BY c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
     ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
     DO UPDATE SET
@@ -55,15 +37,25 @@ BEGIN
         stat_date, scope, company_id, company, folder_id, folder_name, total_duration
     )
     SELECT
-        v_start_value, 'company', NULL, u.company, d.folder_id, d.folder_name,
+        v_start_value, 'company', NULL, u.company, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    JOIN files f ON f.file_id = cvh.file_id
-    JOIN folders fd ON fd.folder_id = f.folder_id
-    JOIN folders d ON fd.top_category_folder_id = d.folder_id   -- 최상위 카테고리 폴더 id
+    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    LEFT JOIN (
+        SELECT id, folder_id
+        FROM content_rel_pages
+        UNION ALL
+        SELECT dt.id, pg.folder_id
+        FROM content_rel_page_detail dt
+        JOIN content_rel_pages pg ON dt.page_id = pg.id
+    ) f ON f.id = cvh.file_id
+    -- 폴더 ID를 통해 channel 추출출
+    JOIN content_rel_folders fd ON fd.id = f.folder_id
+    JOIN content_rel_channels c ON c.id = fd.channel_id
+    -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
-    GROUP BY u.company, d.folder_id, d.folder_name
+    GROUP BY u.company, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
     ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
     DO UPDATE SET
@@ -75,15 +67,25 @@ BEGIN
         stat_date, scope, company_id, company, department_id, department, folder_id, folder_name, total_duration
     )
     SELECT
-        v_start_value, 'department', NULL, u.company, NULL, u.department, d.folder_id, d.folder_name,
+        v_start_value, 'department', NULL, u.company, NULL, u.department, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    JOIN files f ON f.file_id = cvh.file_id
-    JOIN folders fd ON fd.folder_id = f.folder_id
-    JOIN folders d ON fd.top_category_folder_id = d.folder_id   -- 최상위 카테고리 폴더 id
+    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    LEFT JOIN (
+        SELECT id, folder_id
+        FROM content_rel_pages
+        UNION ALL
+        SELECT dt.id, pg.folder_id
+        FROM content_rel_page_detail dt
+        JOIN content_rel_pages pg ON dt.page_id = pg.id
+    ) f ON f.id = cvh.file_id
+    -- 폴더 ID를 통해 channel 추출출
+    JOIN content_rel_folders fd ON fd.id = f.folder_id
+    JOIN content_rel_channels c ON c.id = fd.channel_id
+    -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
-    GROUP BY u.company, u.department, d.folder_id, d.folder_name
+    GROUP BY u.company, u.department, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
     ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
     DO UPDATE SET
@@ -94,15 +96,25 @@ BEGIN
         stat_date, scope, company_id, company, department_id, department, user_id, user_name, folder_id, folder_name, total_duration
     )
     SELECT
-        v_start_value, 'user', NULL, u.company, NULL, u.department, u.id, u.name, d.folder_id, d.folder_name,
+        v_start_value, 'user', NULL, u.company, NULL, u.department, u.id, u.name, c.id, c.name,
         SUM(cvh.stay_duration)
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    JOIN files f ON f.file_id = cvh.file_id
-    JOIN folders fd ON fd.folder_id = f.folder_id
-    JOIN folders d ON fd.top_category_folder_id = d.folder_id   -- 최상위 카테고리 폴더 id
+    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    LEFT JOIN (
+        SELECT id, folder_id
+        FROM content_rel_pages
+        UNION ALL
+        SELECT dt.id, pg.folder_id
+        FROM content_rel_page_detail dt
+        JOIN content_rel_pages pg ON dt.page_id = pg.id
+    ) f ON f.id = cvh.file_id
+    -- 폴더 ID를 통해 channel 추출출
+    JOIN content_rel_folders fd ON fd.id = f.folder_id
+    JOIN content_rel_channels c ON c.id = fd.channel_id
+    -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
-    GROUP BY u.company, u.department, u.id, u.name, d.folder_id, d.folder_name
+    GROUP BY u.company, u.department, u.id, u.name, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
     ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
     DO UPDATE SET total_duration = EXCLUDED.total_duration;
