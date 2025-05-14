@@ -288,6 +288,30 @@ body {
     background-color: #c9302c; /* 호버 시 배경색 변경 */
 }
 
+.manager-button {
+    margin-right: 10px;
+    background-color: #5bc0de;
+    border: none;
+    color: white;
+    font-size: 16px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.manager-button:hover {
+    background-color: #31b0d5;
+}
+
+@media (min-width: 3400px) and (min-height: 1800px) {
+    .manager-button {
+        margin-right: 20px;
+        font-size: 32px;
+        padding: 16px 24px;
+    }
+}
+
 .content {
     padding: 0px;
     width: 100%;

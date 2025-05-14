@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>담당자 관리</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="asset/css/manager_admin.css">
+    <script src="asset/js/config.js"></script>
+    <script src="asset/js/verifyCookie.js"></script>
+    <script defer src="asset/js/manager_admin.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>담당자 관리</h1>
+        
+        <div class="permission-section">
+            <div class="permission-header">
+                <h2>권한 범위</h2>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="permission-scope" value="channel" checked>
+                        채널
+                    </label>
+                    <label>
+                        <input type="radio" name="permission-scope" value="folder">
+                        폴더
+                    </label>
+                    <label>
+                        <input type="radio" name="permission-scope" value="file">
+                        파일
+                    </label>
+                </div>
+            </div>
+            
+            <div class="input-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>채널</th>
+                            <th class="folder-col folder1-col">폴더1</th>
+                            <th class="folder-col folder2-col">폴더2</th>
+                            <th class="folder-col folder3-col">폴더3</th>
+                            <th class="file-col">파일</th>
+                            <th>담당자</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select id="channel-select" class="combobox">
+                                    <option value="">선택</option>
+                                </select>
+                            </td>
+                            <td class="folder-col folder1-col">
+                                <select id="folder1-select" class="combobox">
+                                    <option value="">선택</option>
+                                </select>
+                            </td>
+                            <td class="folder-col folder2-col">
+                                <select id="folder2-select" class="combobox">
+                                    <option value="">선택</option>
+                                </select>
+                            </td>
+                            <td class="folder-col folder3-col">
+                                <select id="folder3-select" class="combobox">
+                                    <option value="">선택</option>
+                                </select>
+                            </td>
+                            <td class="file-col">
+                                <select id="file-select" class="combobox">
+                                    <option value="">선택</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" id="manager-input" placeholder="담당자 ID">
+                            </td>
+                            <td>
+                                <button id="add-btn">추가</button>
+                                <span id="error-message" class="error"></span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="permissions-list">
+                <h3>현재 권한 목록</h3>
+                <table id="permissions-table">
+                    <thead>
+                        <tr>
+                            <th>권한 범위</th>
+                            <th>채널</th>
+                            <th>폴더1</th>
+                            <th>폴더2</th>
+                            <th>폴더3</th>
+                            <th>파일</th>
+                            <th>담당자</th>
+                            <th>작업</th>
+                        </tr>
+                    </thead>
+                    <tbody id="permissions-list-body">
+                        <!-- Permission entries will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

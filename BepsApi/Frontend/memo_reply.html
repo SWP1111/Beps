@@ -627,12 +627,14 @@ td:nth-child(even) {
                             action: 'navigateTo'
                         };
                         
-                        // Add relevant navigation parameters based on what's available
+                        // Add all available navigation parameters
                         if (memo.value.file_id) {
-                            navigationData.file_id = memo.value.file_id;
-                        } else if (memo.value.folder_id) {
-                            navigationData.folder_id = memo.value.folder_id;
-                        } else if (memo.value.path) {
+                            navigationData.fileId = memo.value.file_id;
+                        }
+                        if (memo.value.folder_id) {
+                            navigationData.folderId = memo.value.folder_id;
+                        }
+                        if (memo.value.path) {
                             navigationData.path = memo.value.path;
                         }
                         

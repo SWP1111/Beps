@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(user_role == 5 || user_role == 6 || user_role == null) { // 일반사용자 또는 외부사용자
         document.getElementById("contents-button").style.display = "none"; // 학습 버튼 숨김
         document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
+        document.getElementById("manager-admin-button").style.display = "none";
     }
 
     if(user_role == 1 || user_role == 2) // 통합관리자 또는 개발관리자
@@ -44,8 +45,29 @@ document.addEventListener("DOMContentLoaded", () => {
     {
         logoutButton.addEventListener("click", logout);
     } 
+    
+    const managerAdminButton = document.getElementById("manager-admin-button");
+    if(managerAdminButton) {
+        managerAdminButton.addEventListener("click", openManagerAdmin);
+    }
 });
 
+function openManagerAdmin() {
+    const width = 1000;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    const popup = window.open(
+        "manager_admin.html", 
+        "managerAdminPopup", 
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+    
+    if (popup) {
+        popup.focus();
+    }
+}
 
 async function logout(){
     try{
