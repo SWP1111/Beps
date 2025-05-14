@@ -3,7 +3,8 @@ import log_config
 import re
 from flask_jwt_extended import jwt_required
 from extensions import db
-from models import Folders, Files, Users, ContentViewingHistory, MemoData, ContentManager
+from models import ( Users, ContentViewingHistory, MemoData, ContentManager, 
+                    ContentRelChannels, ContentRelFolders, ContentRelPages, ContentRelPageDetails )
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import aliased
@@ -30,56 +31,58 @@ def get_normal_files_width_category_names():
     """
     폴더 타입이 normal인 파일 목록에 카테고리 이름도 같이 가져오기(상세보기 제외)
     """
-    try:        
-        FolderCur = aliased(Folders)
-        FolderTop = aliased(Folders)
-        
+    try:                
         def clean_name(name):
             return re.sub(r'^\d+_', '', name) if name else None
         
+        Folders = aliased(ContentRelFolders)
+        
         query = db.session.query(
-            Files.file_id, 
-            Files.file_name, 
-            Files.file_path, 
-            Files.update_at,
-            Files.folder_id,
-            FolderTop.folder_id.label('top_folder_id'),
-            FolderTop.folder_name.label('top_name')
+            ContentRelPages.id, 
+            ContentRelPages.name, 
+            ContentRelPages.updated_at,
+            ContentRelPages.folder_id,
+            ContentRelChannels.id.label('top_folder_id'),
+            ContentRelChannels.name.label('top_name')
         ).join(
-            FolderCur, Files.folder_id == FolderCur.folder_id
+            Folders, ContentRelPages.folder_id == Folders.id
         ).join(
-            FolderTop, FolderCur.top_category_folder_id == FolderTop.folder_id
+            ContentRelChannels, Folders.channel_id == ContentRelChannels.id
         ).filter(
-            Files.is_deleted == False,
-            FolderCur.folder_type == 'normal',
-        ).order_by(Files.file_path)
+            ContentRelPages.is_deleted == False
+        )
         
         # 전체 폴더를 가져와 dict로 구성
-        all_folders = db.session.query(Folders).all()
-        folder_map = {f.folder_id: f for f in all_folders}
+        all_folders = db.session.query(ContentRelFolders).all()
+        folder_map = {f.id: f for f in all_folders}
         
         results = []
-        for file_id,file_name,file_path,update_at,folder_id,top_folder_id,top_name in query.all():
+        for file_id,file_name,update_at,folder_id,top_folder_id,top_name in query.all():
             mid_folder = get_mid_folder_from_cache(folder_id, top_folder_id, folder_map)
             
-            top_name = clean_name(top_name)
-            mid_name = clean_name(mid_folder.folder_name)
+            top_name_clean = clean_name(top_name)
+            mid_name = clean_name(mid_folder.name) if mid_folder else ''
+            if mid_name is '':
+                logging.warning(f"mid_name is empty for file_id: {file_id}, folder_id: {folder_id}, top_folder_id: {top_folder_id}")
             bottom_name = clean_name(file_name)
+            
+            sort_key = (top_name, mid_folder.name if mid_folder else '', file_name)
             
             result = {
                 'file_id': file_id,
                 'file_name': file_name,
-                'file_path': file_path,
                 'folder_id': folder_id,
                 'top_folder_id': top_folder_id,
-                'top_name': top_name,
-                'mid_folder_id' : mid_folder.folder_id if mid_folder else None,
+                'top_name': top_name_clean,
+                'mid_folder_id' : mid_folder.id if mid_folder else None,
                 'mid_name': mid_name,
                 'bottom_name': bottom_name,
-                'update_at': update_at.strftime('%Y-%m-%d')
+                'update_at': update_at.strftime('%Y-%m-%d'),
+                '_sort_key': sort_key
             }  
             results.append(result)
         
+        results.sort(key=lambda x: (x['_sort_key']))
         return results
     except Exception as e:
         logging.error(f"[get_normal_files]: {str(e)}, {traceback.format_exc()}")
@@ -93,8 +96,11 @@ def get_mid_folder_from_cache(folder_id, top_id, folder_map):
         folder = folder_map.get(folder_id)
         if folder is None:
             return None
-        if folder.parent_id == top_id:
+        
+        parent = folder_map.get(folder.parent_id)
+        if parent and parent.parent_id is None:
             return folder
+        
         folder_id = folder.parent_id
     return None 
 

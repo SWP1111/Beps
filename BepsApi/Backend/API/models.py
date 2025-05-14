@@ -324,11 +324,11 @@ class ContentRelChannels(db.Model):
 class ContentRelFolders(db.Model):
     __tablename__ = 'content_rel_folders'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.folder_id'))
+    parent_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'))
     channel_id = db.Column(db.Integer, db.ForeignKey('content_rel_channels.id'))
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
-    crated_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
+    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
     is_deleted = db.Column(db.Boolean, default=False)
     
@@ -339,7 +339,7 @@ class ContentRelFolders(db.Model):
             'channel_id': self.channel_id,
             'name': self.name,
             'description': self.description,
-            'crated_at': self.crated_at,
+            'crated_at': self.created_at,
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
         }
@@ -389,6 +389,7 @@ class ContentRelPageDetails(db.Model):
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
         }
+        
 class Folders(db.Model):
     __tablename__ = 'folders'
     folder_id = db.Column(db.Integer, primary_key=True)

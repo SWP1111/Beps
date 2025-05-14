@@ -2,22 +2,23 @@ import logging
 import log_config
 import datetime
 from services import user_summary_service
-from models import LearningSummaryAgg, LearningSummaryDay, ContentViewingHistory, Folders, Files, Users
+from models import ( LearningSummaryAgg, LearningSummaryDay, ContentViewingHistory, Users, 
+                    ContentRelChannels,ContentRelFolders, ContentRelPages, ContentRelPageDetails)
 from extensions import db
 from sqlalchemy import func
+from sqlalchemy.sql import union_all
 from sqlalchemy.orm import aliased
 
-def get_all_top_folders():
-    FoldersTop = aliased(Folders)
-    top_folders = db.session.query(
-        FoldersTop.folder_id,
-        FoldersTop.folder_name
+def get_top_folders():
+    channels = db.session.query(
+        ContentRelFolders.id,
+        ContentRelFolders.name
     ).filter(
-        FoldersTop.is_deleted == False,
-        FoldersTop.folder_id == FoldersTop.top_category_folder_id  # ✅ 대분류 필터 조건
+        ContentRelFolders.is_deleted == False,
+        ContentRelFolders.parent_id == None
     ).all()
 
-    return {f.folder_id: (f.folder_name, datetime.timedelta(0)) for f in top_folders}
+    return {f.id: (f.name, datetime.timedelta(0)) for f in channels}
 
 def get_folder_progress(params):
     """
@@ -32,7 +33,7 @@ def get_folder_progress(params):
     start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
     
     # 카테고리별 학습 진행률 결과 저장
-    folder_duration_map = get_all_top_folders()
+    folder_duration_map = get_top_folders()
     
     used_range = []
     
@@ -100,6 +101,7 @@ def update_folder_duration_map(folder_duration_map, rows):
         duration = row.total or datetime.timedelta(0)
         if key not in folder_duration_map:
             folder_duration_map[key] = (row.folder_name, datetime.timedelta(0))
+            logging.debug(f"[update_folder_duration_map] New folder added: {key} - {row.folder_name}")
         folder_duration_map[key] = (row.folder_name, folder_duration_map[key][1] + duration)
 
         
@@ -133,20 +135,40 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
         utc_start_dt = datetime.datetime.combine(start_dt, datetime.time.min, local_tz).astimezone(datetime.timezone.utc)
         utc_end_dt = datetime.datetime.combine(end_dt, datetime.time.max, local_tz).astimezone(datetime.timezone.utc)
-               
-        # Folders 테이블을 alias로 사용(최상위 카테고리 폴더)
-        FoldersTop = aliased(Folders)
+        
+        Page = aliased(ContentRelPages) # 🔹 ContentRelPages 테이블을 alias로 사용
+        Detail = aliased(ContentRelPageDetails) # 🔹 ContentRelPageDetails 테이블을 alias로 사용
+        Folder = aliased(ContentRelFolders) # 🔹 ContentRelFolders 테이블을 alias로 사용
+        TopFolder = aliased(ContentRelFolders) # 🔹 ContentRelFolders 테이블을 alias로 사용
+        Channel = aliased(ContentRelChannels) # 🔹 ContentRelChannels 테이블을 alias로 사용
+        
+        page_subq = db.session.query(
+            Page.id.label('file_id'),
+            Page.folder_id.label('folder_id')
+        )  
+        
+        detail_subq = db.session.query(
+            Detail.id.label('file_id'),
+            ContentRelPages.folder_id.label('folder_id')
+        ).join(ContentRelPages, Detail.page_id == ContentRelPages.id)
+        
+        file_folder_union = union_all(page_subq, detail_subq).alias('f')
         
         query = db.session.query(
-            FoldersTop.folder_id.label('folder_id'),
-            FoldersTop.folder_name.label('folder_name'),
+            TopFolder.id.label('folder_id'),
+            Channel.name.label('folder_name'),
             func.sum(ContentViewingHistory.stay_duration).label('total')
         ).join(
-            Files, ContentViewingHistory.file_id == Files.file_id   # 🔹 ContentViewingHistory와 Files 테이블을 join
+            file_folder_union, file_folder_union.c.file_id == ContentViewingHistory.file_id
         ).join(
-            Folders, Files.folder_id == Folders.folder_id           # 🔹 Files와 Folders 테이블을 join
+            Folder, Folder.id == file_folder_union.c.folder_id
         ).join(
-            FoldersTop, Folders.top_category_folder_id == FoldersTop.folder_id # 🔹 Folders 테이블을 alias로 사용하여 최상위 카테고리 폴더와 join
+            Channel, Channel.id == Folder.channel_id
+        ).join(
+            TopFolder, db.and_(
+                TopFolder.channel_id == Channel.id,
+                TopFolder.parent_id == None
+            )
         ).join(
             Users, ContentViewingHistory.user_id == Users.id        # 🔹 ContentViewingHistory와 Users 테이블을 join
         ).filter(
@@ -165,7 +187,7 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         elif scope == 'user' and filter_value:
             query = query.filter(Users.id == filter_value)
              
-        query = query.group_by(FoldersTop.folder_id, FoldersTop.folder_name)
+        query = query.group_by(TopFolder.id, Channel.name)
         
         # logging.debug(f"[add_summary_day_date] {query.statement.compile(compile_kwargs={"literal_binds": True})}")
         rows = query.all()

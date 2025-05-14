@@ -212,7 +212,7 @@ try:
             time_stamp bigint,
             CONSTRAINT access_group_contents_pkey PRIMARY KEY (access_group_id, folder_id),
             CONSTRAINT access_group_id FOREIGN KEY (access_group_id) REFERENCES public.content_access_groups(access_group_id) ON DELETE CASCADE,
-            CONSTRAINT folder_id FOREIGN KEY (folder_id) REFERENCES public.folders(folder_id) ON DELETE CASCADE
+            CONSTRAINT folder_id FOREIGN KEY (folder_id) REFERENCES public.content_rel_folders(id) ON DELETE CASCADE
         );
         """
     #endregion
@@ -633,7 +633,7 @@ try:
         CREATE TABLE content_point_record (
             id SERIAL PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,       -- 사용자 ID
-            file_id INTEGER NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,    -- 컨텐츠(파일) ID
+            file_id INTEGER NOT NULL REFERENCES content_rel_pages(id) ON DELETE CASCADE,    -- 컨텐츠(파일) ID
             point INTEGER NOT NULL CHECK (point >= 1),                          -- 포인트. 최소 1 이상 (insert로만 생성)
             earned_times JSONB NOT NULL DEFAULT '[]'::jsonb,                    -- 포인트 획득 시간 (JSON 배열로 저장)
             UNIQUE (user_id, file_id)                                           -- 사용자 ID와 파일 ID의 조합은 유일해야 함
@@ -652,8 +652,8 @@ try:
             type VARCHAR(10) NOT NULL CHECK (type IN ('file', 'folder')),   --타입(파일 담당, 폴더 담당)
 
             CONSTRAINT fk_content_manager_user FOREIGN KEY (user_id) REFERENCES users(id),
-            CONSTRAINT fk_content_manager_file FOREIGN KEY (file_id) REFERENCES files(file_id),
-            CONSTRAINT fk_content_manager_folder FOREIGN KEY (folder_id) REFERENCES folders(folder_id),
+            CONSTRAINT fk_content_manager_file FOREIGN KEY (file_id) REFERENCES content_rel_pages(id),
+            CONSTRAINT fk_content_manager_folder FOREIGN KEY (folder_id) REFERENCES content_rel_folders(id),
 
             CONSTRAINT chk_content_manager_file_or_folder CHECK (
                 (type = 'file' AND file_id IS NOT NULL AND folder_id IS NULL) OR

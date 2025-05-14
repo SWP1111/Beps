@@ -35,7 +35,7 @@ def preview_html(filename):
 @api_statistics_bp.route('/preview/html_segment', methods=['GET'])
 def preview_html_segment():
     """
-    HTML 행 단위 분할 미리보기 API (논리 단위 끊김 없이 그룹별 잘라서 제공)
+    HTML 행 단위 분할 미리보기 API
     GET params:
         - filename: HTML 파일명
         - page: 페이지 번호

@@ -389,7 +389,7 @@ def category_progress():
         return jsonify({'progress': result}), 200  # 200: OK
     
     except Exception as e:
-        logging.debug(f"[category_progress] error: {str(e)}, {traceback.format_exc()}")
+        logging.error(f"[category_progress] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[category_progress] error': str(e)}), 500
  
 # 🔹 GET /leaning/top_viewd_pages API 상위 조회 페이지 조회
@@ -449,5 +449,5 @@ def get_top_viewd_pages():
         }), 200  # 200: OK
         
     except Exception as e:
-        logging.debug(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
+        logging.error(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
