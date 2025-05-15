@@ -209,16 +209,16 @@ class LearningSummaryDay(db.Model):
     department = db.Column(db.Text)
     user_id = db.Column(db.Text)
     user_name = db.Column(db.Text)
-    folder_id = db.Column(db.Integer)
-    folder_name = db.Column(db.Text)
+    channel_id = db.Column(db.Integer)
+    channel_name = db.Column(db.Text)
     total_duration = db.Column(db.Interval)
     company_key = db.Column(db.Text)
     department_key = db.Column(db.Text)
     user_id_key = db.Column(db.Text)
-    folder_key = db.Column(db.Text)
+    channel_key = db.Column(db.Text)
 
     __table_args__ = (
-        db.PrimaryKeyConstraint('stat_date', 'scope', 'company_key', 'department_key', 'user_id_key', 'folder_key',
+        db.PrimaryKeyConstraint('stat_date', 'scope', 'company_key', 'department_key', 'user_id_key', 'channel_key',
                                 name='pk_learning_summary_day'
                                 ),
     )
@@ -232,8 +232,8 @@ class LearningSummaryDay(db.Model):
             'department': self.department,
             'user_id': self.user_id,
             'user_name': self.user_name,
-            'folder_id': self.folder_id,
-            'folder_name': self.folder_name,
+            'channel_id': self.channel_id,
+            'channel_name': self.channel_name,
             'total_duration': str(self.total_duration),
             'company_key': self.company_key,
             'department_key': self.department_key,
@@ -252,16 +252,16 @@ class LearningSummaryAgg(db.Model):
     department = db.Column(db.Text)
     user_id = db.Column(db.Text)
     user_name = db.Column(db.Text)
-    folder_id = db.Column(db.Integer)
-    folder_name = db.Column(db.Text)
+    channel_id = db.Column(db.Integer)
+    channel_name = db.Column(db.Text)
     total_duration = db.Column(db.Interval)
     company_key = db.Column(db.Text)
     department_key = db.Column(db.Text)
     user_id_key = db.Column(db.Text)
-    folder_key = db.Column(db.Text)
+    channel_key = db.Column(db.Text)
     
     __table_args__ = (
-        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key', 'folder_key',
+        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key', 'channel_key',
                                 name='pk_learning_summary_agg'
                                 ),
     )
@@ -276,8 +276,8 @@ class LearningSummaryAgg(db.Model):
             'department': self.department,
             'user_id': self.user_id,
             'user_name': self.user_name,
-            'folder_id': self.folder_id,
-            'folder_name': self.folder_name,
+            'channel_id': self.channel_id,
+            'channel_name': self.channel_name,
             'total_duration': str(self.total_duration),
             'company_key': self.company_key,
             'department_key': self.department_key,

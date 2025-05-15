@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, time, timezone
 import logging
 from sqlalchemy import text
@@ -13,84 +14,59 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
     users, user_count = get_users_for_export(filter_type, filter_value)
     
     results = []
-    for company, departments in users.items():  
-        if filter_type == 'all' or filter_type == 'company':
-            learnings = get_total_learning_time(period_type, period_value, 'company', company, user_count)
-            memo_counts = get_memo_count_per_category(period_type, period_value, 'company', company)
-
-            comapny_rows = {
-                'company': company,
-                'department': '',
-                'user_id': '',
-                'name': '',
-                'total_learning_time': learnings['total_learning_time'],
-                'avg_learning_time': learnings['avg_learning_time']
-            }              
-            for folder_name, duration in learnings['folder_progress']:
-                row = comapny_rows.copy()
-                row['category_name'] = re.sub(r"^\d+_", "", folder_name)
-                seconds = duration.total_seconds()
-                row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
-                matched = next((item for item in memo_counts if item['category_name'] == folder_name), None)
-                if matched:
-                    row['memo_count'] = matched['memo_count']
-                else:
-                    row['memo_count'] = 0
-                results.append(row)
-        
-        for department, user_list in departments.items():
-            if filter_type == 'all' or filter_type == 'company' or filter_type == 'department':
-                learnings = get_total_learning_time(period_type, period_value, 'department', f"{company}||{department}", user_count)
-                memo_counts = get_memo_count_per_category(period_type, period_value, 'department', f"{company}||{department}")
-                
-                dept_row = {
-                    'company': company,
-                    'department': department,
-                    'user_id': '',
-                    'name': '',
-                    'total_learning_time': learnings['total_learning_time'],
-                    'avg_learning_time': learnings['avg_learning_time']
-                }
-                for folder_name, duration in learnings['folder_progress']:
-                    row = dept_row.copy()
-                    row['category_name'] = re.sub(r"^\d+_", "", folder_name)
-                    seconds = duration.total_seconds()
-                    row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
-                    matched = next((item for item in memo_counts if item['category_name'] == folder_name), None)
-                    if matched:
-                        row['memo_count'] = matched['memo_count']
-                    else:
-                        row['memo_count'] = 0
-                    results.append(row)
-            
-            for user in user_list:
-                learnings = get_total_learning_time(period_type, period_value, 'user', user['user_id'], user_count)
-                memo_counts = get_memo_count_per_category(period_type, period_value, 'user', user['user_id'])
-                
-                user_row = {
-                    'company': company,
-                    'department': department,
-                    'user_id': user['user_id'],
-                    'name': user['name'],
-                    'total_learning_time': learnings['total_learning_time'],
-                    'avg_learning_time': learnings['avg_learning_time']
-                }
-                for folder_name, duration in learnings['folder_progress']:
-                    row = user_row.copy()
-                    row['category_name'] = re.sub(r"^\d+_", "", folder_name)
-                    seconds = duration.total_seconds()
-                    row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
-                    matched = next((item for item in memo_counts if item['category_name'] == folder_name), None)
-                    if matched:
-                        row['memo_count'] = matched['memo_count']
-                    else:
-                        row['memo_count'] = 0
-                    results.append(row)
-                            
-    if not users:
-        logging.error("No users found")
-        return None
+    user_ids = [
+        user['user_id'] for department in users.values() for user_list in department.values() for user in user_list
+    ]
+    total_learning_time_by_users = get_total_learning_time_by_users(user_ids, period_type, period_value)
+    memo_count_per_category_by_users = get_memo_count_per_category_by_users(user_ids, period_type, period_value)
     
+    base_row = {
+    'company': '',
+    'department': '',
+    'user_id': '',
+    'name': '',
+    'total_learning_time': '',
+    'avg_learning_time': '',
+    'category_name': '',
+    'learning_time': '',
+    'memo_count': 0
+   }
+                
+    for company, departments in users.items():
+        if filter_type in ('all', 'comapany'):
+            user_list = [user['user_id'] for department_user_list in departments.values()
+                         for user in department_user_list]
+            channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
+            company_row = base_row.copy()
+            company_row['company'] = company
+            
+            company_rows = config_rows(company_row, channel_duration_map, channel_memo_map)
+            results.extend(company_rows)
+        
+        for department, users in departments.items():
+            if filter_type in ('all', 'company', 'department'):
+                logging.debug(f"company: {company} department: {department}")
+                user_list = [user['user_id'] for user in users]
+                channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
+                department_row = base_row.copy()
+                department_row['company'] = company
+                department_row['department'] = department
+                
+                department_rows = config_rows(department_row, channel_duration_map, channel_memo_map)
+                results.extend(department_rows)
+            
+            for user in users:
+                user_id = user['user_id']
+                channel_duration_map,channel_memo_map = config_channel_memo_map([user_id], total_learning_time_by_users, memo_count_per_category_by_users)              
+                user_row = base_row.copy()
+                user_row['company'] = company
+                user_row['department'] = department
+                user_row['user_id'] = user_id
+                user_row['name'] = user['name']
+                
+                user_rows = config_rows(user_row, channel_duration_map, channel_memo_map)
+                results.extend(user_rows)
+            
     return results
 
 def get_users_for_export(filter_type, filter_value):
@@ -160,6 +136,20 @@ def get_total_learning_time(period_type, period_value, filter_type, filter_value
         'folder_progress': sorted_folder_progress
     }
 
+def get_total_learning_time_by_users(user_ids, period_type, period_value):
+    """
+    사용자별 총 학습 시간을 가져오는 함수
+    """
+    from services.leaning_summary_service import get_folder_progress_by_users
+  
+    folder_progress_by_users = get_folder_progress_by_users(user_ids=user_ids, period_type=period_type, period_value=period_value) 
+    
+    sorted_folder_progress_by_users = {}
+    for user_id, channel_data  in folder_progress_by_users.items():
+        sorted_folder_progress_by_users[user_id] = sorted(channel_data.values(), key=lambda x: x[0])
+        
+    return folder_progress_by_users
+
 def get_memo_count_per_category(period_type, period_value, filter_type, filter_value):
     """
     카테고리별 메모 수를 가져오는 함수
@@ -172,15 +162,15 @@ def get_memo_count_per_category(period_type, period_value, filter_type, filter_v
     utc_end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)    
     
     base_query = """
-        SELECT f.top_category_folder_id, fc.folder_name AS top_category_name, COUNT(*) AS memo_count
+        SELECT c.id AS channel_id, c.name AS channel_name, COUNT(*) AS memo_count
         FROM memos m
-        JOIN folders f ON m.folder_id = f.folder_id
-        JOIN folders fc ON f.top_category_folder_id = fc.folder_id
+        JOIN content_rel_folders f ON m.folder_id = f.id
+        JOIN content_rel_channels c ON f.channel_id = c.id
         JOIN users u ON m.user_id = u.id
         WHERE {user_filter}
             AND m.modified_at >= :start_dt
             AND m.modified_at < :end_dt
-        GROUP BY f.top_category_folder_id, fc.folder_name
+        GROUP BY c.id, c.name
         ORDER BY fc.folder_name
     """
     
@@ -210,10 +200,101 @@ def get_memo_count_per_category(period_type, period_value, filter_type, filter_v
     result = db.session.execute(query, params).mappings().all()
 
     data = [{
-        'category_id': row['top_category_folder_id'],
-        'category_name': row['top_category_name'],
+        'channel_id': row['channel_id'],
+        'channel_name': row['channel_name'],
         'memo_count': row['memo_count']
     } for row in result]
     
     return data
+
+def get_memo_count_per_category_by_users(user_ids, period_type, period_value):
+    """
+    여러 사용자의 카테고리별 메모 수를 가져오는 함수
+    """
+    from services.user_summary_service import get_period_value
     
+    start_dt, end_dt = get_period_value(period_type, period_value)
+    local_tz = datetime.now().astimezone().tzinfo
+    utc_start_dt = datetime.combine(start_dt, time.min, tzinfo=local_tz).astimezone(timezone.utc)
+    utc_end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)    
+    
+    base_query = """
+        SELECT u.id AS user_id, c.id AS channel_id, c.name AS channel_name, COUNT(*) AS memo_count
+        FROM memos m
+        JOIN content_rel_folders f ON m.folder_id = f.id
+        JOIN content_rel_channels c ON f.channel_id = c.id
+        JOIN users u ON m.user_id = u.id
+        WHERE m.user_id = ANY(:user_ids)
+            AND m.modified_at >= :start_dt
+            AND m.modified_at < :end_dt
+        GROUP BY u.id, c.id, c.name
+        ORDER BY c.name
+    """
+    
+    params = {
+        'start_dt': utc_start_dt,
+        'end_dt': utc_end_dt,
+        'user_ids': user_ids
+    }
+    
+    query = text(base_query) 
+    result = db.session.execute(query, params).mappings().all()
+
+    memo_counts = defaultdict(dict)
+    for row in result:
+        memo_counts[row['user_id']][row['channel_id']] = {
+            'channel_name': row['channel_name'],
+            'memo_count': row['memo_count']
+        }
+        
+    return memo_counts
+
+def config_channel_memo_map(user_list,total_learning_time_by_users, memo_count_per_category_by_users):
+    """
+    채널 맵을 설정하는 함수
+    """
+    channel_duration_map = {}
+    channel_memo_map = {}
+    for uid in user_list:
+        user_channels = total_learning_time_by_users.get(uid, {})
+        user_memo = memo_count_per_category_by_users.get(uid, {})
+        for channel_id, (channel_name, duration) in user_channels.items():
+            prev = channel_duration_map.get(channel_id)
+            if prev is None:
+                channel_duration_map[channel_id] = (channel_name, duration)
+            else:
+                channel_duration_map[channel_id] = (prev[0], prev[1] + duration)
+        for channel_id, memo_info in user_memo.items():
+            prev = channel_memo_map.get(channel_id)
+            memo_count = memo_info.get('memo_count', 0)
+            if prev is None:
+                channel_memo_map[channel_id] = (channel_name, memo_count)
+            else:
+                channel_memo_map[channel_id] = (prev[0], prev[1] + memo_count)
+    
+    return channel_duration_map, channel_memo_map
+
+def config_rows(base_row, channel_duration_map, channel_memo_map):
+    """
+    채널 맵을 설정하는 함수
+    """
+    
+    total_learning_time = 0
+    rows = []
+    for channel_id, (channel_name, duration) in channel_duration_map.items():
+       row = base_row.copy()
+       row['category_name'] = re.sub(r"^\d+_", "", channel_name)
+       seconds = duration.total_seconds()
+       total_learning_time += seconds
+       row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
+       row['memo_count'] = channel_memo_map.get(channel_id, {})[1] if channel_memo_map.get(channel_id) else 0
+       rows.append(row)
+
+    if rows:
+        total_str = f"{int(total_learning_time // 3600):02}시간{int((total_learning_time % 3600) // 60):02}분{int(total_learning_time % 60):02}초" 
+        avg_sec = total_learning_time 
+        avg_str = f"{int(avg_sec // 3600):02}시간{int((avg_sec % 3600) // 60):02}분{int(avg_sec % 60):02}초"
+        rows[0]['total_learning_time'] = total_str
+        rows[0]['avg_learning_time'] = avg_str
+        
+    return rows

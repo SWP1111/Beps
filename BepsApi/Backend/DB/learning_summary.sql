@@ -7,47 +7,47 @@ BEGIN
 
     -- 전체 집계
     INSERT INTO learning_summary_day (
-        stat_date, scope, folder_id, folder_name, total_duration
+        stat_date, scope, channel_id, channel_name, total_duration
     )
     SELECT
-        v_start_value, 'all', d.folder_id, d.folder_name,SUM(cvh.stay_duration) AS total_duration
+        v_start_value, 'all', c.id, c.name,SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
-     -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN (
         SELECT id, folder_id
         FROM content_rel_pages
         UNION ALL
         SELECT dt.id, pg.folder_id
-        FROM content_rel_page_detail dt
+        FROM content_rel_page_details dt
         JOIN content_rel_pages pg ON dt.page_id = pg.id
     ) f ON f.id = cvh.file_id
-    -- 폴더 ID를 통해 channel 추출출
+    -- 폴더 ID를 통해 channel 추출
     JOIN content_rel_folders fd ON fd.id = f.folder_id
     JOIN content_rel_channels c ON c.id = fd.channel_id
     -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
-    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 회사별 집계
     INSERT INTO learning_summary_day (
-        stat_date, scope, company_id, company, folder_id, folder_name, total_duration
+        stat_date, scope, company_id, company, channel_id, channel_name, total_duration
     )
     SELECT
         v_start_value, 'company', NULL, u.company, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN (
         SELECT id, folder_id
         FROM content_rel_pages
         UNION ALL
         SELECT dt.id, pg.folder_id
-        FROM content_rel_page_detail dt
+        FROM content_rel_page_details dt
         JOIN content_rel_pages pg ON dt.page_id = pg.id
     ) f ON f.id = cvh.file_id
     -- 폴더 ID를 통해 channel 추출출
@@ -57,27 +57,27 @@ BEGIN
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
-    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
    
     -- 부서별 집계
     INSERT INTO learning_summary_day (
-        stat_date, scope, company_id, company, department_id, department, folder_id, folder_name, total_duration
+        stat_date, scope, company_id, company, department_id, department, channel_id, channel_name, total_duration
     )
     SELECT
         v_start_value, 'department', NULL, u.company, NULL, u.department, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN (
         SELECT id, folder_id
         FROM content_rel_pages
         UNION ALL
         SELECT dt.id, pg.folder_id
-        FROM content_rel_page_detail dt
+        FROM content_rel_page_details dt
         JOIN content_rel_pages pg ON dt.page_id = pg.id
     ) f ON f.id = cvh.file_id
     -- 폴더 ID를 통해 channel 추출출
@@ -87,26 +87,26 @@ BEGIN
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, u.department, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
-    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 사용자별 집계
     INSERT INTO learning_summary_day (
-        stat_date, scope, company_id, company, department_id, department, user_id, user_name, folder_id, folder_name, total_duration
+        stat_date, scope, company_id, company, department_id, department, user_id, user_name, channel_id, channel_name, total_duration
     )
     SELECT
         v_start_value, 'user', NULL, u.company, NULL, u.department, u.id, u.name, c.id, c.name,
         SUM(cvh.stay_duration)
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
-    -- 폴더 ID 추출: content_rel_page_detail, content_rel_pages를 조인해서 폴더 ID를 가져옴
+    -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN (
         SELECT id, folder_id
         FROM content_rel_pages
         UNION ALL
         SELECT dt.id, pg.folder_id
-        FROM content_rel_page_detail dt
+        FROM content_rel_page_details dt
         JOIN content_rel_pages pg ON dt.page_id = pg.id
     ) f ON f.id = cvh.file_id
     -- 폴더 ID를 통해 channel 추출출
@@ -116,7 +116,7 @@ BEGIN
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, u.department, u.id, u.name, c.id, c.name
     HAVING SUM(cvh.stay_duration) > INTERVAL '0'
-    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT(stat_date, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET total_duration = EXCLUDED.total_duration;
 
 EXCEPTION
@@ -158,57 +158,57 @@ BEGIN
 
     -- 전체 범위 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, folder_id, folder_name, total_duration
+        period_type, period_value, scope, channel_id, channel_name, total_duration
     )
     SELECT
-        'quarter', v_period_value, 'all', folder_id, folder_name, SUM(total_duration)
+        'quarter', v_period_value, 'all', channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
     WHERE stat_date >= v_start AND stat_date < v_end AND scope = 'all'
-    GROUP BY folder_id, folder_name
+    GROUP BY channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 회사별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, channel_id, channel_name, total_duration
     )
     SELECT
-        'quarter', v_period_value, 'company', NULL, company, folder_id, folder_name, SUM(total_duration)
+        'quarter', v_period_value, 'company', NULL, company, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
     WHERE stat_date >= v_start AND stat_date < v_end AND scope = 'company'
-    GROUP BY company, folder_id, folder_name
+    GROUP BY company, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 부서별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, channel_id, channel_name, total_duration
     )
     SELECT
-        'quarter', v_period_value, 'department', NULL, company, NULL, department, folder_id, folder_name, SUM(total_duration)
+        'quarter', v_period_value, 'department', NULL, company, NULL, department, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
     WHERE stat_date >= v_start AND stat_date < v_end AND scope = 'department'
-    GROUP BY company, department, folder_id, folder_name
+    GROUP BY company, department, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 사용자별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, channel_id, channel_name, total_duration
     )
     SELECT
-        'quarter', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, folder_id, folder_name, SUM(total_duration)
+        'quarter', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
     WHERE stat_date >= v_start AND stat_date < v_end AND scope = 'user'
-    GROUP BY company, department, user_id, user_name, folder_id, folder_name
+    GROUP BY company, department, user_id, user_name, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
@@ -234,57 +234,57 @@ BEGIN
 
     -- 전체 범위 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, folder_id, folder_name, total_duration
+        period_type, period_value, scope, channel_id, channel_name, total_duration
     )
     SELECT
-        'half', v_period_value, 'all', folder_id, folder_name, SUM(total_duration)
+        'half', v_period_value, 'all', channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'all'
-    GROUP BY folder_id, folder_name
+    GROUP BY channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 회사별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, channel_id, channel_name, total_duration
     )
     SELECT
-        'half', v_period_value, 'company', NULL, company, folder_id, folder_name, SUM(total_duration)
+        'half', v_period_value, 'company', NULL, company, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'company'
-    GROUP BY company, folder_id, folder_name
+    GROUP BY company, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 부서별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, channel_id, channel_name, total_duration
     )
     SELECT
-        'half', v_period_value, 'department', NULL, company, NULL, department, folder_id, folder_name, SUM(total_duration)
+        'half', v_period_value, 'department', NULL, company, NULL, department, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'department'
-    GROUP BY company, department, folder_id, folder_name
+    GROUP BY company, department, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 사용자별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, channel_id, channel_name, total_duration
     )
     SELECT
-        'half', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, folder_id, folder_name, SUM(total_duration)
+        'half', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'user'
-    GROUP BY company, department, user_id, user_name, folder_id, folder_name
+    GROUP BY company, department, user_id, user_name, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
@@ -304,57 +304,57 @@ DECLARE
 BEGIN
 
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, folder_id, folder_name, total_duration
+        period_type, period_value, scope, channel_id, channel_name, total_duration
     )
     SELECT
-        'year', v_period_value, 'all', folder_id, folder_name, SUM(total_duration)
+        'year', v_period_value, 'all', channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'half' AND period_value LIKE format('%s-H%%', p_year) AND scope = 'all'
-    GROUP BY folder_id, folder_name
+    GROUP BY channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 회사별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, channel_id, channel_name, total_duration
     )
     SELECT
-        'year', v_period_value, 'company', NULL, company, folder_id, folder_name, SUM(total_duration)
+        'year', v_period_value, 'company', NULL, company, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'half' AND period_value LIKE format('%s-H%%', p_year) AND scope = 'company'
-    GROUP BY company, folder_id, folder_name
+    GROUP BY company, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
     
     -- 부서별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, channel_id, channel_name, total_duration
     )
     SELECT
-        'year', v_period_value, 'department', NULL, company, NULL, department, folder_id, folder_name, SUM(total_duration)
+        'year', v_period_value, 'department', NULL, company, NULL, department, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg
     WHERE period_type = 'half' AND period_value LIKE format('%s-H%%', p_year) AND scope = 'department'
-    GROUP BY company, department, folder_id, folder_name
+    GROUP BY company, department, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 
     -- 사용자별 집계
     INSERT INTO learning_summary_agg (
-        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, folder_id, folder_name, total_duration
+        period_type, period_value, scope, company_id, company, department_id, department, user_id, user_name, channel_id, channel_name, total_duration
     )
     SELECT
-        'year', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, folder_id, folder_name, SUM(total_duration)
+        'year', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_agg   
     WHERE period_type = 'half' AND period_value LIKE format('%s-H%%', p_year) AND scope = 'user'
-    GROUP BY company, department, user_id, user_name, folder_id, folder_name
+    GROUP BY company, department, user_id, user_name, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, folder_key)
+    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key, channel_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration;
 

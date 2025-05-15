@@ -185,8 +185,8 @@ document.addEventListener('DOMContentLoaded', async() => {
     if(response.ok)
     {
       getCategory.progress.sort((a,b)=> {
-        if (a.folder_name < b.folder_name) return -1;
-        if (a.folder_name > b.folder_name) return 1;
+        if (a.channel_name < b.channel_name) return -1;
+        if (a.channel_name > b.channel_name) return 1;
         return 0;
       });
 
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       {
         const element = document.createElement("span");
         element.className = "category-item";
-        element.textContent = `${getCategory.progress[i].folder_name.replace(/^\d+_/, '')} : ${getCategory.progress[i].percentage}% (${getCategory.progress[i].duration})`;
+        element.textContent = `${getCategory.progress[i].channel_name.replace(/^\d+_/, '')} : ${getCategory.progress[i].percentage}% (${getCategory.progress[i].duration})`;
         categorArea.appendChild(element);
       }
     }

@@ -373,15 +373,15 @@ def category_progress():
             total_seconds = 1  # Avoid division by zero
         
         result = []
-        for folder_id, (folder_name, duration) in folder_duration_map.items():
+        for channel_id, (channel_name, duration) in folder_duration_map.items():
             duration_seconds = duration.total_seconds() if duration else 0
             percentage = round(duration_seconds / total_seconds * 100, 1)
             hour = duration_seconds // 3600
             minute = (duration_seconds % 3600) // 60
             second = duration_seconds % 60
             result.append({
-                'folder_id': folder_id,
-                'folder_name': folder_name,
+                'channel_id': channel_id,
+                'channel_name': channel_name,
                 'duration': f"{int(hour):02}:{int(minute):02}:{int(second):02}",
                 'percentage': percentage
             })

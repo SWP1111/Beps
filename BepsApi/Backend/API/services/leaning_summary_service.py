@@ -9,12 +9,11 @@ from sqlalchemy import func
 from sqlalchemy.sql import union_all
 from sqlalchemy.orm import aliased
 
-def get_top_folders():
+def get_channels():
     channels = db.session.query(
-        ContentRelFolders.id,
-        ContentRelFolders.name
+        ContentRelChannels.id,
+        ContentRelChannels.name
     ).filter(
-        ContentRelFolders.is_deleted == False,
         ContentRelFolders.parent_id == None
     ).all()
 
@@ -33,7 +32,7 @@ def get_folder_progress(params):
     start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
     
     # 카테고리별 학습 진행률 결과 저장
-    folder_duration_map = get_top_folders()
+    folder_duration_map = get_channels()
     
     used_range = []
     
@@ -50,7 +49,7 @@ def get_folder_progress(params):
                     period_type=period_scope,
                     period_value=period_str,
                     scope=scope,
-                    group_fields=[LearningSummaryAgg.folder_id, LearningSummaryAgg.folder_name],
+                    group_fields=[LearningSummaryAgg.channel_id, LearningSummaryAgg.channel_name],
                     join_users=False,
                     extra_filter=build_scope_filter(LearningSummaryAgg, scope, filter_value)
                 )
@@ -73,7 +72,53 @@ def get_folder_progress(params):
 
     return folder_duration_map    
             
+def get_folder_progress_by_users(user_ids: list[str], period_type: str, period_value: str) -> dict:
+    """
+    여러 사용자에 대한 카테고리별 학습 진행률 반환    
+    """        
+    start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
     
+    folder_duration_by_user = {}
+    used_range = []
+    
+    for user_id in user_ids:
+        folder_duration_by_user[user_id] = get_channels()
+    
+    for period_func, summary_func, period_scope in [
+        (user_summary_service.get_year_period_value, LearningSummaryAgg, 'year'),
+        (user_summary_service.get_half_period_value, LearningSummaryAgg, 'half'),
+        (user_summary_service.get_quarter_period_value, LearningSummaryAgg, 'quarter'),
+    ]:
+        for period_str, p_start, p_end in period_func(start_date.year):
+            if start_date <= p_start and end_date >= p_end:
+                rows = user_summary_service.get_summary_rows_agg(
+                    summary_func,
+                    period_type=period_scope,
+                    period_value=period_str,
+                    scope='user',
+                    group_fields=[LearningSummaryAgg.user_id, LearningSummaryAgg.channel_id, LearningSummaryAgg.channel_name],
+                    join_users=False,
+                    extra_filter=[LearningSummaryAgg.user_id.in_(user_ids)]
+                )
+                if rows:
+                    used_range.append((p_start, p_end))
+                    for row in rows:
+                        d = folder_duration_by_user[row.user_id][row.channel_id]                      
+                        folder_duration_by_user[row.user_id][row.channel_id] = (d[0], d[1] + row.total)
+    
+    used_range.sort(key=lambda x: x[0])
+    current = start_date
+     
+    for used_start, used_end in used_range:
+        if current < used_start:
+            add_summary_day_date_by_users(user_ids, current, used_start - datetime.timedelta(days=1), folder_duration_by_user)
+        current = max(current, used_end + datetime.timedelta(days=1))
+        
+    if current <= end_date:
+        add_summary_day_date_by_users(user_ids, current, end_date, folder_duration_by_user)
+                           
+    return folder_duration_by_user
+   
 def build_scope_filter(model, scope, filter_value):
     """
     필터 조건을 생성하는 함수
@@ -97,12 +142,11 @@ def update_folder_duration_map(folder_duration_map, rows):
     폴더별 학습 진행률을 업데이트하는 함수
     """
     for row in rows:
-        key = row.folder_id
+        key = row.channel_id
         duration = row.total or datetime.timedelta(0)
         if key not in folder_duration_map:
-            folder_duration_map[key] = (row.folder_name, datetime.timedelta(0))
-            logging.debug(f"[update_folder_duration_map] New folder added: {key} - {row.folder_name}")
-        folder_duration_map[key] = (row.folder_name, folder_duration_map[key][1] + duration)
+            folder_duration_map[key] = (row.channel_name, datetime.timedelta(0))
+        folder_duration_map[key] = (row.channel_name, folder_duration_map[key][1] + duration)
 
         
 def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_value):
@@ -124,7 +168,7 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
             start_date=start_dt,
             end_date=summary_end_date,
             scope=scope,
-            group_fields=[LearningSummaryDay.folder_id, LearningSummaryDay.folder_name],
+            group_fields=[LearningSummaryDay.channel_id, LearningSummaryDay.channel_name],
             join_users=False,
             extra_filter=build_scope_filter(LearningSummaryDay, scope, filter_value)
         )
@@ -155,8 +199,8 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         file_folder_union = union_all(page_subq, detail_subq).alias('f')
         
         query = db.session.query(
-            TopFolder.id.label('folder_id'),
-            Channel.name.label('folder_name'),
+            Channel.id.label('channel_id'),
+            Channel.name.label('channel_name'),
             func.sum(ContentViewingHistory.stay_duration).label('total')
         ).join(
             file_folder_union, file_folder_union.c.file_id == ContentViewingHistory.file_id
@@ -164,11 +208,6 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
             Folder, Folder.id == file_folder_union.c.folder_id
         ).join(
             Channel, Channel.id == Folder.channel_id
-        ).join(
-            TopFolder, db.and_(
-                TopFolder.channel_id == Channel.id,
-                TopFolder.parent_id == None
-            )
         ).join(
             Users, ContentViewingHistory.user_id == Users.id        # 🔹 ContentViewingHistory와 Users 테이블을 join
         ).filter(
@@ -187,13 +226,87 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         elif scope == 'user' and filter_value:
             query = query.filter(Users.id == filter_value)
              
-        query = query.group_by(TopFolder.id, Channel.name)
+        query = query.group_by(Channel.id, Channel.name)
         
         # logging.debug(f"[add_summary_day_date] {query.statement.compile(compile_kwargs={"literal_binds": True})}")
         rows = query.all()
         update_folder_duration_map(folder_duration_map, rows)
         
-
+def add_summary_day_date_by_users(user_ids, start_dt, end_dt, folder_duration_by_user):
+    """
+    여러 사용자에 대한 카테고리별 학습 진행률을 가져오는 쿼리(일별)
+    """
+    if start_dt > end_dt:
+        return
+    
+    if end_dt > datetime.datetime.now().date():
+        end_dt = datetime.datetime.now().date()
+        
+    today = datetime.datetime.now().date()
+    split_date = today - datetime.timedelta(days=2)
+    
+    if start_dt <= split_date:
+        summary_end_date = min(end_dt, split_date)
+        rows = get_learning_summary_rows_day(
+            start_date=start_dt,
+            end_date=summary_end_date,
+            scope='user',
+            group_fields=[LearningSummaryDay.user_id, LearningSummaryDay.channel_id, LearningSummaryDay.channel_name],
+            join_users=False,
+            extra_filter=[LearningSummaryDay.user_id.in_(user_ids)]
+        )
+        for row in rows:
+            d = folder_duration_by_user[row.user_id][row.channel_id]                      
+            folder_duration_by_user[row.user_id][row.channel_id] = (d[0], d[1] + row.total)
+    
+    if start_dt <= end_dt:
+        local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+        utc_start_dt = datetime.datetime.combine(start_dt, datetime.time.min, local_tz).astimezone(datetime.timezone.utc)
+        utc_end_dt = datetime.datetime.combine(end_dt, datetime.time.max, local_tz).astimezone(datetime.timezone.utc)
+        
+        Page = aliased(ContentRelPages)
+        Detail = aliased(ContentRelPageDetails)
+        Folder = aliased(ContentRelFolders)
+        Channel = aliased(ContentRelChannels)
+        
+        page_subq = db.session.query(
+            Page.id.label('file_id'),
+            Page.folder_id.label('folder_id')
+        )
+        
+        detail_subq = db.session.query(
+            Detail.id.label('file_id'),
+            ContentRelPages.folder_id.label('folder_id')
+        ).join(ContentRelPages, Detail.page_id == ContentRelPages.id)
+        
+        file_folder_union = union_all(page_subq, detail_subq).alias('f')
+        
+        query = db.session.query(
+            ContentViewingHistory.user_id.label('user_id'),
+            Channel.id.label('channel_id'),
+            Channel.name.label('channel_name'),
+            func.sum(ContentViewingHistory.stay_duration).label('total')
+        ).join(
+            file_folder_union, file_folder_union.c.file_id == ContentViewingHistory.file_id
+        ).join(
+            Folder, Folder.id == file_folder_union.c.folder_id
+        ).join(
+            Channel, Channel.id == Folder.channel_id
+        ).join(
+            Users, ContentViewingHistory.user_id == Users.id
+        ).filter(
+            ContentViewingHistory.start_time >= utc_start_dt,
+            ContentViewingHistory.end_time <= utc_end_dt,
+            Users.id.in_(user_ids)
+        )
+        
+        query = query.group_by(ContentViewingHistory.user_id, Channel.id, Channel.name)
+        rows = query.all()
+        
+        for row in rows: 
+            d = folder_duration_by_user[row.user_id][row.channel_id]                      
+            folder_duration_by_user[row.user_id][row.channel_id] = (d[0], d[1] + row.total)          
+        
 def get_learning_summary_rows_day(start_date, end_date, scope, group_fields, join_users=True, extra_filter=None):
     query = db.session.query(*group_fields, func.sum(LearningSummaryDay.total_duration).label('total'))
     

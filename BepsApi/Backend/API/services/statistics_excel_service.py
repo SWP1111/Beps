@@ -69,6 +69,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     start_date, end_date = get_period_value(period_type, period_value)
     
     files = get_statistics_data(start_date, end_date, filter_type, filter_value)  # 통계 데이터 가져오기
+    
     rows = []
 
     if files:
@@ -107,7 +108,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     
     df = pd.DataFrame(rows)
     
-    usres = get_statistics_user_data(period_type, period_value, filter_type, filter_value)  # 사용자 통계 데이터 가져오기
+    usres = get_statistics_user_data(period_type, period_value, filter_type, filter_value)  # 사용자 통계 데이터 가져오기    
     user_rows = []
     if usres:
         prev_company = prev_department = prev_id = None
