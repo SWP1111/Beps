@@ -16,6 +16,11 @@ def get_statistics_data(start_date, end_date, filter_type, filter_value):
     memocounts = get_memo_count_per_file(start_date, end_date, filter_type, filter_value)
     managers = get_folder_managers()
     
+    logging.debug(f"files: {files}")
+    logging.debug(f"avgtimes: {avgtimes}")
+    logging.debug(f"memocounts: {memocounts}")
+    logging.debug(f"managers: {managers}")
+    
     if not files:
         logging.error("No files found")
         return None
