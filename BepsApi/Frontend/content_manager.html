@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 문서 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', sans-serif;
+        }
+        
+        body {
+            background-color: white;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .filter-bar {
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            background-color: #f9f9f9;
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-label {
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .filter-options {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .filter-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .tabs-container {
+            display: flex;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+            border: 1px solid #ddd;
+        }
+        
+        .left-tab {
+            width: 25%;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        
+        .right-tab {
+            width: 75%;
+            overflow-y: auto;
+        }
+        
+        .content-header, .file-header {
+            background-color: #f2f2f2;
+            padding: 12px 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .content-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .content-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .file-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .file-list th {
+            background-color: #f2f2f2;
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+        }
+        
+        .file-list td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        
+        .folder-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .folder-icon {
+            color: #ffc107;
+            margin-right: 8px;
+        }
+        
+        .file-icon {
+            color: #ff9800;
+            margin-right: 8px;
+        }
+        
+        .new-badge {
+            display: inline-block;
+            background-color: #3f51b5;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        
+        .download-icon {
+            margin-left: auto;
+            cursor: pointer;
+            color: #555;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        
+        .add-btn, .remove-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .add-btn {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .remove-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .bottom-actions {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="filter-bar">
+            <span class="filter-label">처리상태</span>
+            <div class="filter-options">
+                <label class="filter-option">
+                    <input type="checkbox" checked id="filter-all"> 전체
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" checked id="filter-reviewing"> 검토중
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" checked id="filter-rejected"> 반려
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" checked id="filter-approved"> 승인
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" checked id="filter-updated"> 업데이트
+                </label>
+            </div>
+        </div>
+        
+        <div class="tabs-container">
+            <!-- 좌측 콘텐츠 탭 -->
+            <div class="left-tab">
+                <div class="content-header">콘텐츠</div>
+                
+                <!-- 콘텐츠 목록 - 동적으로 채워질 영역 -->
+                <div id="content-list">
+                    <div class="loading">콘텐츠를 불러오는 중입니다...</div>
+                </div>
+                
+                <!-- 좌측 탭 하단 버튼 -->
+                <div class="bottom-actions">
+                    <div>
+                        <button class="add-btn" id="add-content">+</button>
+                        <button class="remove-btn" id="remove-content">-</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 우측 파일 탭 -->
+            <div class="right-tab">
+                <table class="file-list">
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">파일</th>
+                            <th style="width: 10%;">버전</th>
+                            <th style="width: 10%;">작성자</th>
+                            <th style="width: 10%;">검토자</th>
+                            <th style="width: 15%;">등록일</th>
+                            <th style="width: 10%;">처리상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="file-list-body">
+                        <tr>
+                            <td colspan="6">
+                                <div class="loading">콘텐츠를 선택하면 파일 목록이 표시됩니다.</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- 우측 탭 하단 버튼 -->
+                <div class="bottom-actions">
+                    <div>
+                        <button class="add-btn" id="add-file">+</button>
+                        <button class="remove-btn" id="remove-file">-</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 상태 관리
+        let currentSelectedContent = null;
+        let contentData = [];
+        let fileData = {};
+        
+        // DOM 요소
+        const contentListElement = document.getElementById('content-list');
+        const fileListBodyElement = document.getElementById('file-list-body');
+        
+        // 페이지 로드 시 콘텐츠 데이터 가져오기
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchContentList();
+            setupFilterHandlers();
+        });
+        
+        // 필터 핸들러 설정
+        function setupFilterHandlers() {
+            const filterCheckboxes = document.querySelectorAll('.filter-options input[type="checkbox"]');
+            filterCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    if (currentSelectedContent) {
+                        fetchFileList(currentSelectedContent);
+                    }
+                });
+            });
+        }
+        
+        // 콘텐츠 목록 가져오기
+        async function fetchContentList() {
+            try {
+                contentListElement.innerHTML = '<div class="loading">콘텐츠를 불러오는 중입니다...</div>';
+                
+                // API 호출 (아직 구현되지 않음)
+                // const response = await fetch('/api/contents');
+                // contentData = await response.json();
+                
+                // 임시 대체 코드 (API 구현 전까지 사용)
+                await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
+                
+                /* @API@ TODO: API 구현 후 아래 주석 해제
+                // API 구현이 필요한 부분:
+                // GET /api/contents - 콘텐츠 목록 가져오기
+                */
+                
+                renderContentList();
+            } catch (error) {
+                console.error('콘텐츠 목록을 가져오는 중 오류가 발생했습니다:', error);
+                contentListElement.innerHTML = '<div class="loading">콘텐츠를 불러오는데 실패했습니다. 다시 시도해 주세요.</div>';
+            }
+        }
+        
+        // 콘텐츠 목록 렌더링
+        function renderContentList() {
+            contentListElement.innerHTML = '';
+            
+            if (contentData.length === 0) {
+                contentListElement.innerHTML = '<div class="loading">표시할 콘텐츠가 없습니다.</div>';
+                return;
+            }
+            
+            contentData.forEach(content => {
+                const contentItem = document.createElement('div');
+                contentItem.className = 'content-item';
+                contentItem.dataset.id = content.id;
+                
+                const folderItem = document.createElement('div');
+                folderItem.className = 'folder-item';
+                
+                const folderIcon = document.createElement('span');
+                folderIcon.className = 'folder-icon';
+                folderIcon.innerHTML = '&#128193;';
+                
+                folderItem.appendChild(folderIcon);
+                folderItem.appendChild(document.createTextNode(content.title));
+                
+                if (content.isNew) {
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'new-badge';
+                    newBadge.textContent = 'NEW';
+                    folderItem.appendChild(newBadge);
+                }
+                
+                contentItem.appendChild(folderItem);
+                contentListElement.appendChild(contentItem);
+                
+                // 클릭 이벤트 처리
+                contentItem.addEventListener('click', function() {
+                    selectContent(content.id);
+                });
+            });
+        }
+        
+        // 콘텐츠 선택 처리
+        function selectContent(contentId) {
+            // 이미 선택된 항목의 스타일 제거
+            const contentItems = document.querySelectorAll('.content-item');
+            contentItems.forEach(item => item.style.backgroundColor = '');
+            
+            // 현재 선택된 항목 스타일 지정
+            const selectedItem = document.querySelector(`.content-item[data-id="${contentId}"]`);
+            if (selectedItem) {
+                selectedItem.style.backgroundColor = '#e3f2fd';
+            }
+            
+            currentSelectedContent = contentId;
+            fetchFileList(contentId);
+        }
+        
+        // 파일 목록 가져오기
+        async function fetchFileList(contentId) {
+            try {
+                fileListBodyElement.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading">파일 목록을 불러오는 중입니다...</div>
+                        </td>
+                    </tr>
+                `;
+                
+                // 필터 상태 가져오기
+                const filters = {
+                    all: document.getElementById('filter-all').checked,
+                    reviewing: document.getElementById('filter-reviewing').checked,
+                    rejected: document.getElementById('filter-rejected').checked,
+                    approved: document.getElementById('filter-approved').checked,
+                    updated: document.getElementById('filter-updated').checked
+                };
+                
+                // API 호출 (아직 구현되지 않음)
+                // const response = await fetch(`/api/contents/${contentId}/files?filters=${JSON.stringify(filters)}`);
+                // fileData[contentId] = await response.json();
+                
+                // 임시 대체 코드 (API 구현 전까지 사용)
+                await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
+                
+                /* @API@ TODO: API 구현 후 아래 주석 해제
+                // API 구현이 필요한 부분:
+                // GET /api/contents/{contentId}/files - 특정 콘텐츠의 파일 목록 가져오기
+                // 필터 파라미터: filters (JSON 객체)
+                */
+                
+                renderFileList(contentId);
+            } catch (error) {
+                console.error('파일 목록을 가져오는 중 오류가 발생했습니다:', error);
+                fileListBodyElement.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading">파일 목록을 불러오는데 실패했습니다. 다시 시도해 주세요.</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // 파일 목록 렌더링
+        function renderFileList(contentId) {
+            fileListBodyElement.innerHTML = '';
+            
+            const files = fileData[contentId] || [];
+            
+            if (files.length === 0) {
+                fileListBodyElement.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading">표시할 파일이 없습니다.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // 메인 파일과 서브 파일을 구분하여 렌더링
+            files.forEach(file => {
+                if (file.isMainFile) {
+                    renderMainFile(file);
+                } else {
+                    renderSubFile(file);
+                }
+            });
+        }
+        
+        // 메인 파일 렌더링
+        function renderMainFile(file) {
+            const row = document.createElement('tr');
+            
+            const fileCell = document.createElement('td');
+            const fileDiv = document.createElement('div');
+            fileDiv.style.display = 'flex';
+            fileDiv.style.alignItems = 'center';
+            
+            const fileIcon = document.createElement('span');
+            fileIcon.className = 'file-icon';
+            fileIcon.innerHTML = '&#128196;';
+            
+            fileDiv.appendChild(fileIcon);
+            fileDiv.appendChild(document.createTextNode(file.title));
+            
+            if (file.isNew) {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'new-badge';
+                newBadge.textContent = 'NEW';
+                fileDiv.appendChild(newBadge);
+            }
+            
+            fileCell.appendChild(fileDiv);
+            row.appendChild(fileCell);
+            
+            // 버전, 작성자, 검토자, 등록일 셀 (빈 값)
+            for (let i = 0; i < 4; i++) {
+                const cell = document.createElement('td');
+                row.appendChild(cell);
+            }
+            
+            // 처리상태 셀 (액션 버튼)
+            const actionCell = document.createElement('td');
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'action-buttons';
+            
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-btn';
+            addBtn.textContent = '+';
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addFileToMain(file.id);
+            });
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '-';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeMainFile(file.id);
+            });
+            
+            actionDiv.appendChild(addBtn);
+            actionDiv.appendChild(removeBtn);
+            actionCell.appendChild(actionDiv);
+            
+            row.appendChild(actionCell);
+            fileListBodyElement.appendChild(row);
+        }
+        
+        // 서브 파일 렌더링
+        function renderSubFile(file) {
+            const row = document.createElement('tr');
+            
+            // 파일명 셀
+            const fileCell = document.createElement('td');
+            const fileDiv = document.createElement('div');
+            fileDiv.style.display = 'flex';
+            fileDiv.style.alignItems = 'center';
+            
+            fileDiv.appendChild(document.createTextNode(file.title));
+            
+            if (file.isNew) {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'new-badge';
+                newBadge.textContent = 'NEW';
+                fileDiv.appendChild(newBadge);
+            }
+            
+            const downloadIcon = document.createElement('span');
+            downloadIcon.className = 'download-icon';
+            downloadIcon.innerHTML = '&#8595;';
+            downloadIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadFile(file.id);
+            });
+            
+            fileDiv.appendChild(downloadIcon);
+            fileCell.appendChild(fileDiv);
+            row.appendChild(fileCell);
+            
+            // 버전 셀
+            const versionCell = document.createElement('td');
+            versionCell.textContent = file.version || '';
+            row.appendChild(versionCell);
+            
+            // 작성자 셀
+            const authorCell = document.createElement('td');
+            authorCell.textContent = file.author || '';
+            row.appendChild(authorCell);
+            
+            // 검토자 셀
+            const reviewerCell = document.createElement('td');
+            reviewerCell.textContent = file.reviewer || '';
+            row.appendChild(reviewerCell);
+            
+            // 등록일 셀
+            const dateCell = document.createElement('td');
+            dateCell.textContent = file.registrationDate || '';
+            row.appendChild(dateCell);
+            
+            // 처리상태 셀
+            const statusCell = document.createElement('td');
+            statusCell.textContent = file.status || '';
+            row.appendChild(statusCell);
+            
+            fileListBodyElement.appendChild(row);
+        }
+        
+        // 파일 다운로드
+        function downloadFile(fileId) {
+            console.log(`파일 다운로드: ${fileId}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // GET /api/files/{fileId}/download - 파일 다운로드
+            */
+        }
+        
+        // 메인 파일에 서브 파일 추가
+        function addFileToMain(mainFileId) {
+            console.log(`메인 파일에 서브 파일 추가: ${mainFileId}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // POST /api/files/{mainFileId}/sub-files - 메인 파일에 서브 파일 추가
+            */
+        }
+        
+        // 메인 파일 삭제
+        function removeMainFile(mainFileId) {
+            console.log(`메인 파일 삭제: ${mainFileId}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // DELETE /api/files/{mainFileId} - 메인 파일 삭제
+            */
+        }
+        
+        // 콘텐츠 추가 버튼 이벤트
+        document.getElementById('add-content').addEventListener('click', function() {
+            console.log('콘텐츠 추가');
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // POST /api/contents - 새 콘텐츠 추가
+            */
+        });
+        
+        // 콘텐츠 삭제 버튼 이벤트
+        document.getElementById('remove-content').addEventListener('click', function() {
+            if (!currentSelectedContent) {
+                alert('삭제할 콘텐츠를 선택해주세요.');
+                return;
+            }
+            
+            console.log(`콘텐츠 삭제: ${currentSelectedContent}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // DELETE /api/contents/{contentId} - 콘텐츠 삭제
+            */
+        });
+        
+        // 파일 추가 버튼 이벤트
+        document.getElementById('add-file').addEventListener('click', function() {
+            if (!currentSelectedContent) {
+                alert('파일을 추가할 콘텐츠를 선택해주세요.');
+                return;
+            }
+            
+            console.log(`파일 추가: 콘텐츠 ID ${currentSelectedContent}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // POST /api/contents/{contentId}/files - 콘텐츠에 파일 추가
+            */
+        });
+        
+        // 파일 삭제 버튼 이벤트
+        document.getElementById('remove-file').addEventListener('click', function() {
+            const selectedFiles = document.querySelectorAll('.file-selected');
+            
+            if (selectedFiles.length === 0) {
+                alert('삭제할 파일을 선택해주세요.');
+                return;
+            }
+            
+            // 선택된 파일 ID 배열 가져오기
+            const fileIds = Array.from(selectedFiles).map(file => file.dataset.id);
+            
+            console.log(`파일 삭제: ${fileIds.join(', ')}`);
+            
+            /* @API@ TODO: API 구현 후 아래 주석 해제
+            // API 구현이 필요한 부분:
+            // DELETE /api/files - 파일 일괄 삭제
+            // 요청 본문: { fileIds: [id1, id2, ...] }
+            */
+        });
+    </script>
+</body>
+</html>

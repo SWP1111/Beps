@@ -47,20 +47,8 @@ def get_replies_by_memo(memo_id):
         # Get replies for this memo that are not deleted
         replies = MemoReply.query.filter_by(memo_id=memo_id, is_deleted=False).all()
         
-        # Get user info for each reply
-        result = []
-        for reply in replies:
-            reply_dict = reply.to_dict()
-            user = Users.query.get(reply.user_id)
-            if user:
-                reply_dict['user'] = {
-                    'id': user.id,
-                    'name': user.name,
-                    'position': user.position,
-                    'department': user.department,
-                    'company': user.company
-                }
-            result.append(reply_dict)
+        # The to_dict() method already includes user information through the relationship
+        result = [reply.to_dict() for reply in replies]
             
         return jsonify(result), 200
     except Exception as e:

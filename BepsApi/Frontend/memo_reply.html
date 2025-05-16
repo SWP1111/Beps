@@ -204,7 +204,7 @@ td:nth-child(even) {
                 <div class="reply-item" v-for="reply in replies" :key="reply.id">
                     <div class="reply-header">
                         <div class="reply-user">
-                            {{ reply.user ? reply.user.name + ' ' + reply.user.position + ' (' + reply.user.id + ')' : reply.user_id }}
+                            {{ reply.user ? `${reply.user.name} ${reply.user.position} (${reply.user.id})` : reply.user_id }}
                         </div>
                         <div class="reply-date">
                             {{ formatDate(reply.modified_at) }}
