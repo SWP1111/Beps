@@ -148,19 +148,27 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='전체컨텐츠',index=False,startrow=2)
         df_user.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=2)
+        
+        ws = writer.sheets['전체컨텐츠']
+        ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+        
+        ws_user = writer.sheets['회사&팀&직원']
+        ws_user.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
+        ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+         
    
-    wb = load_workbook(excel_path)
-    ws = wb['전체컨텐츠']
-    ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
-    wb.save(excel_path)
-    wb.close()
+    # wb = load_workbook(excel_path)
+    # ws = wb['전체컨텐츠']
+    # ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+    # wb.save(excel_path)
+    # wb.close()
     
-    wb_user = load_workbook(excel_path)
-    ws_user = wb_user['회사&팀&직원']
-    ws_user.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
-    ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
-    wb_user.save(excel_path)
-    wb_user.close()
+    # wb_user = load_workbook(excel_path)
+    # ws_user = wb_user['회사&팀&직원']
+    # ws_user.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
+    # ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+    # wb_user.save(excel_path)
+    # wb_user.close()
     
     df_content_html = generate_html_with_style(df) #df.to_html(index=False, classes='content_table', border=1)
     df_user_html = generate_html_with_style(df_user) #df_user.to_html(index=False, classes='user_table', border=1)
@@ -173,6 +181,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     with open(user_html_path, 'w', encoding='utf-8') as f:
         f.write(df_user_html)
     
+    logging.debug(f"HTML 파일 저장 경로: {content_html_path}, {user_html_path}")
     return {
         'excel_path': excel_path,
         'html_content_name': f"{filename}_content.html",
