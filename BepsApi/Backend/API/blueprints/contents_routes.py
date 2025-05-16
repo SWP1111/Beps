@@ -15,6 +15,7 @@ from flask_jwt_extended import jwt_required
 
 api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
 
+'''
 @api_contents_bp.route('/file/get_by_path', methods=['GET'])
 def get_file_by_path():
     try:
@@ -64,7 +65,7 @@ def get_path_by_ids():
         return jsonify({'file_path': file.file_path})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+'''
 @api_contents_bp.route('/file/get_detailed_path', methods=['GET'])
 def get_detailed_path():
     """Build a detailed path from ContentRel tables using file_id"""
