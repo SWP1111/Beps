@@ -11,6 +11,7 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
     """
     통계 데이터를 가져오는 함수
     """
+    
     users, user_count = get_users_for_export(filter_type, filter_value)
     
     results = []
@@ -31,110 +32,44 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
     'learning_time': '',
     'memo_count': 0,
     'total_learning_time_sec': 0,
+    'learning_time_sec': 0,
     'count': 1
-   }
+    }
     
-    flat_users = []
-    user_id_list = []
     for company, departments in users.items():
-        for department, user_list in departments.items():
-            for user in user_list:
-                user_id_list.append(user['user_id'])
-                flat_users.append({
-                    'company': company,
-                    'department': department,
-                    'user_id': user['user_id'],
-                    'name': user['name']
-                })
+        if filter_type in ('all', 'comapany'):
+            user_list = [user['user_id'] for department_user_list in departments.values()
+                         for user in department_user_list]
+            channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
+            company_row = base_row.copy()
+            company_row['company'] = company
+            
+            company_rows = config_rows(company_row, channel_duration_map, channel_memo_map)
+            results.extend(company_rows)
         
-    company_rows = {}
-    department_rows = {}
-    user_rows = []
-    
-    channel_duration_map,channel_memo_map = config_channel_memo_map(user_id_list, total_learning_time_by_users, memo_count_per_category_by_users)              
-
-    for user in flat_users:
-        company = user['company']
-        department = user['department']
-        
-        user_row = base_row.copy()
-        user_row['company'] = company
-        user_row['department'] = department
-        user_row['user_id'] = user['user_id']
-        user_row['name'] = user['name']
-        
-        user_channel_rows = config_rows(user_row, channel_duration_map, channel_memo_map)
-        user_rows.append(user_channel_rows)
-        
-        if filter_type in ('all', 'department', 'company'):
-            for user_channel_row in user_channel_rows:
+        for department, users in departments.items():
+            if filter_type in ('all', 'company', 'department'):
+                user_list = [user['user_id'] for user in users]
+                channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
                 department_row = base_row.copy()
                 department_row['company'] = company
                 department_row['department'] = department
                 
-                if filter_type in ('all', 'department'):
-                    total_learning_time = user_channel_rows[0]['total_learning_time']
-                    if company not in department_rows:
-                        department_rows[company] = {}
-                        
-                    if department not in department_rows[company]:
-                        department_rows[company][department] = department_row
-                    else:
-                        department_rows[company][department]['count'] += 1           
-                        department_rows[company][department]['total_learning_time'] += total_learning_time
-                        department_rows[company][department]['avg_learning_time'] = (department_rows[company][department]['total_learning_time_sec'] /  department_rows[company][department]['count'])
-                        department_rows[company][department]['memo_count'] += user_row['memo_count'] 
-                
-                if filter_type in ('all', 'company'):
-                    total_learning_time = user_channel_rows[0]['total_learning_time']
-                    company_row = base_row.copy()
-                    company_row['company'] = company
-                    if company not in company_rows:
-                        company_rows[company] = company_row
-                    else:
-                        company_rows[company]['count'] += 1
-                        company_rows[company]['total_learning_time'] += total_learning_time
-                        company_rows[company]['avg_learning_time'] = (company_rows[company]['total_learning_time_sec'] / company_rows[company]['count'])
-                        company_rows[company]['memo_count'] += user_row['memo_count']
-               
-    logging.debug(f"company_rows: {company_rows}")
-    #logging.debug(f"department_rows: {department_rows}")
-    #logging.debug(f"user_rows: {user_rows}")
-                    
-    # for company, departments in users.items():
-    #     if filter_type in ('all', 'comapany'):
-    #         user_list = [user['user_id'] for department_user_list in departments.values()
-    #                      for user in department_user_list]
-    #         channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
-    #         company_row = base_row.copy()
-    #         company_row['company'] = company
+                department_rows = config_rows(department_row, channel_duration_map, channel_memo_map)
+                results.extend(department_rows)
             
-    #         company_rows = config_rows(company_row, channel_duration_map, channel_memo_map)
-    #         results.extend(company_rows)
-        
-    #     for department, users in departments.items():
-    #         if filter_type in ('all', 'company', 'department'):
-    #             user_list = [user['user_id'] for user in users]
-    #             channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
-    #             department_row = base_row.copy()
-    #             department_row['company'] = company
-    #             department_row['department'] = department
+            for user in users:
+                user_id = user['user_id']
+                channel_duration_map,channel_memo_map = config_channel_memo_map([user_id], total_learning_time_by_users, memo_count_per_category_by_users)              
+                user_row = base_row.copy()
+                user_row['company'] = company
+                user_row['department'] = department
+                user_row['user_id'] = user_id
+                user_row['name'] = user['name']
                 
-    #             department_rows = config_rows(department_row, channel_duration_map, channel_memo_map)
-    #             results.extend(department_rows)
-            
-    #         for user in users:
-    #             user_id = user['user_id']
-    #             channel_duration_map,channel_memo_map = config_channel_memo_map([user_id], total_learning_time_by_users, memo_count_per_category_by_users)              
-    #             user_row = base_row.copy()
-    #             user_row['company'] = company
-    #             user_row['department'] = department
-    #             user_row['user_id'] = user_id
-    #             user_row['name'] = user['name']
-                
-    #             user_rows = config_rows(user_row, channel_duration_map, channel_memo_map)
-    #             results.extend(user_rows)
-            
+                user_rows = config_rows(user_row, channel_duration_map, channel_memo_map)
+                results.extend(user_rows)
+                            
     return results
 
 def get_users_for_export(filter_type, filter_value):
@@ -355,6 +290,7 @@ def config_rows(base_row, channel_duration_map, channel_memo_map):
        seconds = duration.total_seconds()
        total_learning_time += seconds
        row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
+       row['learning_time_sec'] = seconds
        row['memo_count'] = channel_memo_map.get(channel_id, {})[1] if channel_memo_map.get(channel_id) else 0
        row['total_learning_time_sec'] = total_learning_time
        rows.append(row)

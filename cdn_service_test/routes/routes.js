@@ -35,7 +35,7 @@ router.get('/list-directories', authenticateJwtHeader, (req, res) => {
   }
 });
 
-router.get(`/${service_type}/list-directories`, authenticateJwtHeader, async (req, res) => {
+router.get(`/${service_type}/list-directories`, async (req, res) => {
   try {
     const query = `
       SELECT id, name
@@ -88,7 +88,7 @@ WHERE ch.id = $1
       return res.status(404).json({ message: '해당 ID의 채널을 찾을 수 없어요.' });
     }
 
-    res.json(result.rows[0]); // 하나만 반환
+    res.json(result.rows); // 하나만 반환
   } catch (err) {
     console.error('채널 데이터 조회 중 오류:', err);
     res.status(500).json({ message: '채널 정보를 불러올 수 없어요.' });
