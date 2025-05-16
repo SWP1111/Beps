@@ -174,7 +174,7 @@ class ContentViewingHistory(db.Model):
     __tablename__ = 'content_viewing_history'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Text, db.ForeignKey('users.id'))
-    file_id = db.Column(db.Text, db.ForeignKey('files.file_id'))
+    file_id = db.Column(db.Text, db.ForeignKey('content_rel_pages.id'))
     file_type = db.Column(db.String(10), nullable=False, server_default='page')
     start_time = db.Column(db.DateTime(timezone=True))
     end_time = db.Column(db.DateTime(timezone=True))
@@ -289,7 +289,7 @@ class ContentPointRecord(db.Model):
     __tablename__ = 'content_point_record'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
-    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=False)
+    file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=False)
     point = db.Column(db.Integer, nullable=False)
     earned_times = db.Column(JSONB, nullable=False, default=list)
     
@@ -452,8 +452,8 @@ class ContentManager(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
-    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=True)
-    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'), nullable=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'), nullable=True)
     type = db.Column(db.String(10), nullable=False)  # 'file' or 'folder'
     
     def to_dict(self):
@@ -474,8 +474,8 @@ class MemoData(db.Model):
     title = db.Column(db.String, nullable=True)
     content = db.Column(db.String, nullable=True)
     path = db.Column(db.String, nullable=True)
-    file_id = db.Column(db.Integer, db.ForeignKey('files.file_id'), nullable=True)
-    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'), nullable=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'), nullable=True)
     rel_position_x = db.Column(db.Float, nullable=False)  # double in C#
     rel_position_y = db.Column(db.Float, nullable=False)  # double in C#
     world_position_x = db.Column(db.Float, nullable=False)  # double in C#

@@ -6,7 +6,7 @@ import datetime
 from datetime import timezone
 from datetime import timedelta
 from extensions import db
-from models import Folders, Files, ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails
+from models import  ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import re
