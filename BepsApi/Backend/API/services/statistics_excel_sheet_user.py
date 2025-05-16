@@ -31,6 +31,7 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
     'learning_time': '',
     'memo_count': 0,
     'total_learning_time_sec': 0,
+    'learning_time_sec': 0,
     'count': 1
    }
     
@@ -68,34 +69,42 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
         
         if filter_type in ('all', 'department', 'company'):
             for user_channel_row in user_channel_rows:
-                department_row = base_row.copy()
-                department_row['company'] = company
-                department_row['department'] = department
+                category_name = user_channel_row['category_name']               
+                department_row = user_channel_row.copy()
                 
                 if filter_type in ('all', 'department'):
                     total_learning_time = user_channel_rows[0]['total_learning_time']
+                    category_learning_time = user_channel_row['learning_time_sec']
+                    
                     if company not in department_rows:
                         department_rows[company] = {}
                         
                     if department not in department_rows[company]:
-                        department_rows[company][department] = department_row
+                        logging.debug(f"compay: {company}, department: {department}, category_name: {category_name}")
+                        department_rows[company][department] = {}
+                        department_rows[company][department][category_name] = department_row
                     else:
-                        department_rows[company][department]['count'] += 1           
-                        department_rows[company][department]['total_learning_time'] += total_learning_time
-                        department_rows[company][department]['avg_learning_time'] = (department_rows[company][department]['total_learning_time_sec'] /  department_rows[company][department]['count'])
-                        department_rows[company][department]['memo_count'] += user_row['memo_count'] 
+                        department_rows[company][department][0]['count'] += 1           
+                        department_rows[company][department][0]['total_learning_time'] += total_learning_time
+                        department_rows[company][department][0]['avg_learning_time'] = (total_learning_time / department_rows[company][department][0]['count'])
+                        department_rows[company][department][category_name]['learning_time_sec'] += category_learning_time
+                        department_rows[company][department][category_name]['memo_count'] += user_channel_row['memo_count'] 
                 
                 if filter_type in ('all', 'company'):
-                    total_learning_time = user_channel_rows[0]['total_learning_time']
-                    company_row = base_row.copy()
+                    company_row = user_channel_row.copy()
                     company_row['company'] = company
+                    
+                    total_learning_time = user_channel_rows[0]['total_learning_time']
+                    category_learning_time = user_channel_row['learning_time_sec']
+                    
                     if company not in company_rows:
-                        company_rows[company] = company_row
+                        company_rows[company][category_name] = company_row
                     else:
-                        company_rows[company]['count'] += 1
-                        company_rows[company]['total_learning_time'] += total_learning_time
-                        company_rows[company]['avg_learning_time'] = (company_rows[company]['total_learning_time_sec'] / company_rows[company]['count'])
-                        company_rows[company]['memo_count'] += user_row['memo_count']
+                        company_rows[company][0]['count'] += 1
+                        company_rows[company][0]['total_learning_time'] += total_learning_time
+                        company_rows[company][0]['avg_learning_time'] = (total_learning_time / company_rows[company][0]['count'])
+                        company_rows[company][category_name]['learning_time_sec'] += category_learning_time
+                        company_rows[company][category_name]['memo_count'] += user_channel_row['memo_count']
                
     logging.debug(f"company_rows: {company_rows}")
     #logging.debug(f"department_rows: {department_rows}")
@@ -355,6 +364,7 @@ def config_rows(base_row, channel_duration_map, channel_memo_map):
        seconds = duration.total_seconds()
        total_learning_time += seconds
        row['learning_time'] = f"{int(seconds // 3600):02}시간{int((seconds % 3600) // 60):02}분{int(seconds % 60):02}초"
+       row['learning_time_sec'] = seconds
        row['memo_count'] = channel_memo_map.get(channel_id, {})[1] if channel_memo_map.get(channel_id) else 0
        row['total_learning_time_sec'] = total_learning_time
        rows.append(row)
