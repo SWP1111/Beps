@@ -15,12 +15,7 @@ def get_statistics_data(start_date, end_date, filter_type, filter_value):
     avgtimes = get_avg_learning_time_per_file(start_date, end_date, filter_type, filter_value)
     memocounts = get_memo_count_per_file(start_date, end_date, filter_type, filter_value)
     managers = get_folder_managers()
-    
-    logging.debug(f"files: {files}")
-    logging.debug(f"avgtimes: {avgtimes}")
-    logging.debug(f"memocounts: {memocounts}")
-    logging.debug(f"managers: {managers}")
-    
+        
     if not files:
         logging.error("No files found")
         return None
@@ -63,7 +58,7 @@ def get_normal_files_width_category_names():
         
         results = []
         for file_id,file_name,update_at,folder_id,top_folder_id,top_name in query.all():
-            mid_folder = get_mid_folder_from_cache(folder_id, top_folder_id, folder_map)
+            mid_folder = get_mid_folder_from_cache(folder_id, folder_map)           
             
             top_name_clean = clean_name(top_name)
             mid_name = clean_name(mid_folder.name) if mid_folder else ''
@@ -93,17 +88,16 @@ def get_normal_files_width_category_names():
         logging.error(f"[get_normal_files]: {str(e)}, {traceback.format_exc()}")
         return None
 
-def get_mid_folder_from_cache(folder_id, top_id, folder_map):
+def get_mid_folder_from_cache(folder_id, folder_map):
     """
-    folder_id에서 시작해 parent_id를 따라 올라가며 parent_id가 top_id인 폴더를 찾는다.
+    folder_id에서 시작해 parent_id를 따라 올라가며 폴더를 찾는다.
     """
     while folder_id:
         folder = folder_map.get(folder_id)
         if folder is None:
             return None
         
-        parent = folder_map.get(folder.parent_id)
-        if parent and parent.parent_id is None:
+        if folder.parent_id is None:
             return folder
         
         folder_id = folder.parent_id

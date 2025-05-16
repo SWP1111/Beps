@@ -11,9 +11,8 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
     """
     통계 데이터를 가져오는 함수
     """
-    
     users, user_count = get_users_for_export(filter_type, filter_value)
-    
+
     results = []
     user_ids = [
         user['user_id'] for department in users.values() for user_list in department.values() for user in user_list
@@ -144,13 +143,12 @@ def get_total_learning_time_by_users(user_ids, period_type, period_value):
     사용자별 총 학습 시간을 가져오는 함수
     """
     from services.leaning_summary_service import get_folder_progress_by_users
-  
+
     folder_progress_by_users = get_folder_progress_by_users(user_ids=user_ids, period_type=period_type, period_value=period_value) 
     
     sorted_folder_progress_by_users = {}
     for user_id, channel_data  in folder_progress_by_users.items():
         sorted_folder_progress_by_users[user_id] = sorted(channel_data.values(), key=lambda x: x[0])
-        
     return folder_progress_by_users
 
 def get_memo_count_per_category(period_type, period_value, filter_type, filter_value):
@@ -249,7 +247,7 @@ def get_memo_count_per_category_by_users(user_ids, period_type, period_value):
             'channel_name': row['channel_name'],
             'memo_count': row['memo_count']
         }
-        
+    
     return memo_counts
 
 def config_channel_memo_map(user_list,total_learning_time_by_users, memo_count_per_category_by_users):

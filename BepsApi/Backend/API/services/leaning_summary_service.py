@@ -14,7 +14,7 @@ def get_channels():
         ContentRelChannels.id,
         ContentRelChannels.name
     ).filter(
-        ContentRelFolders.parent_id == None
+        ContentRelChannels.is_deleted == False
     ).all()
 
     return {f.id: (f.name, datetime.timedelta(0)) for f in channels}
@@ -81,8 +81,9 @@ def get_folder_progress_by_users(user_ids: list[str], period_type: str, period_v
     folder_duration_by_user = {}
     used_range = []
     
+    channels = get_channels()
     for user_id in user_ids:
-        folder_duration_by_user[user_id] = get_channels()
+        folder_duration_by_user[user_id] = channels.copy()
     
     for period_func, summary_func, period_scope in [
         (user_summary_service.get_year_period_value, LearningSummaryAgg, 'year'),

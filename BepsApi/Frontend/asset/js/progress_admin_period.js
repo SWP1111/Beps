@@ -3,6 +3,8 @@ import { setOnSelectCallback, SELECTION_TYPE } from "./progress_admin_search.js"
 let onSelectPeriodCallback = null;
 let onSelectFilterCallback = null;
 
+let selectedDispfilter = '';
+let selectedDispPeriod = '';
 export function setOnSelectPeriodCallback(callback) {
     onSelectPeriodCallback = callback;
 }
@@ -17,9 +19,17 @@ export function initPeriod()
     const yearStart = `${new Date().getFullYear()}-01-01`;
     let today = new Date().toISOString().split('T')[0];
 
-    let period_type = "day";
-    let period_value = `${yearStart}~${today}`;
+    let period_type = "year";
+    let period_value = `${currentYear}`;
     const selectedPeriod = document.getElementById("selected-period");
+     if (period_type == "year")
+        selectedDispPeriod = `${period_value}년`;
+    else if (period_type == "half")
+        selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}년`;
+    else if (period_type == "quarter")
+        selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}년`;
+    else if (period_type == "day")
+        selectedDispPeriod = `${period_value.replace("~", " ~ ").replace(/-/g, ".")}`;
 
     //적용
     const applyBtn = document.getElementById("apply-button");
@@ -28,7 +38,18 @@ export function initPeriod()
         sessionStorage.setItem("period_type", period_type);
         sessionStorage.setItem("period_value", period_value);
         
+        if (period_type == "year")
+            selectedDispPeriod = `${period_value}년`;
+        else if (period_type == "half")
+            selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}년`;
+        else if (period_type == "quarter")
+            selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}년`;
+        else if (period_type == "day")
+            selectedDispPeriod = `${period_value.replace("~", " ~ ").replace(/-/g, ".")}`;
+        selectedPeriod.textContent = `${selectedDispfilter} (${selectedDispPeriod})`;
+
         onSelectPeriodCallback();
+
     });
 
     // 기간 선택_날짜 지정
@@ -234,16 +255,20 @@ export function initPeriod()
     setOnSelectCallback(({type, company, department, user}) => {
         switch(type){
             case SELECTION_TYPE.ALL:
-                selectedPeriod.textContent = `전체 (${period_value}년)`;
+                selectedDispfilter = "전체";
+                selectedPeriod.textContent = `전체 (${selectedDispPeriod})`;
                 break;
             case SELECTION_TYPE.COMPANY:
-                selectedPeriod.textContent = `${company} (${currentYear}년)`;
+                selectedDispfilter = `${company}`;
+                selectedPeriod.textContent = `${company} (${selectedDispPeriod})`;
                 break;
             case SELECTION_TYPE.DEPARTMENT:
-                selectedPeriod.textContent = `${department} (${currentYear}년)`;
+                selectedDispfilter = `${department}`;
+                selectedPeriod.textContent = `${department} (${selectedDispPeriod})`;
                 break;
             case SELECTION_TYPE.USER:
-                selectedPeriod.textContent = `${user.userName} ${user.position} (${currentYear}년)`;
+                selectedDispfilter = `${user.userName} ${user.position}`;
+                selectedPeriod.textContent = `${user.userName} ${user.position} (${selectedDispPeriod})`;
                 break;
             default:
                 break;
