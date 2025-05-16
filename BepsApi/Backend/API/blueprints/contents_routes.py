@@ -6,7 +6,7 @@ import datetime
 from datetime import timezone
 from datetime import timedelta
 from extensions import db
-from models import Folders, Files
+from models import Folders, Files, ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import re
@@ -62,6 +62,68 @@ def get_path_by_ids():
             return jsonify({'error': 'File not found'}), 404
         
         return jsonify({'file_path': file.file_path})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/get_detailed_path', methods=['GET'])
+def get_detailed_path():
+    """Build a detailed path from ContentRel tables using file_id"""
+    file_id = request.args.get('file_id')
+    
+    if not file_id:
+        return jsonify({'error': 'Missing file_id parameter'}), 400
+    
+    try:
+        # Start with the file - check if it's a page or page detail
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        
+        # Stack to build the path
+        path_components = []
+        
+        if page:
+            # This is a page
+            path_components.append(page.name)
+            folder_id = page.folder_id
+        else:
+            # Check if it's a page detail
+            detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+            if detail:
+                path_components.append(detail.name)
+                # Get the parent page
+                parent_page = ContentRelPages.query.filter_by(id=detail.page_id, is_deleted=False).first()
+                if parent_page:
+                    path_components.append(parent_page.name)
+                    folder_id = parent_page.folder_id
+                else:
+                    return jsonify({'error': 'Parent page not found'}), 404
+            else:
+                return jsonify({'error': 'File not found in content tables'}), 404
+        
+        # Traverse the folder hierarchy
+        while folder_id is not None:
+            folder = ContentRelFolders.query.filter_by(id=folder_id, is_deleted=False).first()
+            if not folder:
+                break
+            
+            path_components.append(folder.name)
+            
+            if folder.parent_id is None:
+                # Top-level folder, get the channel
+                channel = ContentRelChannels.query.filter_by(id=folder.channel_id, is_deleted=False).first()
+                if channel:
+                    path_components.append(channel.name)
+                break
+            
+            folder_id = folder.parent_id
+        
+        # Reverse the path components to build the path
+        path_components.reverse()
+        full_path = '/'.join(path_components)
+        
+        return jsonify({
+            'detailed_path': full_path
+        })
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 #endregion

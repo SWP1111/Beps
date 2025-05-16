@@ -389,7 +389,7 @@ class ContentRelPageDetails(db.Model):
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
         }
-        
+'''  
 class Folders(db.Model):
     __tablename__ = 'folders'
     folder_id = db.Column(db.Integer, primary_key=True)
@@ -446,7 +446,7 @@ class Files(db.Model):
             'is_deleted': self.is_deleted
        
         }
-
+'''
 class ContentManager(db.Model):
     __tablename__ = 'content_manager'
     
@@ -485,8 +485,8 @@ class MemoData(db.Model):
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
 
     user = db.relationship('Users', backref=db.backref('memos', lazy=True))
-    file = db.relationship('Files', backref=db.backref('memos', lazy=True))
-    folder = db.relationship('Folders', backref=db.backref('memos', lazy=True))
+    file = db.relationship('ContentRelPages', backref=db.backref('memos', lazy=True))
+    folder = db.relationship('ContentRelFolders', backref=db.backref('memos', lazy=True))
 
     def to_dict(self):
         return {

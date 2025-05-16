@@ -219,26 +219,86 @@ createApp({
                     // Add status_text property
                     memo.status_text = formatStatus(memo.status);
                     
-                    // Fetch path if not provided but file_id or folder_id exists
-                    if (!memo.path && (memo.file_id || memo.folder_id)) {
+                    // Fetch detailed path if file_id exists
+                    if (memo.file_id) {
                         try {
-                            let pathParams = [];
-                            if (memo.file_id) pathParams.push(`file_id=${memo.file_id}`);
-                            if (memo.folder_id) pathParams.push(`folder_id=${memo.folder_id}`);
-                            
-                            if (pathParams.length > 0) {
-                                const pathResponse = await fetch(`${url}file_bp/get_file_path?${pathParams.join('&')}`, {
-                                    method: "GET",
-                                    credentials: "include",
-                                    headers: {
-                                        "Accept": "application/json"
-                                    }
-                                });
-                                
-                                if (pathResponse.ok) {
-                                    const pathData = await pathResponse.json();
-                                    memo.path = pathData.file_path;
+                            const pathResponse = await fetch(`${url}contents/file/get_detailed_path?file_id=${memo.file_id}`, {
+                                method: "GET",
+                                credentials: "include",
+                                headers: {
+                                    "Accept": "application/json"
                                 }
+                            });
+                            
+                            if (pathResponse.ok) {
+                                const pathData = await pathResponse.json();
+                                memo.path = pathData.detailed_path || memo.path;
+                            } else {
+                                // Fallback to old path method if detailed path fails
+                                if (!memo.path) {
+                                    let pathParams = [];
+                                    if (memo.file_id) pathParams.push(`file_id=${memo.file_id}`);
+                                    if (memo.folder_id) pathParams.push(`folder_id=${memo.folder_id}`);
+                                    
+                                    if (pathParams.length > 0) {
+                                        const oldPathResponse = await fetch(`${url}contents/file/get_path?${pathParams.join('&')}`, {
+                                            method: "GET",
+                                            credentials: "include",
+                                            headers: {
+                                                "Accept": "application/json"
+                                            }
+                                        });
+                                        
+                                        if (oldPathResponse.ok) {
+                                            const oldPathData = await oldPathResponse.json();
+                                            memo.path = oldPathData.file_path;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching file path for memo ID ${memo.id}:`, error);
+                            
+                            // Fallback to old path method
+                            if (!memo.path && (memo.file_id || memo.folder_id)) {
+                                try {
+                                    let pathParams = [];
+                                    if (memo.file_id) pathParams.push(`file_id=${memo.file_id}`);
+                                    if (memo.folder_id) pathParams.push(`folder_id=${memo.folder_id}`);
+                                    
+                                    if (pathParams.length > 0) {
+                                        const oldPathResponse = await fetch(`${url}contents/file/get_path?${pathParams.join('&')}`, {
+                                            method: "GET",
+                                            credentials: "include",
+                                            headers: {
+                                                "Accept": "application/json"
+                                            }
+                                        });
+                                        
+                                        if (oldPathResponse.ok) {
+                                            const oldPathData = await oldPathResponse.json();
+                                            memo.path = oldPathData.file_path;
+                                        }
+                                    }
+                                } catch (innerError) {
+                                    console.error(`Error fetching fallback path for memo ID ${memo.id}:`, innerError);
+                                }
+                            }
+                        }
+                    } else if (!memo.path && memo.folder_id) {
+                        // If we only have folder_id, use the old method
+                        try {
+                            const pathResponse = await fetch(`${url}contents/file/get_path?folder_id=${memo.folder_id}`, {
+                                method: "GET",
+                                credentials: "include",
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            });
+                            
+                            if (pathResponse.ok) {
+                                const pathData = await pathResponse.json();
+                                memo.path = pathData.file_path;
                             }
                         } catch (error) {
                             console.error(`Error fetching file path for memo ID ${memo.id}:`, error);
