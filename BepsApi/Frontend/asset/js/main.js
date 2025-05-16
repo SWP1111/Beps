@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = "login.html";
 
     const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
-    const user_role = userInfo.user.role_id;
+    const user_role = userInfo && userInfo.user ? userInfo.user.role_id : null;
 
     const buttons = document.querySelectorAll(".nav-button");
     const contentArea = document.getElementById("content-area");
