@@ -80,7 +80,6 @@ def get_statistics_user_data(period_type, period_value, filter_type, filter_valu
                         department_rows[company] = {}
                         
                     if department not in department_rows[company]:
-                        logging.debug(f"compay: {company}, department: {department}, category_name: {category_name}")
                         department_rows[company][department] = {}
                         department_rows[company][department][category_name] = department_row
                     else:
