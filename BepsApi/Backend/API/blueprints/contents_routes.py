@@ -12,7 +12,7 @@ from sqlalchemy.sql import text
 import re
 import urllib.parse
 from flask_jwt_extended import jwt_required
-from ..services.content_hierarchy_service import ContentHierarchyService
+from services.content_hierarchy_service import ContentHierarchyService
 
 api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
 

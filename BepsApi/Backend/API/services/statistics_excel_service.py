@@ -146,6 +146,20 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     df_user = None
     if(filter_type == 'user'): 
         users = get_statistics_user_data(period_type, period_value, filter_value)  # 사용자 통계 데이터 가져오기
+        if users:
+            prev_id = None
+            for u in users:
+                row = {
+                    '회사': '',
+                    '이름' : u['user_name'] if u['user_id'] != prev_id else '',
+                    '파일명': u['full_name'],
+                    '시작 시간': u['start_time'],
+                    '종료 시간': u['end_time'],
+                    '학습시간': u['stay_duration'],
+                    '의견서 작성 수': f'{u['memo_count']}건',
+                    'IP': u['ip_address'],
+                }
+            
     
          
     excel_path = f"{path}/{filename}.xlsx"
