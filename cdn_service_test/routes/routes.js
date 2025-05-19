@@ -105,7 +105,8 @@ async function getSubFolders(parentId, channelId) {
 
     // attributes 외의 프로퍼티 제거
     for (const key of Object.keys(folder)) {
-      if (key !== 'attributes' && key !== 'folders' && key !== 'pages') {
+      //if (key !== 'attributes' && key !== 'folders' && key !== 'pages') {
+      if (key !== 'folders' && key !== 'pages') {
         delete folder[key];
       }
     }
@@ -124,6 +125,7 @@ async function getPages(folderId) {
   // pages 배열 내 각 항목도 attributes로 감싸기
   return pages.map(page => {
     return { attributes: page };
+    //return page
   });
 }
 
