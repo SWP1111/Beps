@@ -389,64 +389,7 @@ class ContentRelPageDetails(db.Model):
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
         }
-'''  
-class Folders(db.Model):
-    __tablename__ = 'folders'
-    folder_id = db.Column(db.Integer, primary_key=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'))
-    folder_name = db.Column(db.Text)
-    depth = db.Column(db.SmallInteger)
-    is_visible = db.Column(db.Boolean)
-    folder_type = db.Column(db.String(20))
-    create_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    update_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    time_stamp = db.Column(db.BigInteger)
-    is_deleted = db.Column(db.Boolean, default=False)
-    top_category_folder_id = db.Column(db.Integer)
 
-    def to_dict(self):
-        return {
-            'folder_id': self.folder_id,
-            'parent_id': self.parent_id,
-            'folder_name': self.folder_name,
-            'depth': self.depth,
-            'is_visible': self.is_visible,
-            'folder_type': self.folder_type,
-            'create_at': self.create_at,
-            'update_at': self.update_at,
-            'time_stamp': self.time_stamp,
-            'is_deleted': self.is_deleted,
-            'top_category_folder_id': self.top_category_folder_id        
-        }
-        
-class Files(db.Model):
-    __tablename__ = 'files'
-    file_id = db.Column(db.Integer, primary_key=True)
-    folder_id = db.Column(db.Integer, db.ForeignKey('folders.folder_id'))
-    file_name = db.Column(db.Text)
-    file_type = db.Column(db.String(10))
-    file_size = db.Column(db.BigInteger)
-    file_path = db.Column(db.Text)
-    create_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    update_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    time_stamp = db.Column(db.BigInteger)
-    is_deleted = db.Column(db.Boolean, default=False)
-
-    def to_dict(self):
-        return {
-            'file_id': self.file_id,
-            'folder_id': self.folder_id,
-            'file_name': self.file_name,
-            'file_type': self.file_type,
-            'file_size': self.file_size,
-            'file_path': self.file_path,
-            'create_at': self.create_at,
-            'update_at': self.update_at,
-            'time_stamp': self.time_stamp,
-            'is_deleted': self.is_deleted
-       
-        }
-'''
 class ContentManager(db.Model):
     __tablename__ = 'content_manager'
     

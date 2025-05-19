@@ -263,6 +263,9 @@
         let contentData = [];
         let fileData = {};
         
+        // Content hierarchy cache
+        let contentHierarchy = null;
+        
         // DOM 요소
         const contentListElement = document.getElementById('content-list');
         const fileListBodyElement = document.getElementById('file-list-body');
@@ -271,6 +274,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             fetchContentList();
             setupFilterHandlers();
+            // Fetch the content hierarchy in the background
+            fetchContentHierarchy();
         });
         
         // 필터 핸들러 설정
@@ -283,6 +288,170 @@
                     }
                 });
             });
+        }
+        
+        // Content hierarchy functions
+        
+        /**
+         * Fetch the complete content hierarchy from the API
+         * @param {boolean} refresh - Whether to force a refresh of the hierarchy
+         * @returns {Promise<Object>} - The content hierarchy
+         */
+        async function fetchContentHierarchy(refresh = false) {
+            try {
+                // If we already have the hierarchy and don't need to refresh, return it
+                if (contentHierarchy && !refresh) {
+                    return contentHierarchy;
+                }
+                
+                const response = await fetch(`/api/contents/hierarchy${refresh ? '?refresh=true' : ''}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch content hierarchy: ${response.status}`);
+                }
+                
+                contentHierarchy = await response.json();
+                console.log('Content hierarchy loaded:', contentHierarchy);
+                return contentHierarchy;
+            } catch (error) {
+                console.error('Error fetching content hierarchy:', error);
+                return null;
+            }
+        }
+        
+        /**
+         * Get the children of a channel
+         * @param {number} channelId - The ID of the channel
+         * @returns {Promise<Array<number>>} - IDs of the folders in the channel
+         */
+        async function getChannelChildren(channelId) {
+            try {
+                const response = await fetch(`/api/contents/channel/children?channel_id=${channelId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch channel children: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.folder_ids || [];
+            } catch (error) {
+                console.error(`Error fetching children for channel ${channelId}:`, error);
+                return [];
+            }
+        }
+        
+        /**
+         * Get the children of a folder
+         * @param {number} folderId - The ID of the folder
+         * @returns {Promise<Object>} - Object with folder children or page children and isLeafFolder flag
+         */
+        async function getFolderChildren(folderId) {
+            try {
+                const response = await fetch(`/api/contents/folder/children?folder_id=${folderId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch folder children: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching children for folder ${folderId}:`, error);
+                return { is_leaf_folder: true, count: 0, page_ids: [] };
+            }
+        }
+        
+        /**
+         * Get the full path to a file
+         * @param {number} fileId - The ID of the file
+         * @returns {Promise<Object>} - Path information for the file
+         */
+        async function getFilePath(fileId) {
+            try {
+                const response = await fetch(`/api/contents/file/${fileId}/path`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch file path: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching path for file ${fileId}:`, error);
+                return null;
+            }
+        }
+        
+        /**
+         * Find a node in the hierarchy by its ID and type
+         * @param {string} type - The type of node ('channel', 'folder', or 'page')
+         * @param {number} id - The ID of the node
+         * @returns {Object|null} - The node, or null if not found
+         */
+        function findNodeInHierarchy(type, id) {
+            if (!contentHierarchy) {
+                return null;
+            }
+            
+            if (type === 'channel') {
+                return contentHierarchy.channels.find(c => c.id === id) || null;
+            }
+            
+            // For folders and pages, we need to search through the hierarchy
+            for (const channel of contentHierarchy.channels) {
+                const result = findNodeInChannel(channel, type, id);
+                if (result) {
+                    return result;
+                }
+            }
+            
+            return null;
+        }
+        
+        /**
+         * Recursively search for a node within a channel
+         * @param {Object} channel - The channel to search in
+         * @param {string} type - The type of node ('folder' or 'page')
+         * @param {number} id - The ID of the node
+         * @returns {Object|null} - The node, or null if not found
+         */
+        function findNodeInChannel(channel, type, id) {
+            if (type === 'folder') {
+                for (const folder of channel.folders) {
+                    if (folder.id === id) {
+                        return folder;
+                    }
+                    
+                    // Search in subfolders
+                    const result = findNodeInFolder(folder, type, id);
+                    if (result) {
+                        return result;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        /**
+         * Recursively search for a node within a folder
+         * @param {Object} folder - The folder to search in
+         * @param {string} type - The type of node ('folder' or 'page')
+         * @param {number} id - The ID of the node
+         * @returns {Object|null} - The node, or null if not found
+         */
+        function findNodeInFolder(folder, type, id) {
+            if (type === 'folder') {
+                for (const subfolder of folder.subfolders) {
+                    if (subfolder.id === id) {
+                        return subfolder;
+                    }
+                    
+                    // Recursive search
+                    const result = findNodeInFolder(subfolder, type, id);
+                    if (result) {
+                        return result;
+                    }
+                }
+            } else if (type === 'page') {
+                return folder.pages.find(p => p.id === id) || null;
+            }
+            
+            return null;
         }
         
         // 콘텐츠 목록 가져오기
