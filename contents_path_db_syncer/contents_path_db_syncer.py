@@ -131,9 +131,14 @@ def process_contents(root):
         if os.path.isdir(ch_path):
             # 채널 등록
             print(insert_channel(channel_id, ch))
-            # 채널 하위 폴더부터 탐색 (parent_id=None)
+
+            # 채널의 하위 폴더부터 탐색
             process_folder.parent_id = None
-            process_folder(ch_path, channel_id)
+            for subfolder in sorted(os.listdir(ch_path)):
+                subfolder_path = os.path.join(ch_path, subfolder)
+                if os.path.isdir(subfolder_path):
+                    process_folder(subfolder_path, channel_id)
+
             channel_id += 1
 
 # ==== 실행 예 ====
