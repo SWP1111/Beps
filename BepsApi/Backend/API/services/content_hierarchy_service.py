@@ -1,6 +1,6 @@
 import logging
-from models import ContentRelChannels, ContentRelFolders, ContentRelPages
-from extensions import db, cache
+from ..models import ContentRelChannels, ContentRelFolders, ContentRelPages
+from ..extensions import db, cache
 from typing import Dict, List, Optional, Tuple, Any
 
 class ContentHierarchyService:

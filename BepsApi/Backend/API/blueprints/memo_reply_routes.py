@@ -1,6 +1,7 @@
+from ..extensions import db
 from flask import Blueprint, jsonify, request
-from extensions import db
-from models import MemoReply, MemoData, Users
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ..models import MemoReply, MemoData, Users
 import logging
 from datetime import datetime, timezone
 
