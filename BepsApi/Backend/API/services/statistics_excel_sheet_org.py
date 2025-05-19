@@ -36,14 +36,14 @@ def get_statistics_org_data(period_type, period_value, filter_type, filter_value
     }
     
     for company, departments in users.items():
-        if filter_type in ('all', 'comapany'):
+        if filter_type in ('all', 'company'):
             user_list = [user['user_id'] for department_user_list in departments.values()
                          for user in department_user_list]
             channel_duration_map,channel_memo_map = config_channel_memo_map(user_list, total_learning_time_by_users, memo_count_per_category_by_users)              
             company_row = base_row.copy()
             company_row['company'] = company
             
-            company_rows = config_rows(company_row, channel_duration_map, channel_memo_map)
+            company_rows = config_rows(company_row, channel_duration_map, channel_memo_map, len(user_list))
             results.extend(company_rows)
         
         for department, users in departments.items():
@@ -54,7 +54,7 @@ def get_statistics_org_data(period_type, period_value, filter_type, filter_value
                 department_row['company'] = company
                 department_row['department'] = department
                 
-                department_rows = config_rows(department_row, channel_duration_map, channel_memo_map)
+                department_rows = config_rows(department_row, channel_duration_map, channel_memo_map, len(user_list))
                 results.extend(department_rows)
             
             for user in users:
@@ -66,7 +66,7 @@ def get_statistics_org_data(period_type, period_value, filter_type, filter_value
                 user_row['user_id'] = user_id
                 user_row['name'] = user['name']
                 
-                user_rows = config_rows(user_row, channel_duration_map, channel_memo_map)
+                user_rows = config_rows(user_row, channel_duration_map, channel_memo_map, 1)
                 results.extend(user_rows)
                             
     return results
@@ -275,7 +275,7 @@ def config_channel_memo_map(user_list,total_learning_time_by_users, memo_count_p
     
     return channel_duration_map, channel_memo_map
 
-def config_rows(base_row, channel_duration_map, channel_memo_map):
+def config_rows(base_row, channel_duration_map, channel_memo_map, user_count):
     """
     채널 맵을 설정하는 함수
     """
@@ -295,7 +295,7 @@ def config_rows(base_row, channel_duration_map, channel_memo_map):
 
     if rows:
         total_str = f"{int(total_learning_time // 3600):02}시간{int((total_learning_time % 3600) // 60):02}분{int(total_learning_time % 60):02}초" 
-        avg_sec = total_learning_time 
+        avg_sec = total_learning_time / user_count
         avg_str = f"{int(avg_sec // 3600):02}시간{int((avg_sec % 3600) // 60):02}분{int(avg_sec % 60):02}초"
         rows[0]['total_learning_time'] = total_str
         rows[0]['avg_learning_time'] = avg_str

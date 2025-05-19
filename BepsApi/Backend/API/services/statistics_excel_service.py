@@ -145,12 +145,13 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     
     df_user = None
     if(filter_type == 'user'): 
+        user_rows = []
         users = get_statistics_user_data(period_type, period_value, filter_value)  # 사용자 통계 데이터 가져오기
         if users:
-            prev_id = None
+            prev_company = prev_id = None
             for u in users:
                 row = {
-                    '회사': '',
+                    '회사': u['company'] if u['company'] != prev_company else '',
                     '이름' : u['user_name'] if u['user_id'] != prev_id else '',
                     '파일명': u['full_name'],
                     '시작 시간': u['start_time'],
@@ -159,8 +160,11 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
                     '의견서 작성 수': f'{u['memo_count']}건',
                     'IP': u['ip_address'],
                 }
-            
-    
+                user_rows.append(row)
+                prev_company = u['company']
+                prev_id = u['user_id']
+                
+        df_user = pd.DataFrame(user_rows)     
          
     excel_path = f"{path}/{filename}.xlsx"
     logging.debug(f"엑셀 파일 저장 경로: {excel_path}")

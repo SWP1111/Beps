@@ -64,15 +64,20 @@
       <div id="content-html"></div>
     </div>
   
+    <div id="sheet-org" class="sheet" style="display:none;">
+      <div id="org-html"></div>
+      <div id="org-pagination" style="display: flex; justify-content: center; text-align: center; margin-top: 10px; margin-bottom: 80px; gap: 5px;"></div>
+    </div>
+
     <div id="sheet-user" class="sheet" style="display:none;">
       <div id="user-html"></div>
-      <div id="user-pagination" style="display: flex; justify-content: center; text-align: center; margin-top: 10px; margin-bottom: 80px; gap: 5px;"></div>
     </div>
   
     <!-- 하단 시트 버튼 -->
     <div id="sheet-tabs" style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; display: flex; gap: 10px;">
       <button onclick="showSheet('content')" class="tab-btn active">전체컨텐츠</button>
-      <button onclick="showSheet('user')" class="tab-btn">회사&팀&직원</button>
+      <button onclick="showSheet('org')" class="tab-btn">회사&팀&직원</button>
+      <button id="user_tab_btn" onclick="showSheet('user')" class="tab-btn" style="display: none;">개인</button>
     </div>
 
   <script>
@@ -109,7 +114,10 @@
         insertIframe('content-html', data.content_html_name);
         userHtmlFile = data.org_html_name.split('/').pop();
         loadUserHtmlPage(1);
-        //insertIframe('user-html', data.user_html_name);
+        if (data.user_html_name) {
+          insertIframe('user-html', data.user_html_name);
+          document.getElementById("user_tab_btn").style.display = "inline-block";
+        }
       })
       .catch(() => {
         document.body.innerHTML = '<p>통계 데이터를 불러오지 못했습니다.</p>';
@@ -121,6 +129,7 @@
     function showSheet(type) {
     // 콘텐츠 토글
     document.getElementById('sheet-content').style.display = type === 'content' ? 'block' : 'none';
+    document.getElementById('sheet-org').style.display = type === 'org' ? 'block' : 'none';
     document.getElementById('sheet-user').style.display = type === 'user' ? 'block' : 'none';
     
     // 버튼 상태 갱신
@@ -147,7 +156,7 @@
       const topOffset = document.getElementById('sheet-tabs').offsetHeight + 160;
       const height = window.innerHeight - topOffset- 80;
     
-      document.querySelectorAll('#content-html iframe, #user-html iframe').forEach(iframe => {
+      document.querySelectorAll('#content-html iframe, #org-html iframe #user-html iframe').forEach(iframe => {
         iframe.style.height = `${height}px`;
       });
     }
@@ -176,17 +185,17 @@
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          document.getElementById("user-html").innerHTML = data.html;
+          document.getElementById("org-html").innerHTML = data.html;
           totalPages = data.total_page;
           renderPagination(page);
         })
         .catch(() => {
-          document.getElementById("user-html").innerHTML = "<p>불러오기 실패</p>";
+          document.getElementById("org-html").innerHTML = "<p>불러오기 실패</p>";
         });
     }
 
     function renderPagination(currentPage) {
-      const container = document.getElementById("user-pagination");
+      const container = document.getElementById("org-pagination");
       container.innerHTML = "";
     
       for (let i = 1; i <= totalPages; i++) {
