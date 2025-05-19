@@ -4,7 +4,7 @@ import log_config
 from flask_jwt_extended import JWTManager
 from flask import Flask, request
 from config import Config
-from extensions import db, jwt
+from extensions import db, jwt, cache
 from blueprints import register_blueprints
 import traceback
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -44,7 +44,9 @@ def create_app():
     # JWT 초기화
     jwt.init_app(app)   
     # DB 초기화
-    db.init_app(app)   
+    db.init_app(app)
+    # Cache 초기화
+    cache.init_app(app)
     # 블루프린트 등록(API 등록)
     register_blueprints(app)
     # 스케줄러 초기화
