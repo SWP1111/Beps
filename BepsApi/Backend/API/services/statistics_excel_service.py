@@ -7,6 +7,7 @@ import time
 import traceback
 from config import Config
 from services.statistics_excel_sheet_content import get_statistics_data, format_seconds_to_hhmmss
+from services.statistics_excel_sheet_org import get_statistics_org_data
 from services.statistics_excel_sheet_user import get_statistics_user_data
 
 STYLE = """
@@ -108,11 +109,11 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     
     df = pd.DataFrame(rows)
     
-    usres = get_statistics_user_data(period_type, period_value, filter_type, filter_value)  # 사용자 통계 데이터 가져오기    
-    user_rows = []
-    if usres:
+    orgs = get_statistics_org_data(period_type, period_value, filter_type, filter_value)  # 조직 통계 데이터 가져오기    
+    org_rows = []
+    if orgs:
         prev_company = prev_department = prev_id = None
-        for u in usres:
+        for u in orgs:
             company = u['company']
             department = u['department']
             user_id = u['user_id']
@@ -134,20 +135,28 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
                 row['총학습시간'] = u['total_learning_time']
                 row['평균학습시간'] = u['avg_learning_time']
             
-            user_rows.append(row)
+            org_rows.append(row)
             prev_company = company
             prev_department = department
             prev_id = user_id
             
-    df_user = pd.DataFrame(user_rows)
-        
+    df_org = pd.DataFrame(org_rows)
+   
+    
+    df_user = None
+    if(filter_type == 'user'): 
+        users = get_statistics_user_data(period_type, period_value, filter_value)  # 사용자 통계 데이터 가져오기
+    
+         
     excel_path = f"{path}/{filename}.xlsx"
     logging.debug(f"엑셀 파일 저장 경로: {excel_path}")
     os.makedirs(path, exist_ok=True)  # 디렉토리 생성
     
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='전체컨텐츠',index=False,startrow=2)
-        df_user.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=2)
+        df_org.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=2)
+        if df_user is not None:
+            df_user.to_excel(writer, sheet_name='개인',index=False,startrow=2)
         
         ws = writer.sheets['전체컨텐츠']
         ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
@@ -157,21 +166,31 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
         ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
     
     df_content_html = generate_html_with_style(df) #df.to_html(index=False, classes='content_table', border=1)
-    df_user_html = generate_html_with_style(df_user) #df_user.to_html(index=False, classes='user_table', border=1)
+    df_org_html = generate_html_with_style(df_org) #df_org.to_html(index=False, classes='user_table', border=1)
+    df_user_html = None
+    if df_user is not None:
+        df_user_html = generate_html_with_style(df_user)
     
     content_html_path = os.path.join(path, f"{filename}_content.html")
-    user_html_path = os.path.join(path, f"{filename}_user.html")
-    
+    org_html_path = os.path.join(path, f"{filename}_org.html")
+    user_html_path = None
+    if df_user_html is not None:
+        user_html_path = os.path.join(path, f"{filename}_user.html")
+        
     with open(content_html_path, 'w', encoding='utf-8') as f:
         f.write(df_content_html)
-    with open(user_html_path, 'w', encoding='utf-8') as f:
-        f.write(df_user_html)
+    with open(org_html_path, 'w', encoding='utf-8') as f:
+        f.write(df_org_html)
+    if user_html_path is not None:
+        with open(user_html_path, 'w', encoding='utf-8') as f:
+            f.write(df_user_html)
     
-    logging.debug(f"HTML 파일 저장 경로: {content_html_path}, {user_html_path}")
+    logging.debug(f"HTML 파일 저장 경로: {content_html_path}, {org_html_path}, {user_html_path}")
     return {
         'excel_path': excel_path,
         'html_content_name': f"{filename}_content.html",
-        'html_user_name': f"{filename}_user.html"
+        'html_org_name': f"{filename}_org.html",
+        'html_user_name': f"{filename}_user.html" if user_html_path is not None else None,
     }
     
 

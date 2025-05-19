@@ -44,7 +44,16 @@ router.get(`/${service_type}/list-directories`, async (req, res) => {
     `;
 
     const result = await pool.query(query);
-    res.json(result.rows); // [{ id: 1, name: '채널1' }, { id: 2, name: '채널2' }, ...]
+
+    // 숫자 추출 후 오름차순 정렬
+    const sorted = result.rows.sort((a, b) => {
+      const numA = parseInt(a.name.split('_')[0]) || 0;
+      const numB = parseInt(b.name.split('_')[0]) || 0;
+      return numA - numB;
+    });
+
+    res.json(sorted);
+
     console.log(`/${service_type}/list-directories`);
   } catch (err) {    
     res.status(500).json({ message: '채널 정보를 불러올 수 없어요.' });
@@ -59,41 +68,117 @@ router.get('/list-directories/*', authenticateJwtHeader, (req, res) => {
   res.json(getDirectoryTree(folderPath));
 });
 
+// 하위 폴더 재귀 조회
+async function getSubFolders(parentId, channelId) {
+  const query = parentId === null
+    ? `SELECT * FROM content_rel_folders WHERE parent_id IS NULL AND channel_id = $1 AND is_deleted = false`
+    : `SELECT * FROM content_rel_folders WHERE parent_id = $1 AND channel_id = $2 AND is_deleted = false`;
+
+  const params = parentId === null ? [channelId] : [parentId, channelId];
+  const { rows: folders } = await pool.query(query, params);
+
+  folders.sort((a, b) => {
+    const numA = parseInt(a.name.split('_')[0], 10) || 0;
+    const numB = parseInt(b.name.split('_')[0], 10) || 0;
+    return numA - numB;
+  });
+
+  for (const folder of folders) {
+    //folder.attributes = { ...folder };
+    delete folder.folders;
+    delete folder.pages;
+
+    folder.folders = await getSubFolders(folder.id, channelId);
+    folder.pages = await getPages(folder.id);
+
+    if (folder.pages && folder.pages.length) {
+      folder.pages.sort((a, b) => {
+        const numA = parseInt(a.attributes.name.split('_')[0], 10) || 0;
+        const numB = parseInt(b.attributes.name.split('_')[0], 10) || 0;
+        return numA - numB;
+      });
+    }
+
+    // folders, pages가 비어있으면 삭제 (선택사항)
+    if (folder.folders.length === 0) delete folder.folders;
+    if (folder.pages.length === 0) delete folder.pages;
+
+    // attributes 외의 프로퍼티 제거
+    for (const key of Object.keys(folder)) {
+      if (key !== 'attributes' && key !== 'folders' && key !== 'pages') {
+        delete folder[key];
+      }
+    }
+  }
+
+  return folders;
+}
+
+// 폴더에 속한 페이지만 불러오기 (page_detail 제외)
+async function getPages(folderId) {
+  const { rows: pages } = await pool.query(
+    `SELECT * FROM content_rel_pages WHERE folder_id = $1 AND is_deleted = false`,
+    [folderId]
+  );
+
+  // pages 배열 내 각 항목도 attributes로 감싸기
+  return pages.map(page => {
+    return { attributes: page };
+  });
+}
+
+// 채널 ID로 전체 구조 반환
+async function getStructureByChannel(channelId) {
+  const { rows: channels } = await pool.query(
+    `SELECT * FROM content_rel_channels WHERE id = $1 AND is_deleted = false`,
+    [channelId]
+  );
+
+  if (channels.length === 0) {
+    throw new Error('채널을 찾을 수 없어요');
+  }
+
+  // 채널 정보는 반환하지 않고 최상위가 폴더 목록임을 명확히 함
+  const folders = await getSubFolders(null, channelId);
+
+  return {
+    folders
+  };
+}
+
+
+/*
 router.get(`/${service_type}/list-directories/*`, async (req, res) => {
+  const channelId = req.params[0];
+
+  if (!channelId) {
+    return res.status(400).json({ error: 'channelId를 쿼리로 전달해주세요.' });
+  }
+
   try {
-    const id = parseInt(req.params[0], 10); // 문자열을 정수로 바꿔요
-    console.log(`id = ${id}`);
-
-    if (isNaN(id)) {
-      return res.status(400).json({ message: '올바르지 않은 ID입니다.' });
-    }
-
-    const query = `
-SELECT
-  ch.name AS channel_name,
-  fo.id AS folder_id,
-  fo.name AS folder_name,
-  pg.id AS page_id,
-  pg.name AS page_name
-FROM content_rel_channels ch
-JOIN content_rel_folders fo ON fo.channel_id = ch.id AND fo.is_deleted = false
-JOIN content_rel_pages pg ON pg.folder_id = fo.id AND pg.is_deleted = false
-WHERE ch.id = $1
-  AND ch.is_deleted = false;
-    `;
-
-    const result = await pool.query(query, [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: '해당 ID의 채널을 찾을 수 없어요.' });
-    }
-
-    res.json(result.rows); // 하나만 반환
-  } catch (err) {
-    console.error('채널 데이터 조회 중 오류:', err);
-    res.status(500).json({ message: '채널 정보를 불러올 수 없어요.' });
+    const structure = await getChannelStructure(parseInt(channelId));
+    res.json(structure);
+  } catch (error) {
+    console.error('에러 발생:', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
+*/
+router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
+  const channelId = parseInt(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: 'channelId를 URL 파라미터로 전달해주세요.' });
+  }
+
+  try {
+    const structure = await getStructureByChannel(channelId);
+    res.json(structure);
+  } catch (error) {
+    console.error('에러 발생:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // 해당 페이지 보기
 router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.static(CONSTANTS.CONTENTS_DIR, {

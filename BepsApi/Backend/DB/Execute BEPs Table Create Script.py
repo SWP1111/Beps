@@ -54,43 +54,6 @@ cursor = connection.cursor()
 
 try:
 
-    #region contents 테이블  - 제거
-    contents_queries = """
-        create table public.contents (
-        content_id integer not null,
-        content_name text not null,
-        is_active boolean,
-        description text,
-        time_stamp bigint,
-        constraint contents_pkey primary key (content_id),
-        constraint content_name unique (content_name)
-        );
-        """
-    
-    # contents_content_id_seq 시퀀스 생성 쿼리
-    contents_sequence = [
-        """
-        create sequence public.contents_content_id_seq
-        as integer
-        start with 1
-        increment by 1
-        no minvalue
-        no maxvalue
-        cache 1;
-        """,
-        """
-        alter sequence public.contents_content_id_seq owned by public.contents.content_id;
-        """,
-        """
-        alter table only public.contents alter column content_id set default nextval('public.contents_content_id_seq'::regclass);
-        """,
-        # """
-        # select pg_catalog.setval('public.contents_content_id_seq', 1, false);
-        # """,
-    ]
-
-    #endregion
-
     #region content_access_groups 테이블
     content_access_groups_queries =  """
         CREATE TABLE IF NOT EXISTS public.content_access_groups (
@@ -127,83 +90,6 @@ try:
 
     #endregion
     
-    #region folders 테이블
-    folders_queries = [
-        """
-        CREATE TABLE public.folders (
-            folder_id SERIAL NOT NULL PRIMARY KEY,                                              -- 폴더 ID
-            parent_id integer NULL REFERENCES folders(folder_id) ON DELETE CASCADE,             -- 상위 폴더 ID
-            folder_name text NOT NULL,                                                          -- 폴더 이름
-            depth smallint NOT NULL,                                                            -- 폴더 깊이    
-            is_visible boolean DEFAULT TRUE,                                                    -- 폴더 표시 여부
-            folder_type varchar(20) DEFAULT 'normal' CHECK (folder_type IN ('normal', 'meta')), -- 폴더 타입
-            is_deleted boolean DEFAULT FALSE,
-            create_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,                                      
-            update_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-            top_category_folder_id INTEGER,                                                         -- 카테고리 폴더 ID
-            time_stamp bigint
-            );           
-        """,
-        """
-        CREATE INDEX icx_folders_parent_id ON folders(parent_id);
-        """
-    ]
-    #endregion
-    
-    #region files 테이블
-    files_queries = [
-        """
-        CREATE TABLE public.files (
-            file_id SERIAL NOT NULL,                                            -- 파일 ID
-            folder_id integer REFERENCES folders(folder_id) ON DELETE CASCADE,  -- 폴더 ID
-            file_name text NOT NULL,                                            -- 파일 이름
-            file_type varchar(10) NOT NULL,                                     -- 파일 타입(확장자)
-            file_size bigint NOT NULL,                                          -- 파일 크기
-            file_path text,                                                     -- 파일 경로
-            create_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-            update_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-            time_stamp bigint,
-            is_deleted boolean DEFAULT FALSE,
-            CONSTRAINT files_pkey PRIMARY KEY (file_id)
-        );
-        """,
-        """
-        CREATE INDEX icx_files_folder_id ON files(folder_id);
-        """
-    ]
-    #endregion
-
-    #region filedata 테이블
-    filedata_queries = """
-        CREATE TABLE public.filedata (
-            file_id integer NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,   -- 파일 ID
-            data bytea NOT NULL,                                                    -- 파일 데이터
-            time_stamp bigint,
-            CONSTRAINT filedata_pkey PRIMARY KEY (file_id)
-        );
-    """
-    #endregion
-
-    #region metadata 테이블
-    metadata_queries = [
-        """
-        CREATE TABLE public.metadata (
-            metadata_id SERIAL NOT NULL,                                            -- 메타데이터 ID        
-            metadata_type varchar(10) NOT NULL,                                     -- 메타데이터 타입(json, xml)    
-            metadata_purpose VARCHAR(50) NOT NULL,                                  -- 메타데이터 용도(detail, resources)
-            data jsonb NOT NULL,                                                    -- 메타데이터
-            file_id integer NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,   -- 파일 ID
-            time_stamp bigint,
-            CONSTRAINT metadata_pkey PRIMARY KEY (metadata_id)
-        );
-        """,
-        """
-        CREATE INDEX icx_metadata_metadata_name ON metadata(file_id);
-        """     
-    ]
-
-    #endregion
-
     #region access_group_contents 테이블
     access_group_contents_queries ="""
         CREATE TABLE IF NOT EXISTS public.access_group_contents (
@@ -413,24 +299,9 @@ try:
         """,
          """
         CREATE TRIGGER set_timestamp_contentaccessgroups BEFORE INSERT OR UPDATE ON public.content_access_groups FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        """,
-        # """
-        # CREATE TRIGGER set_timestamp_contents BEFORE INSERT OR UPDATE ON public.contents FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        # """,
+        """,    
         """
         CREATE TRIGGER set_timestamp_roles BEFORE INSERT OR UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        """,
-        """
-        CREATE TRIGGER set_timestamp_folders BEFORE INSERT OR UPDATE ON public.folders FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        """,
-        """
-        CREATE TRIGGER set_timestamp_files BEFORE INSERT OR UPDATE ON public.files FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        """,
-        """
-        CREATE TRIGGER set_timestamp_metadata BEFORE INSERT OR UPDATE ON public.metadata FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-        """,
-        """
-        CREATE TRIGGER set_timestamp_filedata BEFORE INSERT OR UPDATE ON public.filedata FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
         """,
         """
         CREATE TRIGGER set_timestamp_content_viewing_history BEFORE INSERT OR UPDATE ON public.content_viewing_history FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
@@ -560,18 +431,18 @@ try:
         department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
         user_id TEXT,                       -- scope가 개인인 경우
         user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
-        folder_id INTEGER,                  -- 폴더 ID
-        folder_name TEXT,                -- 폴더 이름
+        channel_id INTEGER,                  -- 채널 ID
+        channel_name TEXT,                -- 채널 이름
         total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
               
         --가상 키(NULL 대체용)
         company_key TEXT GENERATED ALWAYS AS (COALESCE(company, '')) STORED,         -- company_id가 주어지면  COALESCE(company_id, -1)로 대체. -1은 NULL을 대체하기 위한 값으로 실제 칼럼에 사용되지 않는 값.
         department_key TEXT GENERATED ALWAYS AS (COALESCE(department, '')) STORED,   -- department_id가 주어지면 COALESCE(department_id, -1)로 대체. -1은 NULL을 대체하기 위한 값으로 실제 칼럼에 사용되지 않는 값.
         user_id_key TEXT GENERATED ALWAYS AS (COALESCE(user_id, '')) STORED,
-        folder_key TEXT GENERATED ALWAYS AS (COALESCE(folder_id, '-1')) STORED,
+        channel_key TEXT GENERATED ALWAYS AS (COALESCE(channel_id, '-1')) STORED,
         
         --제약 조건
-        CONSTRAINT pk_learning_summary_day PRIMARY KEY (stat_date , scope, company_key, department_key, user_id_key, folder_key)
+        CONSTRAINT pk_learning_summary_day PRIMARY KEY (stat_date , scope, company_key, department_key, user_id_key, channel_key)
     ) PARTITION BY RANGE (stat_date);
     """,
     """
@@ -597,18 +468,18 @@ try:
         department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
         user_id TEXT,                       -- scope가 개인인 경우
         user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
-        folder_id INTEGER,                  -- 폴더 ID
-        folder_name TEXT,                -- 폴더 이름
+        channel_id INTEGER,                  -- 채널 ID
+        channel_name TEXT,                -- 채널 이름
         total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
                          
         --가상 키(NULL 대체용)
         company_key TEXT GENERATED ALWAYS AS (COALESCE(company, '')) STORED,         -- company_id가 주어지면  COALESCE(company_id, -1)로 대체. -1은 NULL을 대체하기 위한 값으로 실제 칼럼에 사용되지 않는 값.
         department_key TEXT GENERATED ALWAYS AS (COALESCE(department, '')) STORED,   -- department_id가 주어지면 COALESCE(department_id, -1)로 대체. -1은 NULL을 대체하기 위한 값으로 실제 칼럼에 사용되지 않는 값.
         user_id_key TEXT GENERATED ALWAYS AS (COALESCE(user_id, '')) STORED,
-        folder_key TEXT GENERATED ALWAYS AS (COALESCE(folder_id, '-1')) STORED,
+        channel_key TEXT GENERATED ALWAYS AS (COALESCE(channel_id, '-1')) STORED,
         
         --제약 조건
-        CONSTRAINT pk_learning_summary_agg PRIMARY KEY (period_value , scope, company_key, department_key, user_id_key, folder_key)
+        CONSTRAINT pk_learning_summary_agg PRIMARY KEY (period_value , scope, company_key, department_key, user_id_key, channel_key)
     );
     """,
     """
@@ -745,12 +616,6 @@ try:
     
         
     queries = [
-        #contents_queries, 
-        #contents_sequence, 
-        #folders_queries,
-        #files_queries,
-        #filedata_queries,
-        #metadata_queries,
         content_access_groups_queries, 
         content_access_groups_sequence, 
         access_group_contents_queries, 

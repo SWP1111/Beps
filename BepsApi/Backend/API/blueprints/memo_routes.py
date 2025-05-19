@@ -252,12 +252,12 @@ def memo_rank():
         utc_end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)                  
         
         base_query = """
-            SELECT m.file_id AS item, COUNT(*) AS cnt, f.file_path AS path
+            SELECT m.file_id AS item, COUNT(*) AS cnt, f.name AS path
             FROM memos m
             JOIN users u ON m.user_id = u.id
-            JOIN files f ON m.file_id = f.file_id
+            JOIN content_rel_pages f ON m.file_id = f.id
             WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.file_id IS NOT NULL AND {filter_clause}
-            GROUP BY m.file_id, f.file_path
+            GROUP BY m.file_id, f.name
             ORDER BY cnt DESC
             LIMIT 5
             """

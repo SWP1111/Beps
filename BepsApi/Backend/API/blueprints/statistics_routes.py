@@ -19,13 +19,14 @@ def preview_statistics():
     filter_type = request.args.get('filter_type')
     filter_value = request.args.get('filter_value')
     
-    start_date, end_date = get_period_value(period_type, period_value)
+    # start_date, end_date = get_period_value(period_type, period_value)
     filename = str(uuid.uuid4()) 
     result = export_statistics_to_excel(Config.UPLOAD_DIR, filename, period_type, period_value, filter_type, filter_value)  # 엑셀 파일 생성
     return jsonify({
         'filename': result['excel_path'],
         'content_html_name': f'statistics/preview/html/{result['html_content_name']}',
-        'user_html_name': f'statistics/preview/html/{result['html_user_name']}'
+        'org_html_name': f'statistics/preview/html/{result['html_org_name']}',
+        'user_html_name': f'statistics/preview/html/{result['html_user_name']}' if result['html_user_name'] is not None else None,
     })
     
 @api_statistics_bp.route('/preview/html/<path:filename>', methods=['GET'])
