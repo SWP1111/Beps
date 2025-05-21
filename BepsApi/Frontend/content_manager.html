@@ -184,6 +184,11 @@
             white-space: nowrap;
         }
         
+        .file-name-content {
+            display: flex;
+            align-items: center;
+        }
+        
         .new-badge {
             display: inline-block;
             background-color: #3f51b5;
@@ -660,7 +665,7 @@
             
             // 폴더 렌더링
             folders.forEach(folder => {
-                const folderNode = createFolderNode(folder);
+                const folderNode = createFolderNode(folder, 0);
                 treeRoot.appendChild(folderNode);
             });
             
@@ -668,7 +673,7 @@
         }
         
         // 폴더 노드 생성 (재귀 함수)
-        function createFolderNode(folder) {
+        function createFolderNode(folder, depth = 0) {
             const folderLi = document.createElement('li');
             folderLi.className = 'tree-node';
             folderLi.dataset.id = folder.id;
@@ -712,7 +717,7 @@
                 filteredSubfolders.sort((a, b) => a.name.localeCompare(b.name));
                 
                 filteredSubfolders.forEach(subfolder => {
-                    const subfolderNode = createFolderNode(subfolder);
+                    const subfolderNode = createFolderNode(subfolder, depth + 1);
                     contentUl.appendChild(subfolderNode);
                 });
             }
@@ -751,22 +756,27 @@
                     const fileNameDiv = document.createElement('div');
                     fileNameDiv.className = 'file-name';
                     
-                    // 서브폴더와 동일한 들여쓰기를 위한 패딩 추가
-                    fileNameDiv.style.paddingLeft = '20px';
+                    // 내부 컨테이너 생성하여 패딩 적용 (깊이에 따른 들여쓰기)
+                    const fileNameContent = document.createElement('div');
+                    fileNameContent.className = 'file-name-content';
+                    // 깊이별 들여쓰기 계산 (각 깊이 레벨당 20px)
+                    fileNameContent.style.paddingLeft = `${(depth + 1) * 20}px`;
                     
                     const fileIcon = document.createElement('span');
                     fileIcon.className = 'file-icon';
                     fileIcon.innerHTML = '&#128196;';
                     
-                    fileNameDiv.appendChild(fileIcon);
-                    fileNameDiv.appendChild(document.createTextNode(page.name || '제목 없음'));
+                    fileNameContent.appendChild(fileIcon);
+                    fileNameContent.appendChild(document.createTextNode(page.name || '제목 없음'));
                     
                     if (page.is_new) {
                         const newBadge = document.createElement('span');
                         newBadge.className = 'new-badge';
                         newBadge.textContent = 'NEW';
-                        fileNameDiv.appendChild(newBadge);
+                        fileNameContent.appendChild(newBadge);
                     }
+                    
+                    fileNameDiv.appendChild(fileNameContent);
                     
                     const downloadIcon = document.createElement('span');
                     downloadIcon.className = 'download-icon';
