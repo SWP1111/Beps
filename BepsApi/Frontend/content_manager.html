@@ -629,6 +629,9 @@
                 return;
             }
             
+            // 폴더를 이름 기준 오름차순으로 정렬
+            folders.sort((a, b) => a.name.localeCompare(b.name));
+            
             // 트리 구조 생성
             const treeRoot = document.createElement('ul');
             treeRoot.className = 'tree-view';
@@ -683,6 +686,9 @@
                     folderMatchesFilter(subfolder)
                 );
                 
+                // 서브폴더를 이름 기준 오름차순으로 정렬
+                filteredSubfolders.sort((a, b) => a.name.localeCompare(b.name));
+                
                 filteredSubfolders.forEach(subfolder => {
                     const subfolderNode = createFolderNode(subfolder);
                     contentUl.appendChild(subfolderNode);
@@ -707,6 +713,9 @@
                            (filters.approved && page.status === '승인') ||
                            (filters.updated && page.status === '업데이트');
                 });
+                
+                // 파일을 이름 기준 오름차순으로 정렬
+                filteredFiles.sort((a, b) => (a.name || '제목 없음').localeCompare(b.name || '제목 없음'));
                 
                 filteredFiles.forEach(page => {
                     const fileLi = document.createElement('li');
