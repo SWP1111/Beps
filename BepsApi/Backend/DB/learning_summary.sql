@@ -13,17 +13,12 @@ BEGIN
         v_start_value, 'all', c.id, c.name,SUM(cvh.stay_duration) AS total_duration
     FROM content_viewing_history_view cvh
      -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
-    LEFT JOIN (
-        SELECT id, folder_id
-        FROM content_rel_pages
-        UNION ALL
-        SELECT dt.id, pg.folder_id
-        FROM content_rel_page_details dt
-        JOIN content_rel_pages pg ON dt.page_id = pg.id
-    ) f ON f.id = cvh.file_id
+    LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
+    LEFT JOIN content_rel_page_details d ON cvh.file_type = 'detail' AND cvh.file_id = d.id
+    LEFT JOIN content_rel_pages dp ON d.page_id = dp.id
+    LEFT JOIN content_rel_folders f ON f.id = COALESCE(p.folder_id, dp.folder_id)
     -- 폴더 ID를 통해 channel 추출
-    JOIN content_rel_folders fd ON fd.id = f.folder_id
-    JOIN content_rel_channels c ON c.id = fd.channel_id
+    JOIN content_rel_channels c ON c.id = f.channel_id
     -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY c.id, c.name
@@ -42,17 +37,12 @@ BEGIN
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
-    LEFT JOIN (
-        SELECT id, folder_id
-        FROM content_rel_pages
-        UNION ALL
-        SELECT dt.id, pg.folder_id
-        FROM content_rel_page_details dt
-        JOIN content_rel_pages pg ON dt.page_id = pg.id
-    ) f ON f.id = cvh.file_id
-    -- 폴더 ID를 통해 channel 추출출
-    JOIN content_rel_folders fd ON fd.id = f.folder_id
-    JOIN content_rel_channels c ON c.id = fd.channel_id
+    LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
+    LEFT JOIN content_rel_page_details d ON cvh.file_type = 'detail' AND cvh.file_id = d.id
+    LEFT JOIN content_rel_pages dp ON d.page_id = dp.id
+    LEFT JOIN content_rel_folders f ON f.id = COALESCE(p.folder_id, dp.folder_id)
+    -- 폴더 ID를 통해 channel 추출
+    JOIN content_rel_channels c ON c.id = f.channel_id
     -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, c.id, c.name
@@ -72,17 +62,12 @@ BEGIN
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
-    LEFT JOIN (
-        SELECT id, folder_id
-        FROM content_rel_pages
-        UNION ALL
-        SELECT dt.id, pg.folder_id
-        FROM content_rel_page_details dt
-        JOIN content_rel_pages pg ON dt.page_id = pg.id
-    ) f ON f.id = cvh.file_id
-    -- 폴더 ID를 통해 channel 추출출
-    JOIN content_rel_folders fd ON fd.id = f.folder_id
-    JOIN content_rel_channels c ON c.id = fd.channel_id
+    LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
+    LEFT JOIN content_rel_page_details d ON cvh.file_type = 'detail' AND cvh.file_id = d.id
+    LEFT JOIN content_rel_pages dp ON d.page_id = dp.id
+    LEFT JOIN content_rel_folders f ON f.id = COALESCE(p.folder_id, dp.folder_id)
+    -- 폴더 ID를 통해 channel 추출
+    JOIN content_rel_channels c ON c.id = f.channel_id
     -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, u.department, c.id, c.name
@@ -101,17 +86,12 @@ BEGIN
     FROM content_viewing_history_view cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
-    LEFT JOIN (
-        SELECT id, folder_id
-        FROM content_rel_pages
-        UNION ALL
-        SELECT dt.id, pg.folder_id
-        FROM content_rel_page_details dt
-        JOIN content_rel_pages pg ON dt.page_id = pg.id
-    ) f ON f.id = cvh.file_id
-    -- 폴더 ID를 통해 channel 추출출
-    JOIN content_rel_folders fd ON fd.id = f.folder_id
-    JOIN content_rel_channels c ON c.id = fd.channel_id
+    LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
+    LEFT JOIN content_rel_page_details d ON cvh.file_type = 'detail' AND cvh.file_id = d.id
+    LEFT JOIN content_rel_pages dp ON d.page_id = dp.id
+    LEFT JOIN content_rel_folders f ON f.id = COALESCE(p.folder_id, dp.folder_id)
+    -- 폴더 ID를 통해 channel 추출
+    JOIN content_rel_channels c ON c.id = f.channel_id
     -- 기간 필터링
     WHERE cvh.start_time >= p_start_utc AND cvh.start_time < p_start_utc + INTERVAL '1 day'
     GROUP BY u.company, u.department, u.id, u.name, c.id, c.name

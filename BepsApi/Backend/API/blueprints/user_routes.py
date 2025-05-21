@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request, make_response
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 import datetime
 from datetime import timezone
-from extensions import db, redis_client
+from extensions import db
 from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
@@ -362,12 +362,7 @@ def get_top_user_duration():
         period_value = request.args.get('period_value')
         
         if period_value is None:
-            return jsonify({'error': 'Please provide period_value'}), 400
-        
-        cache_key = f"top_user_duration_{period_type}_{period_value}"
-        cached_data = redis_client.get(cache_key)
-        if cached_data:
-            logging.debug(f"Cache hit for {cache_key}")
+            return jsonify({'error': 'Please provide period_value'}), 400        
         
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
@@ -376,7 +371,6 @@ def get_top_user_duration():
             
             if data['has_data']:
                 response = {'data': data}
-                redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
                 return jsonify(response),200
             else:
                 return jsonify({'error': 'No data found'}), 404        
@@ -415,7 +409,6 @@ def get_top_user_duration():
                             'bottom': [(user_id, name, duration) for user_id, (name, duration) in sorted_users_by_low[:3]],
                         }
                     }
-                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
                     return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
@@ -427,7 +420,6 @@ def get_top_user_duration():
                 
                 if data['has_data']:
                     response = {'data': data}
-                    redis_client.setex(cache_key, 3600, json.dumps(response))
                     return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404 
@@ -445,11 +437,6 @@ def get_top_department_duration():
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
-        
-        cache_key = f"top_department_duration{period_type}_{period_value}"
-        cached_data = redis_client.get(cache_key)
-        if cached_data:
-            logging.debug(f"Cache hit for {cache_key}")
             
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
@@ -458,7 +445,6 @@ def get_top_department_duration():
             
             if data['has_data']:
                 response = {'data': data}
-                redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
                 return jsonify(response),200
             else:
                 return jsonify({'error': 'No data found'}), 404
@@ -496,7 +482,6 @@ def get_top_department_duration():
                             'bottom': [(company, department, duration) for (company, department), duration in sorted_dept_by_low[:3]],
                         }
                     }
-                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
                     return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
@@ -506,7 +491,6 @@ def get_top_department_duration():
                 
                 if data['has_data']:
                     response = {'data': data}
-                    redis_client.setex(cache_key, 3600, json.dumps(response))
                     return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
@@ -523,11 +507,6 @@ def get_top_company_duration():
         
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
-        
-        cache_key = f"top_company_duration_{period_type}_{period_value}"
-        cached_data = redis_client.get(cache_key)
-        if cached_data:
-            logging.debug(f"Cache hit for {cache_key}")
             
         if period_type == "day":
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
@@ -535,7 +514,6 @@ def get_top_company_duration():
             
             if data['has_data']:
                 response = {'data': data}
-                redis_client.setex(cache_key, 3600, json.dumps(response))
                 return jsonify(response),200
             else:                    
                 return jsonify({'error': 'No data found'}), 404
@@ -571,7 +549,6 @@ def get_top_company_duration():
                             'bottom': [(company, duration) for company, duration in sorted_company_by_low[:3]],
                         }
                     }
-                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
                     return jsonify(response),200
                 else:                    
                     return jsonify({'error': 'No data found'}), 404
@@ -581,7 +558,6 @@ def get_top_company_duration():
                 
                 if data['has_data']:
                     response = {'data': data}
-                    redis_client.setex(cache_key, 3600, json.dumps(response))
                     return jsonify(response),200
                 else:                    
                     return jsonify({'error': 'No data found'}), 404
