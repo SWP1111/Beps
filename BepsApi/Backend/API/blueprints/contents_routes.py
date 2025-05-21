@@ -1,18 +1,20 @@
 import os
 import logging
 import log_config
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file, current_app
 import datetime
 from datetime import timezone
 from datetime import timedelta
 from extensions import db
-from models import  ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails
+from models import ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails, Users, ContentManager
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import re
 import urllib.parse
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.content_hierarchy_service import ContentHierarchyService
+from werkzeug.utils import secure_filename
+import uuid
 
 api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
 
@@ -227,5 +229,403 @@ def get_file_path(file_id):
         return jsonify(path_info)
     except Exception as e:
         logging.error(f"Error getting file path: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# 새로운 API 엔드포인트 추가
+
+@api_contents_bp.route('/channels', methods=['GET'])
+def get_channels():
+    """
+    Get all channels
+    
+    Returns a list of all available channels
+    """
+    try:
+        service = ContentHierarchyService()
+        channels = service.get_channels()
+        
+        return jsonify({
+            'channels': channels
+        })
+    except Exception as e:
+        logging.error(f"Error getting channels: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/hierarchy/channel/<int:channel_id>', methods=['GET'])
+def get_channel_hierarchy(channel_id):
+    """
+    Get the hierarchy for a specific channel
+    
+    Returns folders and files for the given channel, with optional filtering
+    
+    Query parameters:
+    - filters: JSON encoded filter configuration
+    """
+    try:
+        # Get filter parameters
+        filters_json = request.args.get('filters', '{}')
+        try:
+            import json
+            filters = json.loads(filters_json)
+        except:
+            filters = {'all': True}
+        
+        service = ContentHierarchyService()
+        hierarchy = service.get_channel_hierarchy(channel_id, filters)
+        
+        return jsonify(hierarchy)
+    except Exception as e:
+        logging.error(f"Error getting channel hierarchy: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/user-accessible', methods=['GET'])
+def get_user_accessible_content():
+    """
+    Get content that is accessible to a specific user
+    
+    Returns lists of folder_ids and file_ids that the user has access to
+    
+    Query parameters:
+    - user_id: ID of the user to check access for
+    """
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id parameter'}), 400
+        
+        service = ContentHierarchyService()
+        folder_ids, file_ids = service.get_user_accessible_content(int(user_id))
+        
+        return jsonify({
+            'folderIds': folder_ids,
+            'fileIds': file_ids
+        })
+    except Exception as e:
+        logging.error(f"Error getting user accessible content: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/channel/<int:channel_id>/check-accessibility', methods=['GET'])
+def check_channel_accessibility(channel_id):
+    """
+    Check if a channel contains any content accessible to a user
+    
+    Returns a boolean indicating if the user has access to anything in the channel
+    
+    Query parameters:
+    - user_id: ID of the user to check access for
+    """
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id parameter'}), 400
+        
+        service = ContentHierarchyService()
+        has_accessible_content = service.channel_has_accessible_content(channel_id, int(user_id))
+        
+        return jsonify({
+            'has_accessible_content': has_accessible_content
+        })
+    except Exception as e:
+        logging.error(f"Error checking channel accessibility: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/download', methods=['GET'])
+def download_file(file_id):
+    """
+    Download a file
+    
+    Returns the file for download
+    """
+    try:
+        service = ContentHierarchyService()
+        file_path, filename = service.get_file_download_info(file_id)
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found or not available for download'}), 404
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logging.error(f"Error downloading file: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/channel', methods=['POST'])
+@jwt_required()
+def create_channel():
+    """
+    Create a new channel
+    
+    Requires admin or developer role
+    
+    Request body:
+    - name: Name of the channel
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 999]):  # 1=admin, 999=developer
+            return jsonify({'error': 'Permission denied. Admin role required.'}), 403
+        
+        # Get request data
+        request_data = request.json
+        if not request_data or 'name' not in request_data:
+            return jsonify({'error': 'Channel name is required'}), 400
+        
+        # Create channel
+        service = ContentHierarchyService()
+        channel_id = service.create_channel(request_data['name'], user_id)
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        return jsonify({
+            'message': 'Channel created successfully',
+            'channel_id': channel_id
+        })
+    except Exception as e:
+        logging.error(f"Error creating channel: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/channel/<int:channel_id>', methods=['DELETE'])
+@jwt_required()
+def delete_channel(channel_id):
+    """
+    Delete a channel
+    
+    Requires admin or developer role
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 999]):  # 1=admin, 999=developer
+            return jsonify({'error': 'Permission denied. Admin role required.'}), 403
+        
+        # Delete channel
+        service = ContentHierarchyService()
+        success = service.delete_channel(channel_id, user_id)
+        
+        if not success:
+            return jsonify({'error': 'Channel not found or could not be deleted'}), 404
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        return jsonify({
+            'message': 'Channel deleted successfully'
+        })
+    except Exception as e:
+        logging.error(f"Error deleting channel: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file', methods=['POST'])
+@jwt_required()
+def upload_file():
+    """
+    Upload a file to a channel or folder
+    
+    Requires admin, developer, or reviewer role
+    
+    Form data:
+    - file: The file to upload
+    - channelId: Channel ID
+    - folderId: (Optional) Folder ID
+    - name: (Optional) Name for the file, defaults to filename
+    - version: (Optional) Version of the file
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 2, 999]):  # 1=admin, 2=reviewer, 999=developer
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Check if file is included
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part in the request'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Get other form data
+        channel_id = request.form.get('channelId')
+        if not channel_id:
+            return jsonify({'error': 'Channel ID is required'}), 400
+        
+        folder_id = request.form.get('folderId', None)
+        name = request.form.get('name', None) or file.filename
+        version = request.form.get('version', '1.0')
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        temp_dir = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_uuid = str(uuid.uuid4())
+        temp_path = os.path.join(temp_dir, f"{file_uuid}_{filename}")
+        file.save(temp_path)
+        
+        # Add to database
+        service = ContentHierarchyService()
+        file_id = service.add_file(
+            temp_path,
+            name,
+            int(channel_id),
+            folder_id=int(folder_id) if folder_id else None,
+            version=version,
+            user_id=user_id
+        )
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        return jsonify({
+            'message': 'File uploaded successfully',
+            'file_id': file_id
+        })
+    except Exception as e:
+        logging.error(f"Error uploading file: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/files', methods=['DELETE'])
+@jwt_required()
+def delete_files():
+    """
+    Delete one or more files
+    
+    Requires admin, developer, or reviewer role
+    
+    Request body:
+    - fileIds: Array of file IDs to delete
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 2, 999]):  # 1=admin, 2=reviewer, 999=developer
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get request data
+        request_data = request.json
+        if not request_data or 'fileIds' not in request_data or not request_data['fileIds']:
+            return jsonify({'error': 'File IDs are required'}), 400
+        
+        # Delete files
+        service = ContentHierarchyService()
+        success, failed = service.delete_files(request_data['fileIds'], user_id)
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        if failed:
+            return jsonify({
+                'message': f'Some files could not be deleted',
+                'success': success,
+                'failed': failed
+            }), 207  # Multi-Status
+        
+        return jsonify({
+            'message': 'Files deleted successfully',
+            'count': len(success)
+        })
+    except Exception as e:
+        logging.error(f"Error deleting files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/folder', methods=['POST'])
+@jwt_required()
+def create_folder():
+    """
+    Create a new folder
+    
+    Requires admin, developer, or reviewer role
+    
+    Request body:
+    - name: Name of the folder
+    - channelId: Channel ID
+    - parentId: (Optional) Parent folder ID
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 2, 999]):  # 1=admin, 2=reviewer, 999=developer
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get request data
+        request_data = request.json
+        if not request_data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        if 'name' not in request_data:
+            return jsonify({'error': 'Folder name is required'}), 400
+            
+        if 'channelId' not in request_data:
+            return jsonify({'error': 'Channel ID is required'}), 400
+        
+        parent_id = request_data.get('parentId', None)
+        
+        # Create folder
+        service = ContentHierarchyService()
+        folder_id = service.create_folder(
+            request_data['name'],
+            int(request_data['channelId']),
+            parent_id=int(parent_id) if parent_id else None,
+            user_id=user_id
+        )
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        return jsonify({
+            'message': 'Folder created successfully',
+            'folder_id': folder_id
+        })
+    except Exception as e:
+        logging.error(f"Error creating folder: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/folder/<int:folder_id>', methods=['DELETE'])
+@jwt_required()
+def delete_folder(folder_id):
+    """
+    Delete a folder and its contents
+    
+    Requires admin or developer role
+    """
+    try:
+        # Check user role for permission
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or (user.role_id not in [1, 999]):  # 1=admin, 999=developer
+            return jsonify({'error': 'Permission denied. Admin role required.'}), 403
+        
+        # Delete folder
+        service = ContentHierarchyService()
+        success = service.delete_folder(folder_id, user_id)
+        
+        if not success:
+            return jsonify({'error': 'Folder not found or could not be deleted'}), 404
+        
+        # Clear cache for hierarchy
+        service.clear_hierarchy_cache()
+        
+        return jsonify({
+            'message': 'Folder deleted successfully'
+        })
+    except Exception as e:
+        logging.error(f"Error deleting folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 #endregion

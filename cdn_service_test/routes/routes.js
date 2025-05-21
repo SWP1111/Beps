@@ -129,6 +129,7 @@ async function getPages(folderId) {
   });
 }
 
+/*
 // 채널 ID로 전체 구조 반환
 async function getStructureByChannel(channelId) {
   const { rows: channels } = await pool.query(
@@ -148,24 +149,6 @@ async function getStructureByChannel(channelId) {
   };
 }
 
-
-/*
-router.get(`/${service_type}/list-directories/*`, async (req, res) => {
-  const channelId = req.params[0];
-
-  if (!channelId) {
-    return res.status(400).json({ error: 'channelId를 쿼리로 전달해주세요.' });
-  }
-
-  try {
-    const structure = await getChannelStructure(parseInt(channelId));
-    res.json(structure);
-  } catch (error) {
-    console.error('에러 발생:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-*/
 router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
   const channelId = parseInt(req.params.channelId);
   if (!channelId) {
@@ -180,7 +163,52 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+*/
 
+// 폴더별로 하위 페이지를 포함한 구조로 반환
+async function getFoldersWithPages(channelId) {
+  // 폴더 조회
+  const { rows: folders } = await pool.query(
+    `SELECT * FROM content_rel_folders WHERE channel_id = $1 AND is_deleted = false ORDER BY id`,
+    [channelId]
+  );
+
+  // 페이지 전체 조회
+  const { rows: pages } = await pool.query(
+    `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY id`
+  );
+
+  // 폴더별로 묶기
+  const folderItems = folders.map(folder => {
+    const pageItems = pages
+      .filter(page => page.folder_id === folder.id)
+      .map(page => ({ pageItem: page }));
+
+    return {
+      folderItem: {
+        ...folder,
+        pageItems
+      }
+    };
+  });
+
+  return { folderItems };
+}
+
+// 라우터에서 사용 예시
+router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
+  const channelId = parseInt(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: 'channelId를 URL 파라미터로 전달해주세요.' });
+  }
+  try {
+    const data = await getFoldersWithPages(channelId);
+    res.json(data);
+  } catch (error) {
+    console.error('에러 발생:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // 해당 페이지 보기
 router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.static(CONSTANTS.CONTENTS_DIR, {

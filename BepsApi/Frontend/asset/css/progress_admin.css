@@ -3,6 +3,7 @@ html, body {
     margin: 0;
     padding: 0;
     height: auto;
+    width: 100%;
     /* min-height: calc(100vh - 70px); ✅ 이게 없으면 outer에서 scrollHeight가 작게 나옴 */
     box-sizing: border-box;
     overflow: hidden; 
@@ -46,13 +47,16 @@ html, body {
     display: flex;
     flex-direction: column;
     margin-top: 20px;
+    margin-right: 20px;
     user-select: none;
+    flex: 1;
 }
 
 .header-area {
     display: flex;
     flex-direction: row;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: flex-end;
     gap: 20px;
 }
 
@@ -67,8 +71,7 @@ html, body {
 .period-area {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
-    margin-left: 500px;    
+    align-items: flex-end;
     gap: 5px;
 }
 
@@ -217,7 +220,7 @@ background-color: #f0f0f0;
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-left: 120px;
+    margin-left: 160px;
 }
 
 .point {
@@ -245,7 +248,7 @@ background-color: #f0f0f0;
     flex-direction: column;
     gap: 5px;
     margin-top: 20px;
-    margin-left: 150px;   
+    margin-left: 160px;   
 }
 .top_viewed_memos{
     display: flex;

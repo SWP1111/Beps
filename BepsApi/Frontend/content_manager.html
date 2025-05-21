@@ -123,6 +123,62 @@
             margin-right: 8px;
         }
         
+        /* Tree view styles */
+        .tree-view {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tree-node {
+            padding: 5px 0;
+        }
+        
+        .tree-folder {
+            cursor: pointer;
+        }
+        
+        .tree-content {
+            padding-left: 20px;
+            display: none;
+        }
+        
+        .tree-content.expanded {
+            display: block;
+        }
+        
+        .toggle-icon {
+            display: inline-block;
+            width: 15px;
+            text-align: center;
+            margin-right: 5px;
+        }
+        
+        .tree-file {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .file-details {
+            display: flex;
+            width: 100%;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .file-detail {
+            margin-right: 15px;
+        }
+        
+        .file-name {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        
         .new-badge {
             display: inline-block;
             background-color: #3f51b5;
@@ -180,6 +236,10 @@
             color: #666;
             font-style: italic;
         }
+
+        .selected {
+            background-color: #e3f2fd;
+        }
     </style>
 </head>
 <body>
@@ -226,25 +286,10 @@
             
             <!-- 우측 파일 탭 -->
             <div class="right-tab">
-                <table class="file-list">
-                    <thead>
-                        <tr>
-                            <th style="width: 45%;">파일</th>
-                            <th style="width: 10%;">버전</th>
-                            <th style="width: 10%;">작성자</th>
-                            <th style="width: 10%;">검토자</th>
-                            <th style="width: 15%;">등록일</th>
-                            <th style="width: 10%;">처리상태</th>
-                        </tr>
-                    </thead>
-                    <tbody id="file-list-body">
-                        <tr>
-                            <td colspan="6">
-                                <div class="loading">콘텐츠를 선택하면 파일 목록이 표시됩니다.</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="file-header">파일 구조</div>
+                <div id="file-tree-view" class="tree-view">
+                    <div class="loading">채널을 선택하면 파일 구조가 표시됩니다.</div>
+                </div>
                 
                 <!-- 우측 탭 하단 버튼 -->
                 <div class="bottom-actions">
@@ -258,239 +303,193 @@
     </div>
     
     <script>
-        // 상태 관리
-        let currentSelectedContent = null;
-        let contentData = [];
-        let fileData = {};
+        // Authentication check and role-based access control
+        document.addEventListener('DOMContentLoaded', function() {
+            const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
+            const roleId = userInfo && userInfo.user ? userInfo.user.role_id : null;
+            const userId = userInfo && userInfo.user ? userInfo.user.id : null;
+            
+            // Store user role ID for later access control checks
+            window.userRoleId = roleId;
+            window.userId = userId;
+            
+            // For completely restricted areas (development only)
+            if (document.getElementById('filter-all') && roleId !== 999) {
+                document.body.innerHTML = `
+                    <div style="text-align: center; margin-top: 50px; color: #f44336;">
+                        <h1>접근 권한이 없습니다</h1>
+                        <p style="font-size: 1.5rem;">이 페이지는 개발자 권한이 필요합니다.</p>
+                        <p>현재 당신의 권한은 ${roleId || "없음"}입니다.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Continue with normal page initialization
+            initializeContentManager();
+            setupFilterHandlers();
+            setupTreeViewEventHandlers();
+        });
         
-        // Content hierarchy cache
-        let contentHierarchy = null;
+        // 상태 관리
+        let currentSelectedChannel = null;
+        let hierarchyData = null;
+        let userAccessibleFolders = []; // For restricted users
+        let userAccessibleFiles = []; // For restricted users
         
         // DOM 요소
         const contentListElement = document.getElementById('content-list');
-        const fileListBodyElement = document.getElementById('file-list-body');
-        
-        // 페이지 로드 시 콘텐츠 데이터 가져오기
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchContentList();
-            setupFilterHandlers();
-            // Fetch the content hierarchy in the background
-            fetchContentHierarchy();
-        });
+        const fileTreeViewElement = document.getElementById('file-tree-view');
         
         // 필터 핸들러 설정
         function setupFilterHandlers() {
             const filterCheckboxes = document.querySelectorAll('.filter-options input[type="checkbox"]');
             filterCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
-                    if (currentSelectedContent) {
-                        fetchFileList(currentSelectedContent);
+                    if (currentSelectedChannel) {
+                        renderFolderFileStructure(currentSelectedChannel);
                     }
                 });
             });
         }
+
+        // 트리 뷰 이벤트 핸들러 설정
+        function setupTreeViewEventHandlers() {
+            // 이벤트 위임을 통해 폴더 토글 기능 구현
+            document.getElementById('file-tree-view').addEventListener('click', function(e) {
+                const target = e.target.closest('.tree-folder');
+                if (target) {
+                    const content = target.nextElementSibling;
+                    if (content && content.classList.contains('tree-content')) {
+                        content.classList.toggle('expanded');
+                        
+                        // 토글 아이콘 변경
+                        const toggleIcon = target.querySelector('.toggle-icon');
+                        if (toggleIcon) {
+                            toggleIcon.textContent = content.classList.contains('expanded') ? '▼' : '►';
+                        }
+                    }
+                }
+            });
+        }
         
-        // Content hierarchy functions
-        
-        /**
-         * Fetch the complete content hierarchy from the API
-         * @param {boolean} refresh - Whether to force a refresh of the hierarchy
-         * @returns {Promise<Object>} - The content hierarchy
-         */
-        async function fetchContentHierarchy(refresh = false) {
+        // 콘텐츠 매니저 초기화
+        async function initializeContentManager() {
             try {
-                // If we already have the hierarchy and don't need to refresh, return it
-                if (contentHierarchy && !refresh) {
-                    return contentHierarchy;
+                contentListElement.innerHTML = '<div class="loading">콘텐츠 구조를 불러오는 중입니다...</div>';
+                
+                // 전체 계층 구조 가져오기 (API 사용)
+                hierarchyData = await getContentHierarchy();
+                
+                if (!hierarchyData) {
+                    throw new Error('계층 구조를 가져오는데 실패했습니다.');
                 }
                 
-                const response = await fetch(`/api/contents/hierarchy${refresh ? '?refresh=true' : ''}`);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch content hierarchy: ${response.status}`);
+                // 일반 사용자인 경우 접근 가능한 항목 필터링
+                if (window.userRoleId !== 1 && window.userRoleId !== 2 && window.userRoleId !== 999) {
+                    await getUserAccessibleContent();
+                    filterHierarchyForUser();
                 }
                 
-                contentHierarchy = await response.json();
-                console.log('Content hierarchy loaded:', contentHierarchy);
-                return contentHierarchy;
+                // 채널 목록 렌더링
+                renderChannels();
+                
             } catch (error) {
-                console.error('Error fetching content hierarchy:', error);
+                console.error('콘텐츠 구조를 가져오는 중 오류가 발생했습니다:', error);
+                contentListElement.innerHTML = '<div class="loading">콘텐츠 구조를 불러오는데 실패했습니다. 다시 시도해 주세요.</div>';
+            }
+        }
+        
+        // API를 통해 계층 구조 가져오기
+        async function getContentHierarchy() {
+            try {
+                // API 엔드포인트 호출
+                const response = await fetch('/contents/hierarchy');
+                if (!response.ok) {
+                    throw new Error(`계층 구조를 가져오는데 실패했습니다: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('계층 구조를 불러오는 중 오류가 발생했습니다:', error);
                 return null;
             }
         }
         
-        /**
-         * Get the children of a channel
-         * @param {number} channelId - The ID of the channel
-         * @returns {Promise<Array<number>>} - IDs of the folders in the channel
-         */
-        async function getChannelChildren(channelId) {
+        // 사용자가 접근할 수 있는 콘텐츠 가져오기 (일반 사용자용)
+        async function getUserAccessibleContent() {
             try {
-                const response = await fetch(`/api/contents/channel/children?channel_id=${channelId}`);
+                // API 엔드포인트 호출
+                const response = await fetch(`/contents/user-accessible?user_id=${window.userId}`);
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch channel children: ${response.status}`);
+                    throw new Error(`접근 가능한 콘텐츠를 가져오는데 실패했습니다: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                return data.folder_ids || [];
+                userAccessibleFolders = data.folderIds || [];
+                userAccessibleFiles = data.fileIds || [];
+                
             } catch (error) {
-                console.error(`Error fetching children for channel ${channelId}:`, error);
-                return [];
+                console.error('사용자 접근 가능 콘텐츠를 가져오는 중 오류가 발생했습니다:', error);
+                userAccessibleFolders = [];
+                userAccessibleFiles = [];
             }
         }
         
-        /**
-         * Get the children of a folder
-         * @param {number} folderId - The ID of the folder
-         * @returns {Promise<Object>} - Object with folder children or page children and isLeafFolder flag
-         */
-        async function getFolderChildren(folderId) {
-            try {
-                const response = await fetch(`/api/contents/folder/children?folder_id=${folderId}`);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch folder children: ${response.status}`);
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error(`Error fetching children for folder ${folderId}:`, error);
-                return { is_leaf_folder: true, count: 0, page_ids: [] };
-            }
-        }
-        
-        /**
-         * Get the full path to a file
-         * @param {number} fileId - The ID of the file
-         * @returns {Promise<Object>} - Path information for the file
-         */
-        async function getFilePath(fileId) {
-            try {
-                const response = await fetch(`/api/contents/file/${fileId}/path`);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch file path: ${response.status}`);
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error(`Error fetching path for file ${fileId}:`, error);
-                return null;
-            }
-        }
-        
-        /**
-         * Find a node in the hierarchy by its ID and type
-         * @param {string} type - The type of node ('channel', 'folder', or 'page')
-         * @param {number} id - The ID of the node
-         * @returns {Object|null} - The node, or null if not found
-         */
-        function findNodeInHierarchy(type, id) {
-            if (!contentHierarchy) {
-                return null;
-            }
-            
-            if (type === 'channel') {
-                return contentHierarchy.channels.find(c => c.id === id) || null;
-            }
-            
-            // For folders and pages, we need to search through the hierarchy
-            for (const channel of contentHierarchy.channels) {
-                const result = findNodeInChannel(channel, type, id);
-                if (result) {
-                    return result;
-                }
-            }
-            
-            return null;
-        }
-        
-        /**
-         * Recursively search for a node within a channel
-         * @param {Object} channel - The channel to search in
-         * @param {string} type - The type of node ('folder' or 'page')
-         * @param {number} id - The ID of the node
-         * @returns {Object|null} - The node, or null if not found
-         */
-        function findNodeInChannel(channel, type, id) {
-            if (type === 'folder') {
-                for (const folder of channel.folders) {
-                    if (folder.id === id) {
-                        return folder;
-                    }
-                    
-                    // Search in subfolders
-                    const result = findNodeInFolder(folder, type, id);
-                    if (result) {
-                        return result;
-                    }
-                }
-            }
-            
-            return null;
-        }
-        
-        /**
-         * Recursively search for a node within a folder
-         * @param {Object} folder - The folder to search in
-         * @param {string} type - The type of node ('folder' or 'page')
-         * @param {number} id - The ID of the node
-         * @returns {Object|null} - The node, or null if not found
-         */
-        function findNodeInFolder(folder, type, id) {
-            if (type === 'folder') {
-                for (const subfolder of folder.subfolders) {
-                    if (subfolder.id === id) {
-                        return subfolder;
-                    }
-                    
-                    // Recursive search
-                    const result = findNodeInFolder(subfolder, type, id);
-                    if (result) {
-                        return result;
-                    }
-                }
-            } else if (type === 'page') {
-                return folder.pages.find(p => p.id === id) || null;
-            }
-            
-            return null;
-        }
-        
-        // 콘텐츠 목록 가져오기
-        async function fetchContentList() {
-            try {
-                contentListElement.innerHTML = '<div class="loading">콘텐츠를 불러오는 중입니다...</div>';
-                
-                // API 호출 (아직 구현되지 않음)
-                // const response = await fetch('/api/contents');
-                // contentData = await response.json();
-                
-                // 임시 대체 코드 (API 구현 전까지 사용)
-                await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
-                
-                /* @API@ TODO: API 구현 후 아래 주석 해제
-                // API 구현이 필요한 부분:
-                // GET /api/contents - 콘텐츠 목록 가져오기
-                */
-                
-                renderContentList();
-            } catch (error) {
-                console.error('콘텐츠 목록을 가져오는 중 오류가 발생했습니다:', error);
-                contentListElement.innerHTML = '<div class="loading">콘텐츠를 불러오는데 실패했습니다. 다시 시도해 주세요.</div>';
-            }
-        }
-        
-        // 콘텐츠 목록 렌더링
-        function renderContentList() {
-            contentListElement.innerHTML = '';
-            
-            if (contentData.length === 0) {
-                contentListElement.innerHTML = '<div class="loading">표시할 콘텐츠가 없습니다.</div>';
+        // 사용자 권한에 따라 계층 구조 필터링
+        function filterHierarchyForUser() {
+            if (!hierarchyData || !hierarchyData.channels) {
                 return;
             }
             
-            contentData.forEach(content => {
+            // 접근 가능한 채널만 필터링
+            hierarchyData.channels = hierarchyData.channels.filter(channel => {
+                // 채널 내 폴더 필터링
+                channel.folders = filterFoldersForUser(channel.folders || []);
+                
+                // 접근 가능한 폴더가 있는 채널만 표시
+                return channel.folders.length > 0;
+            });
+        }
+        
+        // 폴더 필터링 (재귀 함수)
+        function filterFoldersForUser(folders) {
+            return folders.filter(folder => {
+                // 이 폴더가 접근 가능한지 확인
+                const isAccessible = userAccessibleFolders.includes(folder.id);
+                
+                // 하위 폴더 필터링
+                if (folder.subfolders && folder.subfolders.length > 0) {
+                    folder.subfolders = filterFoldersForUser(folder.subfolders);
+                }
+                
+                // 파일 필터링
+                if (folder.pages && folder.pages.length > 0) {
+                    folder.pages = folder.pages.filter(page => 
+                        userAccessibleFiles.includes(page.id)
+                    );
+                }
+                
+                // 이 폴더가 접근 가능하거나 접근 가능한 하위 항목이 있으면 포함
+                return isAccessible || 
+                       (folder.subfolders && folder.subfolders.length > 0) || 
+                       (folder.pages && folder.pages.length > 0);
+            });
+        }
+        
+        // 채널 목록 렌더링
+        function renderChannels() {
+            contentListElement.innerHTML = '';
+            
+            if (!hierarchyData || !hierarchyData.channels || hierarchyData.channels.length === 0) {
+                contentListElement.innerHTML = '<div class="loading">표시할 채널이 없습니다.</div>';
+                return;
+            }
+            
+            hierarchyData.channels.forEach(channel => {
                 const contentItem = document.createElement('div');
                 contentItem.className = 'content-item';
-                contentItem.dataset.id = content.id;
+                contentItem.dataset.id = channel.id;
                 
                 const folderItem = document.createElement('div');
                 folderItem.className = 'folder-item';
@@ -500,9 +499,9 @@
                 folderIcon.innerHTML = '&#128193;';
                 
                 folderItem.appendChild(folderIcon);
-                folderItem.appendChild(document.createTextNode(content.title));
+                folderItem.appendChild(document.createTextNode(channel.name));
                 
-                if (content.isNew) {
+                if (channel.is_new) {
                     const newBadge = document.createElement('span');
                     newBadge.className = 'new-badge';
                     newBadge.textContent = 'NEW';
@@ -514,39 +513,184 @@
                 
                 // 클릭 이벤트 처리
                 contentItem.addEventListener('click', function() {
-                    selectContent(content.id);
+                    selectChannel(channel.id);
                 });
             });
         }
         
-        // 콘텐츠 선택 처리
-        function selectContent(contentId) {
+        // 채널 선택 처리
+        function selectChannel(channelId) {
             // 이미 선택된 항목의 스타일 제거
             const contentItems = document.querySelectorAll('.content-item');
-            contentItems.forEach(item => item.style.backgroundColor = '');
+            contentItems.forEach(item => item.classList.remove('selected'));
             
             // 현재 선택된 항목 스타일 지정
-            const selectedItem = document.querySelector(`.content-item[data-id="${contentId}"]`);
+            const selectedItem = document.querySelector(`.content-item[data-id="${channelId}"]`);
             if (selectedItem) {
-                selectedItem.style.backgroundColor = '#e3f2fd';
+                selectedItem.classList.add('selected');
             }
             
-            currentSelectedContent = contentId;
-            fetchFileList(contentId);
+            currentSelectedChannel = channelId;
+            renderFolderFileStructure(channelId);
         }
         
-        // 파일 목록 가져오기
-        async function fetchFileList(contentId) {
+        // 폴더 및 파일 구조 렌더링
+        function renderFolderFileStructure(channelId) {
+            fileTreeViewElement.innerHTML = '';
+            
+            if (!hierarchyData || !hierarchyData.channels) {
+                fileTreeViewElement.innerHTML = '<div class="loading">폴더 및 파일 구조를 불러오는데 실패했습니다.</div>';
+                return;
+            }
+            
+            // 선택된 채널 찾기
+            const selectedChannel = hierarchyData.channels.find(channel => channel.id === channelId);
+            
+            if (!selectedChannel || !selectedChannel.folders || selectedChannel.folders.length === 0) {
+                fileTreeViewElement.innerHTML = '<div class="loading">표시할 폴더 및 파일이 없습니다.</div>';
+                return;
+            }
+            
+            // 필터 상태 가져오기
+            const filters = {
+                all: document.getElementById('filter-all').checked,
+                reviewing: document.getElementById('filter-reviewing').checked,
+                rejected: document.getElementById('filter-rejected').checked,
+                approved: document.getElementById('filter-approved').checked,
+                updated: document.getElementById('filter-updated').checked
+            };
+            
+            // 채널 계층 구조 가져오기 (필터 포함)
+            fetchChannelHierarchy(channelId, filters);
+        }
+        
+        // 채널의 계층 구조 가져오기 (API 사용)
+        async function fetchChannelHierarchy(channelId, filters) {
             try {
-                fileListBodyElement.innerHTML = `
-                    <tr>
-                        <td colspan="6">
-                            <div class="loading">파일 목록을 불러오는 중입니다...</div>
-                        </td>
-                    </tr>
-                `;
+                fileTreeViewElement.innerHTML = '<div class="loading">폴더 및 파일 구조를 불러오는 중입니다...</div>';
                 
-                // 필터 상태 가져오기
+                // 필터 JSON 직렬화
+                const filtersParam = encodeURIComponent(JSON.stringify(filters));
+                
+                // API 엔드포인트 호출
+                const response = await fetch(`/contents/hierarchy/channel/${channelId}?filters=${filtersParam}`);
+                if (!response.ok) {
+                    throw new Error(`채널 계층 구조를 가져오는데 실패했습니다: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // 계층 구조 표시
+                renderHierarchyTree(data);
+            } catch (error) {
+                console.error('채널 계층 구조를 가져오는 중 오류가 발생했습니다:', error);
+                fileTreeViewElement.innerHTML = '<div class="loading">폴더 및 파일 구조를 불러오는데 실패했습니다. 다시 시도해 주세요.</div>';
+            }
+        }
+
+        // 폴더가 현재 필터에 맞는지 확인하는 함수
+        function folderMatchesFilter(folder) {
+            // 모든 항목 필터가 활성화되어 있으면 모든 폴더 포함
+            if (document.getElementById('filter-all').checked) {
+                return true;
+            }
+            
+            // 하위 폴더나 파일이 현재 필터에 맞는 항목을 포함하고 있는지 확인
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                return folder.subfolders.some(subfolder => folderMatchesFilter(subfolder));
+            }
+            
+            // 이 폴더의 파일 중 필터에 맞는 것이 있는지 확인
+            if (folder.pages && folder.pages.length > 0) {
+                const filterReviewing = document.getElementById('filter-reviewing').checked;
+                const filterRejected = document.getElementById('filter-rejected').checked;
+                const filterApproved = document.getElementById('filter-approved').checked;
+                const filterUpdated = document.getElementById('filter-updated').checked;
+                
+                return folder.pages.some(page => 
+                    (filterReviewing && page.status === '검토중') ||
+                    (filterRejected && page.status === '반려') ||
+                    (filterApproved && page.status === '승인') ||
+                    (filterUpdated && page.status === '업데이트')
+                );
+            }
+            
+            return false;
+        }
+
+        // 계층 구조 트리 렌더링
+        function renderHierarchyTree(data) {
+            fileTreeViewElement.innerHTML = '';
+            
+            const folders = data.folders || [];
+            
+            if (folders.length === 0) {
+                fileTreeViewElement.innerHTML = '<div class="loading">표시할 폴더 및 파일이 없습니다.</div>';
+                return;
+            }
+            
+            // 트리 구조 생성
+            const treeRoot = document.createElement('ul');
+            treeRoot.className = 'tree-view';
+            
+            // 폴더 렌더링
+            folders.forEach(folder => {
+                const folderNode = createFolderNode(folder);
+                treeRoot.appendChild(folderNode);
+            });
+            
+            fileTreeViewElement.appendChild(treeRoot);
+        }
+        
+        // 폴더 노드 생성 (재귀 함수)
+        function createFolderNode(folder) {
+            const folderLi = document.createElement('li');
+            folderLi.className = 'tree-node';
+            folderLi.dataset.id = folder.id;
+            
+            // 폴더 이름 및 아이콘
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'tree-folder';
+            
+            const toggleIcon = document.createElement('span');
+            toggleIcon.className = 'toggle-icon';
+            toggleIcon.textContent = '►';
+            
+            const folderIcon = document.createElement('span');
+            folderIcon.className = 'folder-icon';
+            folderIcon.innerHTML = '&#128193;';
+            
+            folderDiv.appendChild(toggleIcon);
+            folderDiv.appendChild(folderIcon);
+            folderDiv.appendChild(document.createTextNode(folder.name));
+            
+            if (folder.is_new) {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'new-badge';
+                newBadge.textContent = 'NEW';
+                folderDiv.appendChild(newBadge);
+            }
+            
+            folderLi.appendChild(folderDiv);
+            
+            // 서브 폴더 및 파일을 포함하는 컨테이너
+            const contentUl = document.createElement('ul');
+            contentUl.className = 'tree-content';
+            
+            // 서브 폴더 렌더링 (필터 적용)
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                const filteredSubfolders = folder.subfolders.filter(subfolder => 
+                    folderMatchesFilter(subfolder)
+                );
+                
+                filteredSubfolders.forEach(subfolder => {
+                    const subfolderNode = createFolderNode(subfolder);
+                    contentUl.appendChild(subfolderNode);
+                });
+            }
+            
+            // 파일 렌더링 (필터 적용)
+            if (folder.pages && folder.pages.length > 0) {
                 const filters = {
                     all: document.getElementById('filter-all').checked,
                     reviewing: document.getElementById('filter-reviewing').checked,
@@ -555,268 +699,314 @@
                     updated: document.getElementById('filter-updated').checked
                 };
                 
-                // API 호출 (아직 구현되지 않음)
-                // const response = await fetch(`/api/contents/${contentId}/files?filters=${JSON.stringify(filters)}`);
-                // fileData[contentId] = await response.json();
+                const filteredFiles = folder.pages.filter(page => {
+                    // 모든 파일 포함 또는 특정 상태 파일 포함
+                    return filters.all || 
+                           (filters.reviewing && page.status === '검토중') ||
+                           (filters.rejected && page.status === '반려') ||
+                           (filters.approved && page.status === '승인') ||
+                           (filters.updated && page.status === '업데이트');
+                });
                 
-                // 임시 대체 코드 (API 구현 전까지 사용)
-                await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
-                
-                /* @API@ TODO: API 구현 후 아래 주석 해제
-                // API 구현이 필요한 부분:
-                // GET /api/contents/{contentId}/files - 특정 콘텐츠의 파일 목록 가져오기
-                // 필터 파라미터: filters (JSON 객체)
-                */
-                
-                renderFileList(contentId);
-            } catch (error) {
-                console.error('파일 목록을 가져오는 중 오류가 발생했습니다:', error);
-                fileListBodyElement.innerHTML = `
-                    <tr>
-                        <td colspan="6">
-                            <div class="loading">파일 목록을 불러오는데 실패했습니다. 다시 시도해 주세요.</div>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-        
-        // 파일 목록 렌더링
-        function renderFileList(contentId) {
-            fileListBodyElement.innerHTML = '';
-            
-            const files = fileData[contentId] || [];
-            
-            if (files.length === 0) {
-                fileListBodyElement.innerHTML = `
-                    <tr>
-                        <td colspan="6">
-                            <div class="loading">표시할 파일이 없습니다.</div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            // 메인 파일과 서브 파일을 구분하여 렌더링
-            files.forEach(file => {
-                if (file.isMainFile) {
-                    renderMainFile(file);
-                } else {
-                    renderSubFile(file);
-                }
-            });
-        }
-        
-        // 메인 파일 렌더링
-        function renderMainFile(file) {
-            const row = document.createElement('tr');
-            
-            const fileCell = document.createElement('td');
-            const fileDiv = document.createElement('div');
-            fileDiv.style.display = 'flex';
-            fileDiv.style.alignItems = 'center';
-            
-            const fileIcon = document.createElement('span');
-            fileIcon.className = 'file-icon';
-            fileIcon.innerHTML = '&#128196;';
-            
-            fileDiv.appendChild(fileIcon);
-            fileDiv.appendChild(document.createTextNode(file.title));
-            
-            if (file.isNew) {
-                const newBadge = document.createElement('span');
-                newBadge.className = 'new-badge';
-                newBadge.textContent = 'NEW';
-                fileDiv.appendChild(newBadge);
-            }
-            
-            fileCell.appendChild(fileDiv);
-            row.appendChild(fileCell);
-            
-            // 버전, 작성자, 검토자, 등록일 셀 (빈 값)
-            for (let i = 0; i < 4; i++) {
-                const cell = document.createElement('td');
-                row.appendChild(cell);
+                filteredFiles.forEach(page => {
+                    const fileLi = document.createElement('li');
+                    fileLi.className = 'tree-node';
+                    fileLi.dataset.id = page.id;
+                    
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'tree-file';
+                    
+                    // 파일 이름 및 아이콘
+                    const fileNameDiv = document.createElement('div');
+                    fileNameDiv.className = 'file-name';
+                    
+                    const fileIcon = document.createElement('span');
+                    fileIcon.className = 'file-icon';
+                    fileIcon.innerHTML = '&#128196;';
+                    
+                    fileNameDiv.appendChild(fileIcon);
+                    fileNameDiv.appendChild(document.createTextNode(page.name || '제목 없음'));
+                    
+                    if (page.is_new) {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'new-badge';
+                        newBadge.textContent = 'NEW';
+                        fileNameDiv.appendChild(newBadge);
+                    }
+                    
+                    const downloadIcon = document.createElement('span');
+                    downloadIcon.className = 'download-icon';
+                    downloadIcon.innerHTML = '&#8595;';
+                    downloadIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downloadFile(page.id);
+                    });
+                    
+                    fileNameDiv.appendChild(downloadIcon);
+                    fileDiv.appendChild(fileNameDiv);
+                    
+                    // 파일 상세 정보
+                    const fileDetailsDiv = document.createElement('div');
+                    fileDetailsDiv.className = 'file-details';
+                    
+                    // 버전
+                    const versionDiv = document.createElement('div');
+                    versionDiv.className = 'file-detail';
+                    versionDiv.innerHTML = `<strong>버전:</strong> ${page.version || '1.0'}`;
+                    fileDetailsDiv.appendChild(versionDiv);
+                    
+                    // 작성자
+                    const authorDiv = document.createElement('div');
+                    authorDiv.className = 'file-detail';
+                    authorDiv.innerHTML = `<strong>작성자:</strong> ${page.author || '-'}`;
+                    fileDetailsDiv.appendChild(authorDiv);
+                    
+                    // 검토자
+                    const reviewerDiv = document.createElement('div');
+                    reviewerDiv.className = 'file-detail';
+                    reviewerDiv.innerHTML = `<strong>검토자:</strong> ${page.reviewer || '-'}`;
+                    fileDetailsDiv.appendChild(reviewerDiv);
+                    
+                    // 등록일
+                    const dateDiv = document.createElement('div');
+                    dateDiv.className = 'file-detail';
+                    dateDiv.innerHTML = `<strong>등록일:</strong> ${page.registration_date || '-'}`;
+                    fileDetailsDiv.appendChild(dateDiv);
+                    
+                    // 처리상태
+                    const statusDiv = document.createElement('div');
+                    statusDiv.className = 'file-detail';
+                    statusDiv.innerHTML = `<strong>처리상태:</strong> ${page.status || '검토중'}`;
+                    fileDetailsDiv.appendChild(statusDiv);
+                    
+                    fileDiv.appendChild(fileDetailsDiv);
+                    fileLi.appendChild(fileDiv);
+                    contentUl.appendChild(fileLi);
+                });
             }
             
-            // 처리상태 셀 (액션 버튼)
-            const actionCell = document.createElement('td');
-            const actionDiv = document.createElement('div');
-            actionDiv.className = 'action-buttons';
+            folderLi.appendChild(contentUl);
             
-            const addBtn = document.createElement('button');
-            addBtn.className = 'add-btn';
-            addBtn.textContent = '+';
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                addFileToMain(file.id);
-            });
-            
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.textContent = '-';
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeMainFile(file.id);
-            });
-            
-            actionDiv.appendChild(addBtn);
-            actionDiv.appendChild(removeBtn);
-            actionCell.appendChild(actionDiv);
-            
-            row.appendChild(actionCell);
-            fileListBodyElement.appendChild(row);
-        }
-        
-        // 서브 파일 렌더링
-        function renderSubFile(file) {
-            const row = document.createElement('tr');
-            
-            // 파일명 셀
-            const fileCell = document.createElement('td');
-            const fileDiv = document.createElement('div');
-            fileDiv.style.display = 'flex';
-            fileDiv.style.alignItems = 'center';
-            
-            fileDiv.appendChild(document.createTextNode(file.title));
-            
-            if (file.isNew) {
-                const newBadge = document.createElement('span');
-                newBadge.className = 'new-badge';
-                newBadge.textContent = 'NEW';
-                fileDiv.appendChild(newBadge);
-            }
-            
-            const downloadIcon = document.createElement('span');
-            downloadIcon.className = 'download-icon';
-            downloadIcon.innerHTML = '&#8595;';
-            downloadIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                downloadFile(file.id);
-            });
-            
-            fileDiv.appendChild(downloadIcon);
-            fileCell.appendChild(fileDiv);
-            row.appendChild(fileCell);
-            
-            // 버전 셀
-            const versionCell = document.createElement('td');
-            versionCell.textContent = file.version || '';
-            row.appendChild(versionCell);
-            
-            // 작성자 셀
-            const authorCell = document.createElement('td');
-            authorCell.textContent = file.author || '';
-            row.appendChild(authorCell);
-            
-            // 검토자 셀
-            const reviewerCell = document.createElement('td');
-            reviewerCell.textContent = file.reviewer || '';
-            row.appendChild(reviewerCell);
-            
-            // 등록일 셀
-            const dateCell = document.createElement('td');
-            dateCell.textContent = file.registrationDate || '';
-            row.appendChild(dateCell);
-            
-            // 처리상태 셀
-            const statusCell = document.createElement('td');
-            statusCell.textContent = file.status || '';
-            row.appendChild(statusCell);
-            
-            fileListBodyElement.appendChild(row);
+            return folderLi;
         }
         
         // 파일 다운로드
         function downloadFile(fileId) {
             console.log(`파일 다운로드: ${fileId}`);
             
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // GET /api/files/{fileId}/download - 파일 다운로드
-            */
-        }
-        
-        // 메인 파일에 서브 파일 추가
-        function addFileToMain(mainFileId) {
-            console.log(`메인 파일에 서브 파일 추가: ${mainFileId}`);
-            
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // POST /api/files/{mainFileId}/sub-files - 메인 파일에 서브 파일 추가
-            */
-        }
-        
-        // 메인 파일 삭제
-        function removeMainFile(mainFileId) {
-            console.log(`메인 파일 삭제: ${mainFileId}`);
-            
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // DELETE /api/files/{mainFileId} - 메인 파일 삭제
-            */
+            // 다운로드 API 엔드포인트 호출
+            window.location.href = `/contents/file/${fileId}/download`;
         }
         
         // 콘텐츠 추가 버튼 이벤트
         document.getElementById('add-content').addEventListener('click', function() {
-            console.log('콘텐츠 추가');
+            console.log('채널 추가');
             
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // POST /api/contents - 새 콘텐츠 추가
-            */
+            // 관리자 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1) {
+                alert('채널 추가 권한이 없습니다.');
+                return;
+            }
+            
+            // 채널 이름 입력 받기
+            const channelName = prompt("추가할 채널 이름을 입력하세요:");
+            if (!channelName) return;
+            
+            // 채널 추가 API 엔드포인트 호출
+            fetch('/contents/channel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: channelName })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`채널 추가에 실패했습니다: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(() => {
+                // 추가 후 계층 구조 새로고침
+                initializeContentManager();
+            })
+            .catch(error => {
+                console.error('채널 추가 중 오류가 발생했습니다:', error);
+                alert('채널 추가 중 오류가 발생했습니다.');
+            });
         });
         
         // 콘텐츠 삭제 버튼 이벤트
         document.getElementById('remove-content').addEventListener('click', function() {
-            if (!currentSelectedContent) {
-                alert('삭제할 콘텐츠를 선택해주세요.');
+            if (!currentSelectedChannel) {
+                alert('삭제할 채널을 선택해주세요.');
                 return;
             }
             
-            console.log(`콘텐츠 삭제: ${currentSelectedContent}`);
+            // 관리자 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1) {
+                alert('채널 삭제 권한이 없습니다.');
+                return;
+            }
             
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // DELETE /api/contents/{contentId} - 콘텐츠 삭제
-            */
+            // 확인 창
+            if (!confirm("정말로 이 채널을 삭제하시겠습니까?")) {
+                return;
+            }
+            
+            // 채널 삭제 API 엔드포인트 호출
+            fetch(`/contents/channel/${currentSelectedChannel}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`채널 삭제에 실패했습니다: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(() => {
+                // 삭제 후 계층 구조 새로고침
+                currentSelectedChannel = null;
+                initializeContentManager();
+            })
+            .catch(error => {
+                console.error('채널 삭제 중 오류가 발생했습니다:', error);
+                alert('채널 삭제 중 오류가 발생했습니다.');
+            });
         });
         
         // 파일 추가 버튼 이벤트
         document.getElementById('add-file').addEventListener('click', function() {
-            if (!currentSelectedContent) {
-                alert('파일을 추가할 콘텐츠를 선택해주세요.');
+            if (!currentSelectedChannel) {
+                alert('파일을 추가할 채널을 선택해주세요.');
                 return;
             }
             
-            console.log(`파일 추가: 콘텐츠 ID ${currentSelectedContent}`);
+            // 적절한 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
+                alert('파일 추가 권한이 없습니다.');
+                return;
+            }
             
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // POST /api/contents/{contentId}/files - 콘텐츠에 파일 추가
-            */
+            // 파일 선택 다이얼로그 열기
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.multiple = false;
+            
+            fileInput.onchange = function() {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    return;
+                }
+                
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('channelId', currentSelectedChannel);
+                
+                // 파일 업로드 API 엔드포인트 호출
+                fetch('/contents/file', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`파일 추가에 실패했습니다: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    // 추가 후 계층 구조 새로고침
+                    if (currentSelectedChannel) {
+                        const filters = {
+                            all: document.getElementById('filter-all').checked,
+                            reviewing: document.getElementById('filter-reviewing').checked,
+                            rejected: document.getElementById('filter-rejected').checked,
+                            approved: document.getElementById('filter-approved').checked,
+                            updated: document.getElementById('filter-updated').checked
+                        };
+                        fetchChannelHierarchy(currentSelectedChannel, filters);
+                    }
+                })
+                .catch(error => {
+                    console.error('파일 추가 중 오류가 발생했습니다:', error);
+                    alert('파일 추가 중 오류가 발생했습니다.');
+                });
+            };
+            
+            fileInput.click();
         });
         
         // 파일 삭제 버튼 이벤트
         document.getElementById('remove-file').addEventListener('click', function() {
-            const selectedFiles = document.querySelectorAll('.file-selected');
+            // 트리에서 선택된 파일 찾기
+            const selectedFiles = document.querySelectorAll('.tree-file.selected');
             
             if (selectedFiles.length === 0) {
                 alert('삭제할 파일을 선택해주세요.');
                 return;
             }
             
+            // 적절한 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
+                alert('파일 삭제 권한이 없습니다.');
+                return;
+            }
+            
+            // 확인 창
+            if (!confirm("선택한 파일을 삭제하시겠습니까?")) {
+                return;
+            }
+            
             // 선택된 파일 ID 배열 가져오기
-            const fileIds = Array.from(selectedFiles).map(file => file.dataset.id);
+            const fileIds = Array.from(selectedFiles).map(file => 
+                file.closest('.tree-node').dataset.id
+            );
             
-            console.log(`파일 삭제: ${fileIds.join(', ')}`);
-            
-            /* @API@ TODO: API 구현 후 아래 주석 해제
-            // API 구현이 필요한 부분:
-            // DELETE /api/files - 파일 일괄 삭제
-            // 요청 본문: { fileIds: [id1, id2, ...] }
-            */
+            // 파일 삭제 API 엔드포인트 호출
+            fetch('/contents/files', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ fileIds: fileIds })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`파일 삭제에 실패했습니다: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(() => {
+                // 삭제 후 계층 구조 새로고침
+                if (currentSelectedChannel) {
+                    const filters = {
+                        all: document.getElementById('filter-all').checked,
+                        reviewing: document.getElementById('filter-reviewing').checked,
+                        rejected: document.getElementById('filter-rejected').checked,
+                        approved: document.getElementById('filter-approved').checked,
+                        updated: document.getElementById('filter-updated').checked
+                    };
+                    fetchChannelHierarchy(currentSelectedChannel, filters);
+                }
+            })
+            .catch(error => {
+                console.error('파일 삭제 중 오류가 발생했습니다:', error);
+                alert('파일 삭제 중 오류가 발생했습니다.');
+            });
+        });
+        
+        // 파일 선택 기능 추가
+        document.addEventListener('click', function(e) {
+            const fileNode = e.target.closest('.tree-file');
+            if (fileNode) {
+                // 이미 선택된 파일 선택 해제
+                document.querySelectorAll('.tree-file.selected').forEach(node => {
+                    node.classList.remove('selected');
+                });
+                
+                // 현재 파일 선택
+                fileNode.classList.add('selected');
+            }
         });
     </script>
 </body>

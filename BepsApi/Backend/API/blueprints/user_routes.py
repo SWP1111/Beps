@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request, make_response
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 import datetime
 from datetime import timezone
-from extensions import db
+from extensions import db, redis_client
 from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
@@ -16,6 +16,7 @@ from sqlalchemy import func, or_
 import services.user_summary_service as summary_service
 import traceback
 from sqlalchemy import case
+import json
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -363,15 +364,20 @@ def get_top_user_duration():
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
+        cache_key = f"top_user_duration_{period_type}_{period_value}"
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logging.debug(f"Cache hit for {cache_key}")
+        
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
             data = summary_service.get_top_user_duration_mixed(start_date, end_date)
             logging.info(f"get_top_user_duration_mixed: {data}")
             
             if data['has_data']:
-                return jsonify({
-                    'data': data
-                }),200
+                response = {'data': data}
+                redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
+                return jsonify(response),200
             else:
                 return jsonify({'error': 'No data found'}), 404        
             
@@ -403,12 +409,14 @@ def get_top_user_duration():
                 if (len(user_duration_map) > 0):
                     sorted_user = sorted(user_duration_map.items(), key=lambda x: x[1][1], reverse=True)
                     sorted_users_by_low = sorted(user_duration_map.items(), key=lambda x: x[1][1])
-                    return jsonify({
+                    response = {
                         'data': {
                             'top': [(user_id, name, duration) for user_id, (name, duration) in sorted_user[:3]],
                             'bottom': [(user_id, name, duration) for user_id, (name, duration) in sorted_users_by_low[:3]],
                         }
-                    }),200
+                    }
+                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
+                    return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
             
@@ -418,9 +426,9 @@ def get_top_user_duration():
                 logging.info(f"get_top_user_duration_mixed: {data}")
                 
                 if data['has_data']:
-                    return jsonify({
-                        'data': data
-                    }),200
+                    response = {'data': data}
+                    redis_client.setex(cache_key, 3600, json.dumps(response))
+                    return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404 
                                     
@@ -438,15 +446,20 @@ def get_top_department_duration():
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
+        cache_key = f"top_department_duration{period_type}_{period_value}"
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logging.debug(f"Cache hit for {cache_key}")
+            
         if period_type == 'day':
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]           
             data = summary_service.get_top_department_duration_mixed(start_date, end_date)
             logging.info(f"get_top_department_duration_mixed: {data}")
             
             if data['has_data']:
-                return jsonify({
-                    'data': data
-                }),200
+                response = {'data': data}
+                redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
+                return jsonify(response),200
             else:
                 return jsonify({'error': 'No data found'}), 404
         elif period_type in ['quarter', 'half', 'year']:
@@ -477,12 +490,14 @@ def get_top_department_duration():
                 if(len(dept_duration_map) > 0):
                     sorted_dept = sorted(dept_duration_map.items(), key=lambda x: x[1], reverse=True)
                     sorted_dept_by_low = sorted(dept_duration_map.items(), key=lambda x: x[1])
-                    return jsonify({
+                    response = {
                         'data': {
                             'top': [(company, department, duration) for (company, department), duration in sorted_dept[:3]],
                             'bottom': [(company, department, duration) for (company, department), duration in sorted_dept_by_low[:3]],
                         }
-                    }),200
+                    }
+                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
+                    return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
             else:
@@ -490,9 +505,9 @@ def get_top_department_duration():
                 data = summary_service.get_top_department_duration_mixed(start_date, end_date)
                 
                 if data['has_data']:
-                    return jsonify({
-                        'data': data
-                    }),200
+                    response = {'data': data}
+                    redis_client.setex(cache_key, 3600, json.dumps(response))
+                    return jsonify(response),200
                 else:
                     return jsonify({'error': 'No data found'}), 404
             
@@ -509,14 +524,19 @@ def get_top_company_duration():
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
+        cache_key = f"top_company_duration_{period_type}_{period_value}"
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logging.debug(f"Cache hit for {cache_key}")
+            
         if period_type == "day":
             start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
             data = summary_service.get_top_company_duration_mixed(start_date, end_date)
             
             if data['has_data']:
-                return jsonify({
-                    'data': data
-                }),200
+                response = {'data': data}
+                redis_client.setex(cache_key, 3600, json.dumps(response))
+                return jsonify(response),200
             else:                    
                 return jsonify({'error': 'No data found'}), 404
         elif period_type in ['quarter', 'half', 'year']:
@@ -545,12 +565,14 @@ def get_top_company_duration():
                 if(len(company_duration_map) > 0):
                     sorted_company = sorted(company_duration_map.items(), key=lambda x: x[1], reverse=True)
                     sorted_company_by_low = sorted(company_duration_map.items(), key=lambda x: x[1])
-                    return jsonify({
+                    response = {
                         'data': {
                             'top': [(company, duration) for company, duration in sorted_company[:3]],
                             'bottom': [(company, duration) for company, duration in sorted_company_by_low[:3]],
                         }
-                    }),200
+                    }
+                    redis_client.setex(cache_key, 3600, json.dumps(response))  # Cache for 1 hour
+                    return jsonify(response),200
                 else:                    
                     return jsonify({'error': 'No data found'}), 404
             else:
@@ -558,9 +580,9 @@ def get_top_company_duration():
                 data = summary_service.get_top_company_duration_mixed(start_date, end_date)
                 
                 if data['has_data']:
-                    return jsonify({
-                        'data': data
-                    }),200
+                    response = {'data': data}
+                    redis_client.setex(cache_key, 3600, json.dumps(response))
+                    return jsonify(response),200
                 else:                    
                     return jsonify({'error': 'No data found'}), 404
             
@@ -697,4 +719,145 @@ def get_search():
         return jsonify(result_map), 200 
     except Exception as e:
         logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/companies', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_companies():
+    """
+    Get all unique companies from users table
+    """
+    try:
+        # Query for distinct companies, excluding empty or null values
+        companies = db.session.query(Users.company).filter(
+            Users.is_deleted == False,
+            Users.company.isnot(None),
+            Users.company != ''
+        ).distinct().order_by(Users.company).all()
+        
+        # Extract company names from query result
+        company_list = [company[0] for company in companies]
+        
+        return jsonify(company_list)
+    except Exception as e:
+        logging.error(f"Error fetching companies: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/departments', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_departments():
+    """
+    Get all departments for a specific company
+    """
+    try:
+        company = request.args.get('company')
+        if not company:
+            return jsonify({'error': 'Company parameter is required'}), 400
+            
+        # Query for distinct departments in the specified company
+        departments = db.session.query(Users.department).filter(
+            Users.company == company,
+            Users.is_deleted == False,
+            Users.department.isnot(None),
+            Users.department != ''
+        ).distinct().order_by(Users.department).all()
+        
+        # Extract department names from query result
+        department_list = [dept[0] for dept in departments]
+        
+        return jsonify(department_list)
+    except Exception as e:
+        logging.error(f"Error fetching departments: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/positions', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_positions():
+    """
+    Get all positions for a specific company and department
+    """
+    try:
+        company = request.args.get('company')
+        department = request.args.get('department')
+        
+        if not company or not department:
+            return jsonify({'error': 'Company and department parameters are required'}), 400
+            
+        # Query for distinct positions in the specified company and department
+        positions = db.session.query(Users.position).filter(
+            Users.company == company,
+            Users.department == department,
+            Users.is_deleted == False,
+            Users.position.isnot(None),
+            Users.position != ''
+        ).distinct().order_by(Users.position).all()
+        
+        # Extract position names from query result
+        position_list = [pos[0] for pos in positions]
+        
+        return jsonify(position_list)
+    except Exception as e:
+        logging.error(f"Error fetching positions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/names', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_names():
+    """
+    Get all users for a specific company, department, and position
+    """
+    try:
+        company = request.args.get('company')
+        department = request.args.get('department')
+        position = request.args.get('position')
+        
+        if not company or not department or not position:
+            return jsonify({'error': 'Company, department, and position parameters are required'}), 400
+            
+        # Query for users in the specified company, department, and position
+        users = db.session.query(Users.id, Users.name).filter(
+            Users.company == company,
+            Users.department == department,
+            Users.position == position,
+            Users.is_deleted == False
+        ).order_by(Users.name).all()
+        
+        # Format user data
+        user_list = [{'id': user.id, 'name': user.name} for user in users]
+        
+        return jsonify(user_list)
+    except Exception as e:
+        logging.error(f"Error fetching user names: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_user_bp.route('/verify', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def verify_user():
+    """
+    Verify if a user ID exists and return user details
+    """
+    try:
+        user_id = request.args.get('id')
+        if not user_id:
+            return jsonify({'error': 'User ID parameter is required'}), 400
+            
+        # Find the user
+        user = Users.query.filter_by(id=user_id, is_deleted=False).first()
+        
+        if not user:
+            return jsonify({'exists': False}), 404
+            
+        # Return user details
+        return jsonify({
+            'exists': True,
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'company': user.company,
+                'department': user.department,
+                'position': user.position
+            }
+        })
+    except Exception as e:
+        logging.error(f"Error verifying user: {str(e)}")
         return jsonify({'error': str(e)}), 500

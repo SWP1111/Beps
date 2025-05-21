@@ -10,3 +10,4 @@ BepsApi/Backend/API/services/__pycache__
 *.log
 .cursor
 BepsApi/beps/lib
+venv/

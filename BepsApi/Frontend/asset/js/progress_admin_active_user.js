@@ -37,66 +37,73 @@ export async function activeUser(period_type, period_value)
     socket.onopen = () => {};
     socket.onmessage = async(event) =>
     {
-        const data = JSON.parse(event.data);
-        if(data.type == "user_count")
-        {
-            updateTrafficGaugeValue(data.count, data.max_users);
-            if(user_count)
-                user_count.textContent = `현재접속인원 : ${data.count} 명`;
+        try{
+            const data = JSON.parse(event.data);
+            if(data.type == "user_count")
+            {
+                updateTrafficGaugeValue(data.count, data.max_users);
+                if(user_count)
+                    user_count.textContent = `현재접속인원 : ${data.count} 명`;
 
-            const newUserIds = new Set(data.users.map(u => u.user_id));
+                const newUserIds = new Set(data.users.map(u => u.user_id));
 
-            for (const [userId, element] of currentUserMap.entries()) {
-                if (!newUserIds.has(userId)){
-                    container.removeChild(element);
-                    currentUserMap.delete(userId);
+                for (const [userId, element] of currentUserMap.entries()) {
+                    if (!newUserIds.has(userId)){
+                        container.removeChild(element);
+                        currentUserMap.delete(userId);
+                    }
                 }
-            }
 
-            const userInfos = await Promise.all(data.users
-                .filter(user => !currentUserMap.has(user.user_id))
-                .map(async user => {
-                const info = await getUserInfo(user);
-                const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
-                const userDurationSec = userDuration.total_duration;
-                return { user, info, userDurationSec};
-            }));
+                const userInfos = await Promise.all(data.users
+                    .filter(user => !currentUserMap.has(user.user_id))
+                    .map(async user => {
+                    const info = await getUserInfo(user);
+                    const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
+                    const userDurationSec = userDuration.total_duration;
+                    return { user, info, userDurationSec};
+                }));
 
-            for (const {user, info, userDurationSec} of userInfos) {
-                
-                const item = document.createElement("div");
-                item.contentEditable = false;
-                item.className = "listbox-item";
+                for (const {user, info, userDurationSec} of userInfos) {
+                    
+                    if(currentUserMap.has(user.user_id)) continue;
 
-                const name = document.createElement("span");
-                name.contentEditable = false;
-                name.className = "user_text";
-                name.textContent = `${info.username}/${user.user_id}/${info.position}`;
+                    const item = document.createElement("div");
+                    item.contentEditable = false;
+                    item.className = "listbox-item";
 
-                const status = document.createElement("span");
-                status.className = "status";
+                    const name = document.createElement("span");
+                    name.contentEditable = false;
+                    name.className = "user_text";
+                    name.textContent = `${info.username}/${user.user_id}/${info.position}`;
 
-                item.appendChild(name);
-                item.appendChild(status);
-                container.appendChild(item);
-                currentUserMap.set(user.user_id, item);
+                    const status = document.createElement("span");
+                    status.className = "status";
 
-                if(allTotalDuration)
-                {
-                    const userPercentage = (allTotalDuration > 0) 
-                        ? parseFloat(((userDurationSec / allTotalDuration) * 100).toFixed(2))
-                        : parseFloat("0.00");
+                    item.appendChild(name);
+                    item.appendChild(status);
+                    container.appendChild(item);
+                    currentUserMap.set(user.user_id, item);
 
-                    if(userPercentage <= 20)
-                        status.className = "yellow-RedBorder";
+                    if(allTotalDuration)
+                    {
+                        const userPercentage = (allTotalDuration > 0) 
+                            ? parseFloat(((userDurationSec / allTotalDuration) * 100).toFixed(2))
+                            : parseFloat("0.00");
+
+                        if(userPercentage <= 20)
+                            status.className = "yellow-RedBorder";
+                        else
+                            status.className = "yellow";
+                    }
                     else
-                        status.className = "yellow";
+                        pendingUsers.push({userId: user.user_id, element: item, duration: userDurationSec});
                 }
-                else
-                    pendingUsers.push({userId: user.user_id, element: item, duration: userDurationSec});
-            }
 
-            refresh();
+                refresh();
+            }
+        }
+        catch(error){
+            console.error("Error parsing JSON:", error);
         }
     };
 }

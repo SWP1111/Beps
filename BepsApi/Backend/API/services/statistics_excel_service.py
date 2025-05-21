@@ -171,18 +171,23 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
     os.makedirs(path, exist_ok=True)  # 디렉토리 생성
     
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='전체컨텐츠',index=False,startrow=2)
-        df_org.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=2)
+        df.to_excel(writer, sheet_name='전체컨텐츠',index=False,startrow=1)
+        df_org.to_excel(writer, sheet_name='회사&팀&직원',index=False,startrow=1)
         if df_user is not None:
-            df_user.to_excel(writer, sheet_name='개인',index=False,startrow=2)
+            df_user.to_excel(writer, sheet_name='개인',index=False,startrow=1)
         
         ws = writer.sheets['전체컨텐츠']
         ws.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
         
-        ws_user = writer.sheets['회사&팀&직원']
-        ws_user.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
-        ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
-    
+        ws_org = writer.sheets['회사&팀&직원']
+        ws_org.cell(row=1, column=1).value = '회사별,팀별,팀원별 기록(전체 확인 가능)'
+        ws_org.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+        
+        if df_user is not None:
+            ws_user = writer.sheets['개인']
+            ws_user.cell(row=1, column=1).value = '개인별 기록 확인'
+            ws_user.cell(row=1, column=3).value = f'{start_date} ~ {end_date}'
+            
     df_content_html = generate_html_with_style(df) #df.to_html(index=False, classes='content_table', border=1)
     df_org_html = generate_html_with_style(df_org) #df_org.to_html(index=False, classes='user_table', border=1)
     df_user_html = None

@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("manager-admin-button").style.display = "none";
     }
 
-    if(user_role == 1 || user_role == 2) // 통합관리자 또는 개발관리자
+    if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
         loadContent("progress_admin.html");
     else
         loadContent("progress.html");

@@ -45,9 +45,9 @@ document.addEventListener('DOMContentLoaded', async() => {
   
   getTopUserConnectionDuration(period_type, period_value)
   .then(data => {
-    displayUserTopBottom(data);
+      displayUserTopBottom(data);
   });
-
+  
   getTopDepartmentConnectionDuration(period_type, period_value)
   .then(data => {
     displayDipartmentTopBottom(data);
@@ -58,7 +58,25 @@ document.addEventListener('DOMContentLoaded', async() => {
     displayCompanyTopBottom(data);
   });
 
-  
+  setInterval(() => {
+    getTopUserConnectionDuration(period_type, period_value)
+    .then(data => {
+      displayUserTopBottom(data);
+    });
+
+    getTopDepartmentConnectionDuration(period_type, period_value)
+    .then(data => {
+    displayDipartmentTopBottom(data);
+    });
+
+    getTopCompanyConnectionDuration(period_type, period_value)
+    .then(data => {
+      displayCompanyTopBottom(data);
+    });
+
+  }, 60*60*1000); // 1시간마다 업데이트
+
+
   const exportBtn = document.getElementById("export-button");
   exportBtn.addEventListener("click", () => {
     getStatisticsPreview();

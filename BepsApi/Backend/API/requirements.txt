@@ -14,3 +14,4 @@ websockets
 apscheduler
 openpyxl
 Flask-Caching==2.1.0
+redis
