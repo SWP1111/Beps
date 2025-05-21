@@ -211,4 +211,26 @@ th:not(.hidden), td:not(.hidden) {
 .permission-type-col {
     text-align: center;
     width: 80px;
+}
+
+/* Permissions list header */
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.list-header h3 {
+    margin: 0;
+}
+
+.refresh-btn {
+    padding: 5px 10px;
+    font-size: 14px;
+    background-color: #6c757d;
+}
+
+.refresh-btn:hover {
+    background-color: #5a6268;
 } 

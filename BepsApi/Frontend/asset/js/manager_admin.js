@@ -246,10 +246,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store the hierarchy data both locally and globally
         contentHierarchy = data;
-        window.contentHierarchy = data;
         
         // Load channel options from the hierarchy
         loadChannelOptions();
+        
+        // Now that hierarchy is loaded, we can safely load permissions
+        loadPermissions();
     }
 
     // Helper function to count folders and pages in a folder structure
@@ -336,10 +338,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store the sample data in both local and global variables
         contentHierarchy = sampleData;
-        window.contentHierarchy = sampleData;
         
         // Load channel options from the sample data
         loadChannelOptions();
+        
+        // Now that hierarchy is loaded, we can safely load permissions
+        loadPermissions();
     }
 
     // Load channel options from the content hierarchy
@@ -581,6 +585,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadPermissions() {
         console.log('Loading permissions from API:', `${baseApiUrl}/contents/content_manager`);
         
+        // Exit early if hierarchy isn't loaded yet
+        if (!contentHierarchy || !contentHierarchy.channels) {
+            console.warn('Cannot load permissions - content hierarchy not available yet');
+            errorMessage.textContent = '콘텐츠 구조 정보를 기다리는 중입니다...';
+            return;
+        }
+        
+        // Clear error message if it was previously set
+        errorMessage.textContent = '';
+        
         fetch(`${baseApiUrl}/contents/content_manager`, {
             method: 'GET',
             credentials: 'include',
@@ -611,9 +625,17 @@ document.addEventListener('DOMContentLoaded', function() {
             permissionsListBody.innerHTML = '';
             
             // Add each permission to the table
-            data.forEach(permission => {
-                addPermissionToTable(permission);
-            });
+            if (Array.isArray(data)) {
+                data.forEach(permission => {
+                    addPermissionToTable(permission);
+                });
+                
+                if (data.length === 0) {
+                    console.log('No permissions found');
+                }
+            } else {
+                console.error('Permissions data is not an array:', data);
+            }
         })
         .catch(error => {
             console.error('Error loading permissions:', error);
@@ -1155,9 +1177,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Event listener for refresh button
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            // Re-fetch content hierarchy and permissions
+            fetchContentHierarchy();
+        });
+    }
+
     // Initialize view
-    fetchContentHierarchy(); // This will load channel options after fetching
-    loadPermissions();
+    fetchContentHierarchy(); // This will load channel options and permissions after hierarchy is loaded
     loadCompanyOptions();
 });
 
@@ -1608,7 +1638,10 @@ function updatePermission(permissionId) {
 
 // Helper function to get better hierarchy information for permissions
 function getHierarchyInfo(permission) {
-    if (!contentHierarchy) return { folderParts: ['', '', '', ''], fileName: '' };
+    if (!contentHierarchy || !contentHierarchy.channels || !Array.isArray(contentHierarchy.channels)) {
+        console.warn('Content hierarchy not loaded correctly when getting hierarchy info');
+        return { folderParts: ['', '', '', ''], fileName: '' };
+    }
     
     let folderParts = ['', '', '', ''];
     let fileName = '';
@@ -1619,6 +1652,8 @@ function getHierarchyInfo(permission) {
             const channel = contentHierarchy.channels.find(c => c.id == permission.channel_id);
             if (channel) {
                 folderParts[0] = channel.name;
+            } else {
+                console.warn(`Channel not found for id: ${permission.channel_id}`);
             }
         } else if (permission.type === 'folder' && permission.folder_id) {
             // For folder permissions, find the folder path using our helper function
@@ -1630,6 +1665,8 @@ function getHierarchyInfo(permission) {
                         folderParts[index] = item.name;
                     }
                 });
+            } else {
+                console.warn(`Folder path not found for id: ${permission.folder_id}`);
             }
         } else if (permission.type === 'file' && permission.file_id) {
             // For file permissions, first find the folder that contains this file
@@ -1647,8 +1684,14 @@ function getHierarchyInfo(permission) {
                     
                     // Set the file name
                     fileName = fileInfo.fileName;
+                } else {
+                    console.warn(`Folder path not found for file folder id: ${fileInfo.folderId}`);
                 }
+            } else {
+                console.warn(`File folder not found for file id: ${permission.file_id}`);
             }
+        } else {
+            console.warn(`Unhandled permission type or missing ID: ${permission.type}`);
         }
     } catch (error) {
         console.error('Error getting hierarchy info:', error);
