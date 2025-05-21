@@ -397,7 +397,8 @@ class ContentManager(db.Model):
     user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
     file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=True)
     folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'), nullable=True)
-    type = db.Column(db.String(10), nullable=False)  # 'file' or 'folder'
+    channel_id = db.Column(db.Integer, db.ForeignKey('content_rel_channels.id'), nullable=True)
+    type = db.Column(db.String(10), nullable=False)  # 'file', 'folder', or 'channel'
     
     def to_dict(self):
         return {
@@ -405,6 +406,7 @@ class ContentManager(db.Model):
             'user_id': self.user_id,
             'file_id': self.file_id,
             'folder_id': self.folder_id,
+            'channel_id': self.channel_id,
             'type': self.type
         }
 class MemoData(db.Model):

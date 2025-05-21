@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
     // DOM elements
-    const permissionScopeRadios = document.querySelectorAll('input[name="permission-scope"]');
     const folderCols = document.querySelectorAll('.folder-col');
     const fileCol = document.querySelector('.file-col');
     const channelSelect = document.getElementById('channel-select');
@@ -34,72 +33,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make sure contentHierarchy is defined globally
     window.contentHierarchy = null;
 
-    // Function to toggle visibility of columns based on selected permission scope
-    function updateColumnsVisibility() {
-        const selectedScope = document.querySelector('input[name="permission-scope"]:checked').value;
-        
-        // Get all folder and file columns from both the input table and permissions list
-        const allFolderCols = document.querySelectorAll('.folder-col, .folder1-col, .folder2-col, .folder3-col');
-        const allFileCols = document.querySelectorAll('.file-col');
-        
-        // Also specifically update the table headers
-        const inputTableHeader = document.getElementById('input-table-header');
-        const permissionsTableHeader = document.querySelector('#permissions-table thead tr');
-        
-        if (selectedScope === 'channel') {
-            // Hide folder and file columns
-            allFolderCols.forEach(col => col.classList.add('hidden'));
-            allFileCols.forEach(col => col.classList.add('hidden'));
-            
-            // Also update header colspans if needed
-            if (inputTableHeader) {
-                const thElements = inputTableHeader.querySelectorAll('th');
-                thElements.forEach(th => {
-                    if (th.classList.contains('folder-col') || th.classList.contains('file-col')) {
-                        th.classList.add('hidden');
-                    }
-                });
-            }
-        } else if (selectedScope === 'folder') {
-            // Show folder columns, hide file column
-            allFolderCols.forEach(col => col.classList.remove('hidden'));
-            allFileCols.forEach(col => col.classList.add('hidden'));
-            
-            // Update headers
-            if (inputTableHeader) {
-                const thElements = inputTableHeader.querySelectorAll('th');
-                thElements.forEach(th => {
-                    if (th.classList.contains('folder-col')) {
-                        th.classList.remove('hidden');
-                    }
-                    if (th.classList.contains('file-col')) {
-                        th.classList.add('hidden');
-                    }
-                });
-            }
-        } else if (selectedScope === 'file') {
-            // Show all columns
-            allFolderCols.forEach(col => col.classList.remove('hidden'));
-            allFileCols.forEach(col => col.classList.remove('hidden'));
-            
-            // Update headers
-            if (inputTableHeader) {
-                const thElements = inputTableHeader.querySelectorAll('th');
-                thElements.forEach(th => {
-                    th.classList.remove('hidden');
-                });
-            }
-        }
-        
-        // Force browser to reflow the table
-        if (inputTableHeader) {
-            inputTableHeader.parentElement.style.display = 'none';
-            setTimeout(() => {
-                inputTableHeader.parentElement.style.display = '';
-            }, 10);
-        }
-    }
-    
     // Fetch the complete content hierarchy once
     function fetchContentHierarchy() {
         console.log('Fetching content hierarchy...');
@@ -705,7 +638,6 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.textContent = '';
         
         // Get selected values
-        const permissionScope = document.querySelector('input[name="permission-scope"]:checked').value;
         const channelId = channelSelect.value;
         const folder1Id = folder1Select.value;
         const folder2Id = folder2Select.value;
@@ -719,19 +651,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (permissionScope === 'folder' && !folder1Id) {
-            errorMessage.textContent = '폴더를 선택해주세요.';
-            return;
-        }
-        
-        if (permissionScope === 'file' && !fileId) {
-            errorMessage.textContent = '파일을 선택해주세요.';
-            return;
-        }
-        
         if (!managerId) {
             errorMessage.textContent = '담당자 ID를 입력해주세요.';
             return;
+        }
+        
+        // Determine permission scope based on selection pattern
+        let permissionScope;
+        if (fileId) {
+            permissionScope = 'file';
+        } else if (folder1Id || folder2Id || folder3Id) {
+            permissionScope = 'folder';
+        } else {
+            permissionScope = 'channel';
         }
         
         // Verify user exists
@@ -744,7 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
                 
                 if (permissionScope === 'channel') {
-                    permissionData.folder_id = channelId;
+                    permissionData.channel_id = channelId;
                 } else if (permissionScope === 'folder') {
                     // Use the deepest selected folder
                     permissionData.folder_id = folder3Id || folder2Id || folder1Id;
@@ -829,9 +761,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.innerHTML = `
                     <td>${permission.type}</td>
                     <td>${folderParts[0] || ''}</td>
-                    <td class="folder-col folder1-col">${folderParts[1] || ''}</td>
-                    <td class="folder-col folder2-col">${folderParts[2] || ''}</td>
-                    <td class="folder-col folder3-col">${folderParts[3] || ''}</td>
+                    <td class="folder1-col">${folderParts[1] || ''}</td>
+                    <td class="folder2-col">${folderParts[2] || ''}</td>
+                    <td class="folder3-col">${folderParts[3] || ''}</td>
                     <td class="file-col">${fileName || ''}</td>
                     <td class="manager-col">${userName || permission.user_id}</td>
                     <td>
@@ -841,9 +773,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Add row to table
                 permissionsListBody.appendChild(row);
-                
-                // Apply column visibility rules to the new row
-                updateColumnsVisibility();
                 
                 // Add event listener to delete button
                 row.querySelector('.delete-btn').addEventListener('click', function() {
@@ -1092,11 +1021,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Event listeners for permission scope radio buttons
-    permissionScopeRadios.forEach(radio => {
-        radio.addEventListener('change', updateColumnsVisibility);
-    });
-
     // Event listener for channel select
     channelSelect.addEventListener('change', function() {
         if (this.value) {
@@ -1213,13 +1137,9 @@ document.addEventListener('DOMContentLoaded', function() {
     addBtn.addEventListener('click', addPermission);
 
     // Initialize view
-    updateColumnsVisibility();
     fetchContentHierarchy(); // This will load channel options after fetching
     loadPermissions();
     loadCompanyOptions();
-    
-    // Force refresh the column visibility
-    setTimeout(updateColumnsVisibility, 100);
 });
 
 // Add event listener to open the manager admin popup from main page

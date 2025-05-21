@@ -576,4 +576,121 @@ def delete_folder(folder_id):
     except Exception as e:
         logging.error(f"Error deleting folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/content_manager', methods=['GET'])
+def get_content_managers():
+    """
+    Get all content managers
+    
+    Returns a list of content manager entries
+    """
+    try:
+        managers = ContentManager.query.all()
+        return jsonify([manager.to_dict() for manager in managers])
+    except Exception as e:
+        logging.error(f"Error getting content managers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/content_manager', methods=['POST'])
+def add_content_manager():
+    """
+    Add a new content manager entry
+    
+    Request body:
+    - user_id: ID of the user to add as manager
+    - type: Type of permission ('channel', 'folder', or 'file')
+    - file_id: ID of the file (when type is 'file')
+    - folder_id: ID of the folder (when type is 'folder')
+    - channel_id: ID of the channel (when type is 'channel')
+    """
+    try:
+        data = request.json
+        
+        if not data or 'user_id' not in data or 'type' not in data:
+            return jsonify({'error': 'Required fields missing: user_id and type'}), 400
+        
+        user_id = data['user_id']
+        permission_type = data['type']
+        
+        # Validate user exists
+        user = Users.query.get(user_id)
+        if not user:
+            return jsonify({'error': f'User with ID {user_id} not found'}), 404
+        
+        # Create manager entry based on type
+        manager = ContentManager(
+            user_id=user_id,
+            type=permission_type
+        )
+        
+        if permission_type == 'channel' and 'channel_id' in data:
+            channel_id = data['channel_id']
+            
+            # Verify channel exists
+            channel = ContentRelChannels.query.filter_by(id=int(channel_id), is_deleted=False).first()
+            if not channel:
+                return jsonify({'error': f'Channel with ID {channel_id} not found'}), 404
+            
+            # Set channel_id
+            manager.channel_id = int(channel_id)
+        
+        elif permission_type == 'folder' and 'folder_id' in data:
+            folder_id = data['folder_id']
+            
+            # Verify folder exists
+            folder = ContentRelFolders.query.filter_by(id=int(folder_id), is_deleted=False).first()
+            if not folder:
+                return jsonify({'error': f'Folder with ID {folder_id} not found'}), 404
+            
+            manager.folder_id = int(folder_id)
+        
+        elif permission_type == 'file' and 'file_id' in data:
+            file_id = data['file_id']
+            
+            # Verify file exists
+            file = ContentRelPages.query.filter_by(id=int(file_id), is_deleted=False).first()
+            if not file:
+                return jsonify({'error': f'File with ID {file_id} not found'}), 404
+            
+            manager.file_id = int(file_id)
+        
+        else:
+            # Missing required IDs for the selected type
+            missing_field = 'channel_id' if permission_type == 'channel' else ('folder_id' if permission_type == 'folder' else 'file_id')
+            return jsonify({'error': f'Required field missing: {missing_field}'}), 400
+        
+        # Save to database
+        db.session.add(manager)
+        db.session.commit()
+        
+        return jsonify(manager.to_dict())
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error adding content manager: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/content_manager/<int:manager_id>', methods=['DELETE'])
+def delete_content_manager(manager_id):
+    """
+    Delete a content manager entry
+    
+    Path parameter:
+    - manager_id: ID of the content manager entry to delete
+    """
+    try:
+        manager = ContentManager.query.get(manager_id)
+        
+        if not manager:
+            return jsonify({'error': f'Content manager entry with ID {manager_id} not found'}), 404
+        
+        db.session.delete(manager)
+        db.session.commit()
+        
+        return jsonify({'message': 'Content manager entry deleted successfully'})
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting content manager: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 #endregion
