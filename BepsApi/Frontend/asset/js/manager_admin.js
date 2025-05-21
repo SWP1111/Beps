@@ -741,38 +741,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get user name
         fetchUserName(permission.user_id)
             .then(userName => {
-                // Split path components for display
-                let folderParts = ['', '', '', ''];
-                let fileName = '';
+                // Get hierarchy information for this permission
+                const { folderParts, fileName } = getHierarchyInfo(permission);
                 
-                if (contentHierarchy) {
-                    if (permission.type === 'channel' || permission.type === 'folder') {
-                        const path = getPathInHierarchy(permission.type, permission.folder_id);
-                        if (path) {
-                            const parts = path.split('/');
-                            for (let i = 0; i < Math.min(parts.length, 4); i++) {
-                                folderParts[i] = parts[i] || '';
-                            }
-                        }
-                    } else if (permission.type === 'file' && permission.file_id) {
-                        const path = getPathInHierarchy(permission.type, permission.file_id);
-                        if (path) {
-                            const parts = path.split('/');
-                            // Last part is the file name
-                            if (parts.length > 0) {
-                                fileName = parts.pop() || '';
-                            }
-                            // Remaining parts are folder path
-                            for (let i = 0; i < Math.min(parts.length, 4); i++) {
-                                folderParts[i] = parts[i] || '';
-                            }
-                        }
-                    }
+                // Translate permission type to Korean
+                let permissionTypeKorean = '';
+                switch(permission.type) {
+                    case 'channel':
+                        permissionTypeKorean = '채널';
+                        break;
+                    case 'folder':
+                        permissionTypeKorean = '폴더';
+                        break;
+                    case 'file':
+                        permissionTypeKorean = '파일';
+                        break;
+                    default:
+                        permissionTypeKorean = permission.type;
                 }
                 
                 // Add cells
                 row.innerHTML = `
-                    <td>${permission.type}</td>
+                    <td class="permission-type-col">${permissionTypeKorean}</td>
                     <td>${folderParts[0] || ''}</td>
                     <td class="folder1-col">${folderParts[1] || ''}</td>
                     <td class="folder2-col">${folderParts[2] || ''}</td>
@@ -1617,4 +1607,55 @@ function updatePermission(permissionId) {
         .catch(error => {
             errorMessage.textContent = error.message;
         });
+}
+
+// Helper function to get better hierarchy information for permissions
+function getHierarchyInfo(permission) {
+    if (!contentHierarchy) return { folderParts: ['', '', '', ''], fileName: '' };
+    
+    let folderParts = ['', '', '', ''];
+    let fileName = '';
+    
+    try {
+        if (permission.type === 'channel' && permission.channel_id) {
+            // For channel permissions, just show the channel name
+            const channel = contentHierarchy.channels.find(c => c.id == permission.channel_id);
+            if (channel) {
+                folderParts[0] = channel.name;
+            }
+        } else if (permission.type === 'folder' && permission.folder_id) {
+            // For folder permissions, find the folder path using our helper function
+            const folderPath = findFolderPath(permission.folder_id);
+            if (folderPath && folderPath.length > 0) {
+                // Extract names from the path
+                folderPath.forEach((item, index) => {
+                    if (index < 4) {
+                        folderParts[index] = item.name;
+                    }
+                });
+            }
+        } else if (permission.type === 'file' && permission.file_id) {
+            // For file permissions, first find the folder that contains this file
+            const fileInfo = findFileFolder(permission.file_id);
+            if (fileInfo && fileInfo.folderId) {
+                // Then get the folder path
+                const folderPath = findFolderPath(fileInfo.folderId);
+                if (folderPath && folderPath.length > 0) {
+                    // Extract names from the path
+                    folderPath.forEach((item, index) => {
+                        if (index < 4) {
+                            folderParts[index] = item.name;
+                        }
+                    });
+                    
+                    // Set the file name
+                    fileName = fileInfo.fileName;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error getting hierarchy info:', error);
+    }
+    
+    return { folderParts, fileName };
 } 

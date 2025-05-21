@@ -106,6 +106,7 @@ button:hover {
 /* Ensure manager column is always visible */
 .manager-col {
     display: table-cell !important;
+    width: 200px;
 }
 
 /* Additional specific rules for folder columns */
@@ -134,10 +135,24 @@ th:not(.hidden), td:not(.hidden) {
     margin-top: 30px;
 }
 
+/* Permissions table actions column */
+#permissions-table .edit-btn,
 #permissions-table .delete-btn {
-    background-color: #d9534f;
     padding: 5px 10px;
     font-size: 12px;
+    margin: 2px;
+}
+
+#permissions-table .edit-btn {
+    background-color: #5bc0de;
+}
+
+#permissions-table .edit-btn:hover {
+    background-color: #31b0d5;
+}
+
+#permissions-table .delete-btn {
+    background-color: #d9534f;
 }
 
 #permissions-table .delete-btn:hover {
@@ -190,4 +205,10 @@ th:not(.hidden), td:not(.hidden) {
 
 .validation-message.success {
     color: #5cb85c;
+}
+
+/* Permission type column styling */
+.permission-type-col {
+    text-align: center;
+    width: 80px;
 } 
