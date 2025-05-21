@@ -841,8 +841,8 @@ def verify_user():
         if not user_id:
             return jsonify({'error': 'User ID parameter is required'}), 400
             
-        # Find the user
-        user = Users.query.filter_by(id=user_id, is_deleted=False).first()
+        # Find the user - use case-insensitive search
+        user = Users.query.filter(Users.id.ilike(user_id), Users.is_deleted == False).first()
         
         if not user:
             return jsonify({'exists': False}), 404

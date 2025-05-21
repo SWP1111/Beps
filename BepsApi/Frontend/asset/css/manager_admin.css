@@ -106,7 +106,7 @@ button:hover {
 /* Ensure manager column is always visible */
 .manager-col {
     display: table-cell !important;
-    width: 200px;
+    width: 300px;
 }
 
 /* Additional specific rules for folder columns */
@@ -233,4 +233,25 @@ th:not(.hidden), td:not(.hidden) {
 
 .refresh-btn:hover {
     background-color: #5a6268;
+}
+
+/* User info columns */
+.company-col {
+    width: 100px;
+}
+
+.department-col {
+    width: 100px;
+}
+
+.position-col {
+    width: 80px;
+}
+
+.name-col {
+    width: 80px;
+}
+
+.id-col {
+    width: 80px;
 } 

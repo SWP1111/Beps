@@ -664,6 +664,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Fetch user details
+    function fetchUserDetails(userId) {
+        return fetch(`${baseApiUrl}/user/verify?id=${userId}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return { exists: false };
+            }
+            return response.json();
+        })
+        .catch(() => {
+            return { exists: false };
+        });
+    }
+
     // Add permission
     function addPermission() {
         // Clear previous error message
@@ -729,6 +750,12 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => {
                 if (!response.ok) {
+                    // Special handling for duplicate entry error
+                    if (response.status === 409) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || '이미 동일한 담당자 권한이 존재합니다.');
+                        });
+                    }
                     throw new Error('권한 추가에 실패했습니다.');
                 }
                 return response.json();
@@ -757,11 +784,24 @@ document.addEventListener('DOMContentLoaded', function() {
     function addPermissionToTable(permission) {
         const row = document.createElement('tr');
         
-        // Get user name
-        fetchUserName(permission.user_id)
-            .then(userName => {
-                // Get hierarchy information for this permission
-                const { folderParts, fileName } = getHierarchyInfo(permission);
+        // Get hierarchy information for this permission
+        const { folderParts, fileName } = getHierarchyInfo(permission);
+        
+        // Get detailed user information
+        fetchUserDetails(permission.user_id)
+            .then(userData => {
+                // Get user details
+                let company = '';
+                let department = '';
+                let position = '';
+                let name = '';
+                
+                if (userData && userData.exists && userData.user) {
+                    company = userData.user.company || '';
+                    department = userData.user.department || '';
+                    position = userData.user.position || '';
+                    name = userData.user.name || '';
+                }
                 
                 // Translate permission type to Korean
                 let permissionTypeKorean = '';
@@ -787,7 +827,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="folder2-col">${folderParts[2] || ''}</td>
                     <td class="folder3-col">${folderParts[3] || ''}</td>
                     <td class="file-col">${fileName || ''}</td>
-                    <td class="manager-col">${userName || permission.user_id}</td>
+                    <td class="company-col">${company}</td>
+                    <td class="department-col">${department}</td>
+                    <td class="position-col">${position}</td>
+                    <td class="name-col">${name}</td>
+                    <td class="id-col">${permission.user_id}</td>
                     <td>
                         <button class="edit-btn" data-id="${permission.id}">수정</button>
                         <button class="delete-btn" data-id="${permission.id}">삭제</button>
@@ -1029,8 +1073,13 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                validationMessage.textContent = 'ID를 찾을 수 없습니다';
-                validationMessage.className = 'validation-message error';
+                if (response.status === 404) {
+                    validationMessage.textContent = 'ID를 찾을 수 없습니다';
+                    validationMessage.className = 'validation-message error';
+                } else {
+                    validationMessage.textContent = 'ID 검증에 실패했습니다';
+                    validationMessage.className = 'validation-message error';
+                }
                 return null;
             }
             return response.json();
@@ -1038,6 +1087,11 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data && data.exists) {
                 const user = data.user;
+                // Update the input field to use the database's casing
+                if (managerInput.value.toLowerCase() === user.id.toLowerCase() && 
+                    managerInput.value !== user.id) {
+                    managerInput.value = user.id;
+                }
                 validationMessage.textContent = `올바른 ID입니다(${user.company} ${user.department} ${user.name} ${user.position})`;
                 validationMessage.className = 'validation-message success';
             }
@@ -1607,6 +1661,12 @@ function updatePermission(permissionId) {
         })
         .then(response => {
             if (!response.ok) {
+                // Special handling for duplicate entry error
+                if (response.status === 409) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || '이미 동일한 담당자 권한이 존재합니다.');
+                    });
+                }
                 throw new Error('권한 수정에 실패했습니다.');
             }
             return response.json();
