@@ -1,3 +1,125 @@
+// Global variables
+var contentHierarchy = null;
+
+// Helper function to get path for a file or folder for display in permissions table
+function getPathInHierarchy(type, id) {
+    if (!contentHierarchy) return '';
+    
+    if (type === 'channel') {
+        // Find channel by ID
+        const channel = contentHierarchy.channels.find(c => c.id == id);
+        return channel ? channel.name : '';
+    } else if (type === 'folder') {
+        // Find folder by ID and build path
+        let folderPath = '';
+        let folder = null;
+        
+        // Search for the folder in each channel
+        for (const channel of contentHierarchy.channels) {
+            folder = findFolderById(channel.folders, id);
+            if (folder) {
+                // If found, create path: Channel > Folder(s)
+                folderPath = `${channel.name}/${getFolderPathFromHierarchy(channel.folders, id)}`;
+                break;
+            }
+        }
+        
+        return folderPath;
+    } else if (type === 'file') {
+        // Find file by ID and build path
+        let filePath = '';
+        let foundFile = false;
+        
+        // Search for the file in each channel's folder structure
+        for (const channel of contentHierarchy.channels) {
+            for (const folder of channel.folders || []) {
+                const result = findFileInFolder(folder, id);
+                if (result.found) {
+                    // If found, create path: Channel > Folder(s) > File
+                    filePath = `${channel.name}/${result.path}`;
+                    foundFile = true;
+                    break;
+                }
+            }
+            if (foundFile) break;
+        }
+        
+        return filePath;
+    }
+    
+    return '';
+}
+
+// Helper function to find a file's path in a folder structure
+function findFileInFolder(folder, fileId, currentPath = '') {
+    const path = currentPath ? `${currentPath}/${folder.name}` : folder.name;
+    
+    // Check if the file is in this folder
+    if (folder.pages) {
+        for (const page of folder.pages) {
+            if (page.id == fileId) {
+                return { found: true, path: `${path}/${page.name}`, folderId: folder.id, fileName: page.name };
+            }
+        }
+    }
+    
+    // Check subfolders
+    if (folder.subfolders) {
+        for (const subfolder of folder.subfolders) {
+            const result = findFileInFolder(subfolder, fileId, path);
+            if (result.found) {
+                return result;
+            }
+        }
+    }
+    
+    return { found: false, path: '', folderId: null, fileName: '' };
+}
+
+// Helper function to build a folder's path in the hierarchy
+function getFolderPathFromHierarchy(folders, folderId, currentPath = '') {
+    for (const folder of folders) {
+        if (folder.id == folderId) {
+            return currentPath ? `${currentPath}/${folder.name}` : folder.name;
+        }
+        
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const newPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
+            const found = getFolderPathFromHierarchy(folder.subfolders, folderId, newPath);
+            if (found) return found;
+        }
+    }
+    
+    return '';
+}
+
+// Helper function to recursively find a folder by ID
+function findFolderById(folders, folderId) {
+    if (!folders || !Array.isArray(folders)) {
+        return null;
+    }
+    
+    for (const folder of folders) {
+        if (folder.id == folderId) {
+            // Log folder structure for debugging
+            console.log(`Found folder ${folderId}: ${folder.name}`, {
+                hasSubfolders: folder.subfolders && folder.subfolders.length > 0,
+                subfoldersCount: folder.subfolders ? folder.subfolders.length : 0,
+                hasPages: folder.pages && folder.pages.length > 0,
+                pagesCount: folder.pages ? folder.pages.length : 0
+            });
+            return folder;
+        }
+        
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const found = findFolderById(folder.subfolders, folderId);
+            if (found) return found;
+        }
+    }
+    
+    return null;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM elements
     const folderCols = document.querySelectorAll('.folder-col');
@@ -27,12 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Using API base URL:', baseApiUrl);
     
-    // Store the content hierarchy tree
-    let contentHierarchy = null;
-    
-    // Make sure contentHierarchy is defined globally
-    window.contentHierarchy = null;
-
     // Fetch the complete content hierarchy once
     function fetchContentHierarchy() {
         console.log('Fetching content hierarchy...');
@@ -461,33 +577,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Helper function to recursively find a folder by ID
-    function findFolderById(folders, folderId) {
-        if (!folders || !Array.isArray(folders)) {
-            return null;
-        }
-        
-        for (const folder of folders) {
-            if (folder.id == folderId) {
-                // Log folder structure for debugging
-                console.log(`Found folder ${folderId}: ${folder.name}`, {
-                    hasSubfolders: folder.subfolders && folder.subfolders.length > 0,
-                    subfoldersCount: folder.subfolders ? folder.subfolders.length : 0,
-                    hasPages: folder.pages && folder.pages.length > 0,
-                    pagesCount: folder.pages ? folder.pages.length : 0
-                });
-                return folder;
-            }
-            
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                const found = findFolderById(folder.subfolders, folderId);
-                if (found) return found;
-            }
-        }
-        
-        return null;
-    }
-
     // Load existing permissions
     function loadPermissions() {
         console.log('Loading permissions from API:', `${baseApiUrl}/contents/content_manager`);
@@ -530,98 +619,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading permissions:', error);
             errorMessage.textContent = '권한 정보를 불러오는데 실패했습니다: ' + error.message;
         });
-    }
-
-    // Helper function to get path for a file or folder for display in permissions table
-    function getPathInHierarchy(type, id) {
-        if (!contentHierarchy) return '';
-        
-        if (type === 'channel') {
-            // Find channel by ID
-            const channel = contentHierarchy.channels.find(c => c.id == id);
-            return channel ? channel.name : '';
-        } else if (type === 'folder') {
-            // Find folder by ID and build path
-            let folderPath = '';
-            let folder = null;
-            
-            // Search for the folder in each channel
-            for (const channel of contentHierarchy.channels) {
-                folder = findFolderById(channel.folders, id);
-                if (folder) {
-                    // If found, create path: Channel > Folder(s)
-                    folderPath = `${channel.name}/${getFolderPathFromHierarchy(channel.folders, id)}`;
-                    break;
-                }
-            }
-            
-            return folderPath;
-        } else if (type === 'file') {
-            // Find file by ID and build path
-            let filePath = '';
-            let foundFile = false;
-            
-            // Search for the file in each channel's folder structure
-            for (const channel of contentHierarchy.channels) {
-                for (const folder of channel.folders || []) {
-                    const result = findFileInFolder(folder, id);
-                    if (result.found) {
-                        // If found, create path: Channel > Folder(s) > File
-                        filePath = `${channel.name}/${result.path}`;
-                        foundFile = true;
-                        break;
-                    }
-                }
-                if (foundFile) break;
-            }
-            
-            return filePath;
-        }
-        
-        return '';
-    }
-    
-    // Helper function to find a file's path in a folder structure
-    function findFileInFolder(folder, fileId, currentPath = '') {
-        const path = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-        
-        // Check if the file is in this folder
-        if (folder.pages) {
-            for (const page of folder.pages) {
-                if (page.id == fileId) {
-                    return { found: true, path: `${path}/${page.name}`, folderId: folder.id, fileName: page.name };
-                }
-            }
-        }
-        
-        // Check subfolders
-        if (folder.subfolders) {
-            for (const subfolder of folder.subfolders) {
-                const result = findFileInFolder(subfolder, fileId, path);
-                if (result.found) {
-                    return result;
-                }
-            }
-        }
-        
-        return { found: false, path: '', folderId: null, fileName: '' };
-    }
-    
-    // Helper function to build a folder's path in the hierarchy
-    function getFolderPathFromHierarchy(folders, folderId, currentPath = '') {
-        for (const folder of folders) {
-            if (folder.id == folderId) {
-                return currentPath ? `${currentPath}/${folder.name}` : folder.name;
-            }
-            
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                const newPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-                const found = getFolderPathFromHierarchy(folder.subfolders, folderId, newPath);
-                if (found) return found;
-            }
-        }
-        
-        return '';
     }
 
     // Verify user exists
