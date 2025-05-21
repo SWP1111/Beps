@@ -827,12 +827,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="folder2-col">${folderParts[2] || ''}</td>
                     <td class="folder3-col">${folderParts[3] || ''}</td>
                     <td class="file-col">${fileName || ''}</td>
-                    <td class="company-col">${company}</td>
-                    <td class="department-col">${department}</td>
-                    <td class="position-col">${position}</td>
-                    <td class="name-col">${name}</td>
-                    <td class="id-col">${permission.user_id}</td>
-                    <td>
+                    <td class="company-col">${company || '-'}</td>
+                    <td class="department-col">${department || '-'}</td>
+                    <td class="position-col">${position || '-'}</td>
+                    <td class="name-col">${name || '-'}</td>
+                    <td class="id-col">${permission.user_id || '-'}</td>
+                    <td class="action-col">
                         <button class="edit-btn" data-id="${permission.id}">수정</button>
                         <button class="delete-btn" data-id="${permission.id}">삭제</button>
                     </td>

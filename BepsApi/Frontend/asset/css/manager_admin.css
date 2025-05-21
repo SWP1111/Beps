@@ -141,6 +141,8 @@ th:not(.hidden), td:not(.hidden) {
     padding: 5px 10px;
     font-size: 12px;
     margin: 2px;
+    width: 45px;
+    display: inline-block;
 }
 
 #permissions-table .edit-btn {
@@ -211,6 +213,7 @@ th:not(.hidden), td:not(.hidden) {
 .permission-type-col {
     text-align: center;
     width: 80px;
+    font-weight: bold;
 }
 
 /* Permissions list header */
@@ -238,20 +241,30 @@ th:not(.hidden), td:not(.hidden) {
 /* User info columns */
 .company-col {
     width: 100px;
+    text-align: center;
 }
 
 .department-col {
     width: 100px;
+    text-align: center;
 }
 
 .position-col {
     width: 80px;
+    text-align: center;
 }
 
 .name-col {
     width: 80px;
+    text-align: center;
 }
 
 .id-col {
     width: 80px;
+    text-align: center;
+}
+
+.action-col {
+    width: 100px;
+    text-align: center;
 } 
