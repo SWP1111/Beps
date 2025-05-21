@@ -135,6 +135,9 @@
         
         .tree-folder {
             cursor: pointer;
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
         }
         
         .tree-content {
@@ -154,29 +157,31 @@
         }
         
         .tree-file {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
             align-items: center;
             padding: 5px 0;
             border-bottom: 1px solid #eee;
+            gap: 10px;
         }
         
         .file-details {
-            display: flex;
-            width: 100%;
-            margin-top: 5px;
-            font-size: 0.9em;
-            color: #555;
+            display: none; /* Hide the previous file details container */
         }
         
         .file-detail {
-            margin-right: 15px;
+            padding: 0 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .file-name {
-            flex: 1;
             display: flex;
             align-items: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .new-badge {
@@ -240,6 +245,16 @@
         .selected {
             background-color: #e3f2fd;
         }
+
+        .file-header {
+            background-color: #f2f2f2;
+            padding: 12px 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            display: grid;
+            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -286,7 +301,14 @@
             
             <!-- 우측 파일 탭 -->
             <div class="right-tab">
-                <div class="file-header">파일 구조</div>
+                <div class="file-header">
+                    <div>파일명</div>
+                    <div>버전</div>
+                    <div>작성자</div>
+                    <div>검토자</div>
+                    <div>등록일</div>
+                    <div>처리상태</div>
+                </div>
                 <div id="file-tree-view" class="tree-view">
                     <div class="loading">채널을 선택하면 파일 구조가 표시됩니다.</div>
                 </div>
@@ -725,9 +747,12 @@
                     const fileDiv = document.createElement('div');
                     fileDiv.className = 'tree-file';
                     
-                    // 파일 이름 및 아이콘
+                    // 파일 이름 및 아이콘 (첫 번째 열)
                     const fileNameDiv = document.createElement('div');
                     fileNameDiv.className = 'file-name';
+                    
+                    // 서브폴더와 동일한 들여쓰기를 위한 패딩 추가
+                    fileNameDiv.style.paddingLeft = '20px';
                     
                     const fileIcon = document.createElement('span');
                     fileIcon.className = 'file-icon';
@@ -754,41 +779,36 @@
                     fileNameDiv.appendChild(downloadIcon);
                     fileDiv.appendChild(fileNameDiv);
                     
-                    // 파일 상세 정보
-                    const fileDetailsDiv = document.createElement('div');
-                    fileDetailsDiv.className = 'file-details';
-                    
-                    // 버전
+                    // 버전 열
                     const versionDiv = document.createElement('div');
                     versionDiv.className = 'file-detail';
-                    versionDiv.innerHTML = `<strong>버전:</strong> ${page.version || '1.0'}`;
-                    fileDetailsDiv.appendChild(versionDiv);
+                    versionDiv.textContent = page.version || '1.0';
+                    fileDiv.appendChild(versionDiv);
                     
-                    // 작성자
+                    // 작성자 열
                     const authorDiv = document.createElement('div');
                     authorDiv.className = 'file-detail';
-                    authorDiv.innerHTML = `<strong>작성자:</strong> ${page.author || '-'}`;
-                    fileDetailsDiv.appendChild(authorDiv);
+                    authorDiv.textContent = page.author || '-';
+                    fileDiv.appendChild(authorDiv);
                     
-                    // 검토자
+                    // 검토자 열
                     const reviewerDiv = document.createElement('div');
                     reviewerDiv.className = 'file-detail';
-                    reviewerDiv.innerHTML = `<strong>검토자:</strong> ${page.reviewer || '-'}`;
-                    fileDetailsDiv.appendChild(reviewerDiv);
+                    reviewerDiv.textContent = page.reviewer || '-';
+                    fileDiv.appendChild(reviewerDiv);
                     
-                    // 등록일
+                    // 등록일 열
                     const dateDiv = document.createElement('div');
                     dateDiv.className = 'file-detail';
-                    dateDiv.innerHTML = `<strong>등록일:</strong> ${page.registration_date || '-'}`;
-                    fileDetailsDiv.appendChild(dateDiv);
+                    dateDiv.textContent = page.registration_date || '-';
+                    fileDiv.appendChild(dateDiv);
                     
-                    // 처리상태
+                    // 처리상태 열
                     const statusDiv = document.createElement('div');
                     statusDiv.className = 'file-detail';
-                    statusDiv.innerHTML = `<strong>처리상태:</strong> ${page.status || '검토중'}`;
-                    fileDetailsDiv.appendChild(statusDiv);
+                    statusDiv.textContent = page.status || '검토중';
+                    fileDiv.appendChild(statusDiv);
                     
-                    fileDiv.appendChild(fileDetailsDiv);
                     fileLi.appendChild(fileDiv);
                     contentUl.appendChild(fileLi);
                 });
