@@ -490,9 +490,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load existing permissions
     function loadPermissions() {
-        console.log('Loading permissions from API:', `${baseApiUrl}/content_manager`);
+        console.log('Loading permissions from API:', `${baseApiUrl}/contents/content_manager`);
         
-        fetch(`${baseApiUrl}/content_manager`, {
+        fetch(`${baseApiUrl}/contents/content_manager`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Send permission data to API
-                return fetch(`${baseApiUrl}/content_manager`, {
+                return fetch(`${baseApiUrl}/contents/content_manager`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Delete permission
     function deletePermission(permissionId, row) {
         if (confirm('이 권한을 삭제하시겠습니까?')) {
-            fetch(`${baseApiUrl}/content_manager/${permissionId}`, {
+            fetch(`${baseApiUrl}/contents/content_manager/${permissionId}`, {
                 method: 'DELETE',
                 credentials: 'include',
                 headers: {
@@ -1578,7 +1578,7 @@ function updatePermission(permissionId) {
             }
             
             // Send permission data to API to update
-            return fetch(`${baseApiUrl}/content_manager/${permissionId}`, {
+            return fetch(`${baseApiUrl}/contents/content_manager/${permissionId}`, {
                 method: 'PUT',
                 credentials: 'include',
                 headers: {
