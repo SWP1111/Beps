@@ -490,6 +490,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load existing permissions
     function loadPermissions() {
+        console.log('Loading permissions from API:', `${baseApiUrl}/content_manager`);
+        
         fetch(`${baseApiUrl}/content_manager`, {
             method: 'GET',
             credentials: 'include',
@@ -500,11 +502,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Failed to fetch permissions');
+                console.error(`Failed to fetch permissions: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to fetch permissions: ${response.status}`);
             }
+            
+            // Check if the response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error('Response is not JSON:', contentType);
+                throw new Error('Response is not JSON');
+            }
+            
             return response.json();
         })
         .then(data => {
+            console.log('Permissions loaded:', data);
+            
             // Clear existing rows
             permissionsListBody.innerHTML = '';
             
@@ -515,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error loading permissions:', error);
-            errorMessage.textContent = '권한 정보를 불러오는데 실패했습니다.';
+            errorMessage.textContent = '권한 정보를 불러오는데 실패했습니다: ' + error.message;
         });
     }
 
@@ -576,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (folder.pages) {
             for (const page of folder.pages) {
                 if (page.id == fileId) {
-                    return { found: true, path: `${path}/${page.name}` };
+                    return { found: true, path: `${path}/${page.name}`, folderId: folder.id, fileName: page.name };
                 }
             }
         }
@@ -591,7 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        return { found: false, path: '' };
+        return { found: false, path: '', folderId: null, fileName: '' };
     }
     
     // Helper function to build a folder's path in the hierarchy
@@ -767,6 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="file-col">${fileName || ''}</td>
                     <td class="manager-col">${userName || permission.user_id}</td>
                     <td>
+                        <button class="edit-btn" data-id="${permission.id}">수정</button>
                         <button class="delete-btn" data-id="${permission.id}">삭제</button>
                     </td>
                 `;
@@ -777,6 +791,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Add event listener to delete button
                 row.querySelector('.delete-btn').addEventListener('click', function() {
                     deletePermission(this.dataset.id, row);
+                });
+                
+                // Add event listener to edit button
+                row.querySelector('.edit-btn').addEventListener('click', function() {
+                    editPermission(permission);
                 });
             })
             .catch(error => {
@@ -1134,7 +1153,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Event listener for add button
-    addBtn.addEventListener('click', addPermission);
+    addBtn.addEventListener('click', function() {
+        if (this.dataset.mode === 'edit') {
+            // In edit mode, call updatePermission instead of addPermission
+            updatePermission(this.dataset.id);
+            
+            // Reset button to normal add mode
+            this.textContent = '추가';
+            delete this.dataset.mode;
+            delete this.dataset.id;
+        } else {
+            // Normal add mode
+            addPermission();
+        }
+    });
 
     // Initialize view
     fetchContentHierarchy(); // This will load channel options after fetching
@@ -1253,4 +1285,336 @@ function findSelectedFolder(folderId) {
     }
     
     return null;
+}
+
+// Edit permission
+function editPermission(permission) {
+    // Clear previous error message
+    errorMessage.textContent = '';
+    
+    // Populate form with permission data
+    if (permission.type === 'channel' && permission.channel_id) {
+        // Set channel
+        channelSelect.value = permission.channel_id;
+        
+        // Clear folder and file selections
+        folder1Select.innerHTML = '<option value="">선택</option>';
+        folder2Select.innerHTML = '<option value="">선택</option>';
+        folder3Select.innerHTML = '<option value="">선택</option>';
+        fileSelect.innerHTML = '<option value="">선택</option>';
+    } else if (permission.type === 'folder' && permission.folder_id) {
+        // We need to find the path to this folder
+        let folderPath = findFolderPath(permission.folder_id);
+        if (folderPath && folderPath.length > 0) {
+            // Set channel
+            channelSelect.value = folderPath[0].channelId;
+            
+            // Wait for channel change to take effect and load folder1
+            setTimeout(() => {
+                // Load folder1 options
+                loadFolderOptions('channel', folderPath[0].channelId, folder1Select, 1);
+                
+                // Set folder1 if it exists in the path
+                if (folderPath.length > 1) {
+                    setTimeout(() => {
+                        folder1Select.value = folderPath[1].folderId;
+                        
+                        // Load folder2 options
+                        loadFolderOptions('folder', folderPath[1].folderId, folder2Select, 2);
+                        
+                        // Set folder2 if it exists in the path
+                        if (folderPath.length > 2) {
+                            setTimeout(() => {
+                                folder2Select.value = folderPath[2].folderId;
+                                
+                                // Load folder3 options
+                                loadFolderOptions('folder', folderPath[2].folderId, folder3Select, 3);
+                                
+                                // Set folder3 if it exists in the path
+                                if (folderPath.length > 3) {
+                                    setTimeout(() => {
+                                        folder3Select.value = folderPath[3].folderId;
+                                    }, 200);
+                                }
+                            }, 200);
+                        }
+                    }, 200);
+                }
+            }, 200);
+        }
+    } else if (permission.type === 'file' && permission.file_id) {
+        // We need to find the folder that contains this file
+        let fileInfo = findFileFolder(permission.file_id);
+        if (fileInfo && fileInfo.folderId) {
+            // First set up the folder path
+            let folderPath = findFolderPath(fileInfo.folderId);
+            if (folderPath && folderPath.length > 0) {
+                // Set channel
+                channelSelect.value = folderPath[0].channelId;
+                
+                // Chain of setTimeout calls to allow each select's change event to trigger
+                // and load the options for the next select
+                setTimeout(() => {
+                    // Load folder1 options
+                    loadFolderOptions('channel', folderPath[0].channelId, folder1Select, 1);
+                    
+                    // Set folder1 if it exists in the path
+                    if (folderPath.length > 1) {
+                        setTimeout(() => {
+                            folder1Select.value = folderPath[1].folderId;
+                            
+                            // Load folder2 options
+                            loadFolderOptions('folder', folderPath[1].folderId, folder2Select, 2);
+                            
+                            // Set folder2 if it exists in the path
+                            if (folderPath.length > 2) {
+                                setTimeout(() => {
+                                    folder2Select.value = folderPath[2].folderId;
+                                    
+                                    // Load folder3 options
+                                    loadFolderOptions('folder', folderPath[2].folderId, folder3Select, 3);
+                                    
+                                    // Set folder3 if it exists in the path
+                                    if (folderPath.length > 3) {
+                                        setTimeout(() => {
+                                            folder3Select.value = folderPath[3].folderId;
+                                            
+                                            // Now load file options and set the file
+                                            setTimeout(() => {
+                                                loadFileOptions(folderPath[folderPath.length - 1].folderId);
+                                                
+                                                // Set the file
+                                                setTimeout(() => {
+                                                    fileSelect.value = permission.file_id;
+                                                }, 300);
+                                            }, 300);
+                                        }, 200);
+                                    } else {
+                                        // Load file options and set the file
+                                        setTimeout(() => {
+                                            loadFileOptions(folderPath[folderPath.length - 1].folderId);
+                                            
+                                            // Set the file
+                                            setTimeout(() => {
+                                                fileSelect.value = permission.file_id;
+                                            }, 300);
+                                        }, 300);
+                                    }
+                                }, 200);
+                            } else {
+                                // Load file options and set the file
+                                setTimeout(() => {
+                                    loadFileOptions(folderPath[folderPath.length - 1].folderId);
+                                    
+                                    // Set the file
+                                    setTimeout(() => {
+                                        fileSelect.value = permission.file_id;
+                                    }, 300);
+                                }, 300);
+                            }
+                        }, 200);
+                    }
+                }, 200);
+            }
+        }
+    }
+    
+    // Set user ID
+    managerInput.value = permission.user_id;
+    validateUserID(permission.user_id);
+    
+    // Change button text and functionality
+    addBtn.textContent = '수정';
+    addBtn.dataset.mode = 'edit';
+    addBtn.dataset.id = permission.id;
+    
+    // Scroll to the top of the form
+    document.querySelector('.input-table').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Helper function to find a folder's path from the root
+function findFolderPath(folderId) {
+    if (!contentHierarchy || !folderId) return null;
+    
+    const path = [];
+    
+    // Check each channel
+    for (const channel of contentHierarchy.channels) {
+        const result = findFolderPathInChannel(channel, folderId, []);
+        if (result) {
+            // Add channel to the beginning of the path
+            path.push({ level: 0, channelId: channel.id, name: channel.name });
+            
+            // Add each folder to the path
+            result.forEach((folder, index) => {
+                path.push({
+                    level: index + 1,
+                    folderId: folder.id,
+                    name: folder.name
+                });
+            });
+            
+            return path;
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to recursively find a folder's path in a channel
+function findFolderPathInChannel(channel, targetFolderId, currentPath) {
+    if (!channel.folders) return null;
+    
+    for (const folder of channel.folders) {
+        // Check if this is the target folder
+        if (folder.id == targetFolderId) {
+            return [...currentPath, folder];
+        }
+        
+        // Check subfolders
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const result = findFolderPathInSubfolders(folder.subfolders, targetFolderId, [...currentPath, folder]);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to recursively find a folder's path in subfolders
+function findFolderPathInSubfolders(subfolders, targetFolderId, currentPath) {
+    for (const folder of subfolders) {
+        // Check if this is the target folder
+        if (folder.id == targetFolderId) {
+            return [...currentPath, folder];
+        }
+        
+        // Check subfolders
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const result = findFolderPathInSubfolders(folder.subfolders, targetFolderId, [...currentPath, folder]);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to find which folder contains a specific file
+function findFileFolder(fileId) {
+    if (!contentHierarchy || !fileId) return null;
+    
+    // Check each channel
+    for (const channel of contentHierarchy.channels) {
+        if (!channel.folders) continue;
+        
+        for (const folder of channel.folders) {
+            const result = findFileInFolder(folder, fileId);
+            if (result.found) {
+                return {
+                    folderId: result.folderId,
+                    fileName: result.fileName
+                };
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Update permission
+function updatePermission(permissionId) {
+    // Clear previous error message
+    errorMessage.textContent = '';
+    
+    // Get selected values
+    const channelId = channelSelect.value;
+    const folder1Id = folder1Select.value;
+    const folder2Id = folder2Select.value;
+    const folder3Id = folder3Select.value;
+    const fileId = fileSelect.value;
+    const managerId = managerInput.value.trim();
+    
+    // Validate input
+    if (!channelId) {
+        errorMessage.textContent = '채널을 선택해주세요.';
+        return;
+    }
+    
+    if (!managerId) {
+        errorMessage.textContent = '담당자 ID를 입력해주세요.';
+        return;
+    }
+    
+    // Determine permission scope based on selection pattern
+    let permissionScope;
+    if (fileId) {
+        permissionScope = 'file';
+    } else if (folder1Id || folder2Id || folder3Id) {
+        permissionScope = 'folder';
+    } else {
+        permissionScope = 'channel';
+    }
+    
+    // Verify user exists
+    verifyUser(managerId)
+        .then(userData => {
+            // Prepare permission data
+            let permissionData = {
+                user_id: managerId,
+                type: permissionScope
+            };
+            
+            if (permissionScope === 'channel') {
+                permissionData.channel_id = channelId;
+            } else if (permissionScope === 'folder') {
+                // Use the deepest selected folder
+                permissionData.folder_id = folder3Id || folder2Id || folder1Id;
+            } else if (permissionScope === 'file') {
+                permissionData.file_id = fileId;
+            }
+            
+            // Send permission data to API to update
+            return fetch(`${baseApiUrl}/content_manager/${permissionId}`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(permissionData)
+            });
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('권한 수정에 실패했습니다.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Reload permissions to show updated list
+            loadPermissions();
+            
+            // Clear form
+            managerInput.value = '';
+            validationMessage.textContent = '담당자 ID를 입력하거나 소속 정보를 통해 선택하세요';
+            validationMessage.className = 'validation-message';
+            
+            // Clear user selection comboboxes
+            resetUserSelectionComboboxes();
+            
+            // Reset the add button
+            addBtn.textContent = '추가';
+            delete addBtn.dataset.mode;
+            delete addBtn.dataset.id;
+            
+            // Success message
+            alert('담당자 권한이 수정되었습니다.');
+        })
+        .catch(error => {
+            errorMessage.textContent = error.message;
+        });
 } 

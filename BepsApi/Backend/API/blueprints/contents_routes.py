@@ -693,4 +693,96 @@ def delete_content_manager(manager_id):
         db.session.rollback()
         logging.error(f"Error deleting content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/content_manager/<int:manager_id>', methods=['PUT'])
+def update_content_manager(manager_id):
+    """
+    Update an existing content manager entry
+    
+    Path parameter:
+    - manager_id: ID of the content manager entry to update
+    
+    Request body:
+    - user_id: ID of the user to add as manager
+    - type: Type of permission ('channel', 'folder', or 'file')
+    - file_id: ID of the file (when type is 'file')
+    - folder_id: ID of the folder (when type is 'folder')
+    - channel_id: ID of the channel (when type is 'channel')
+    """
+    try:
+        # Find the manager entry
+        manager = ContentManager.query.get(manager_id)
+        
+        if not manager:
+            return jsonify({'error': f'Content manager entry with ID {manager_id} not found'}), 404
+        
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        # Update user_id if provided
+        if 'user_id' in data:
+            user_id = data['user_id']
+            # Validate user exists
+            user = Users.query.get(user_id)
+            if not user:
+                return jsonify({'error': f'User with ID {user_id} not found'}), 404
+            manager.user_id = user_id
+        
+        # Update type and related IDs if provided
+        if 'type' in data:
+            permission_type = data['type']
+            manager.type = permission_type
+            
+            # Reset all IDs
+            manager.file_id = None
+            manager.folder_id = None
+            manager.channel_id = None
+            
+            # Set appropriate ID based on type
+            if permission_type == 'channel' and 'channel_id' in data:
+                channel_id = data['channel_id']
+                
+                # Verify channel exists
+                channel = ContentRelChannels.query.filter_by(id=int(channel_id), is_deleted=False).first()
+                if not channel:
+                    return jsonify({'error': f'Channel with ID {channel_id} not found'}), 404
+                
+                manager.channel_id = int(channel_id)
+            
+            elif permission_type == 'folder' and 'folder_id' in data:
+                folder_id = data['folder_id']
+                
+                # Verify folder exists
+                folder = ContentRelFolders.query.filter_by(id=int(folder_id), is_deleted=False).first()
+                if not folder:
+                    return jsonify({'error': f'Folder with ID {folder_id} not found'}), 404
+                
+                manager.folder_id = int(folder_id)
+            
+            elif permission_type == 'file' and 'file_id' in data:
+                file_id = data['file_id']
+                
+                # Verify file exists
+                file = ContentRelPages.query.filter_by(id=int(file_id), is_deleted=False).first()
+                if not file:
+                    return jsonify({'error': f'File with ID {file_id} not found'}), 404
+                
+                manager.file_id = int(file_id)
+            
+            else:
+                # Missing required IDs for the selected type
+                missing_field = 'channel_id' if permission_type == 'channel' else ('folder_id' if permission_type == 'folder' else 'file_id')
+                return jsonify({'error': f'Required field missing: {missing_field}'}), 400
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify(manager.to_dict())
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating content manager: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 #endregion
