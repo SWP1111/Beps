@@ -82,6 +82,48 @@ document.addEventListener('DOMContentLoaded', async() => {
     getStatisticsPreview();
   });
 
+  const pushMessageButton = document.getElementById("push-message-button");
+  pushMessageButton.addEventListener("click", () => {
+    const pointValue =document.getElementById("point-input").value;
+    const pointCondition = document.querySelector('input[name="point"]:checked').value;
+    const messageCondigion = document.querySelector('input[name="message"]:checked').value;
+    filter_type = sessionStorage.getItem("filter_type");
+    filter_value = sessionStorage.getItem("filter_value");
+
+    let conditionText = (pointCondition == "equal") ?"대상":"이하";
+    let title = "";  
+    let message = "";
+    if(messageCondigion == "study"){
+      message = `학습진도율 ${pointValue} 포인트 ${conditionText} 학습자에게 보내는 메시지입니다.`;
+    }
+    else{
+      message = `${conditionText} 포인트 적립으로 시험이 필요합니다.`;
+    }
+
+    const csrfToken = getCookie("access_token_cookie");
+    const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
+    fetch(url,{
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        filter_type,
+        filter_value,
+        title,
+        message
+      })
+    })
+  });
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+  }
+
   setOnSelectPeriodCallback(async() =>
   {
     period_type = sessionStorage.getItem("period_type");

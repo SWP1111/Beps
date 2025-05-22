@@ -4,7 +4,7 @@ import log_config
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask import Blueprint, jsonify, request
 from extensions import db, redis_client
-from models import PushMessages
+from models import PushMessages, Users
 import json
 
 api_push_bp = Blueprint('push', __name__)  # 블루프린트 생성
@@ -14,14 +14,21 @@ api_push_bp = Blueprint('push', __name__)  # 블루프린트 생성
 @jwt_required(locations=["headers","cookies"])
 def send():
     data = request.get_json()
-    user_ids = data.get('user_ids')
+    filter_type = data.get('filter_type')
+    filter_value = data.get('filter_value')
     title = data.get('title','')
     message = data.get('message')
     
-    if not user_ids or not isinstance(user_ids, list):
+    if not filter_type:
         return jsonify({
             'status': 'error',
-            'message': 'user_ids는 필수 항목이며 리스트여야 합니다.'
+            'message': 'filter_type은 필수 항목입니다.'
+        }), 400
+    
+    if filter_type != 'all' and not filter_value:
+        return jsonify({
+            'status': 'error',
+            'message': 'filter_value는 필수 항목입니다.'
         }), 400
         
     if not message:
@@ -29,7 +36,23 @@ def send():
             'status': 'error',
             'message': 'message는 필수 항목입니다.'
         }), 400
-        
+    
+    query = db.session.query(Users.id)
+    
+    if filter_type == 'company':
+        query = query.filter(Users.company == filter_value)
+    elif filter_type == 'department':
+        query = query.filter(Users.department == filter_value)
+    elif filter_type == 'user':
+        query = query.filter(Users.id == filter_value)
+    
+    user_ids = [user.id for user in query.all()]
+    if not user_ids:
+        return jsonify({
+            'status': 'error',
+            'message': '해당 조건에 맞는 사용자가 없습니다.'
+        }), 404
+    
     now = datetime.datetime.now(datetime.timezone.utc)
     messages = [
         PushMessages(user_id=uid, title=title, message=message, created_at=now)
