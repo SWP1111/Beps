@@ -124,7 +124,10 @@ createApp({
                     stay_duration: formatDuration(item.stay_duration),
                 }));       
                 if(data.csv_count != null && data.csv_count != undefined)
-                    this.csvDataCount = data.csv_count;
+                    this.csvDataCount = data.csv_count
+                
+                if(this.csvDataCount == null || this.csvDataCount == undefined)
+                    this.csvDataCount = 0;
                 console.log("db_count:", data.db_count);
                 console.log("csvDataCount:", this.csvDataCount);
                 console.log("totalPages:", totalPages.value);   
@@ -156,6 +159,19 @@ createApp({
             searchEndDate.value = formatDate(today);
             loadProgressData();
         });
+
+        // setInterval(() => {
+        //     const checkurl = `${url}leaning/push/check`;
+        //     fetch(checkurl, {
+        //         method: "GET",
+        //         credentials: "include",
+        //     }).then(response => {
+        //         return response.json();
+        //     }).then(data => {
+        //         console.log("Push check response:", data);
+        //     });
+
+        // }, 10000);
 
         return {
             url,

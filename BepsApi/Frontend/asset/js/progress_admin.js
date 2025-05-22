@@ -83,12 +83,10 @@ document.addEventListener('DOMContentLoaded', async() => {
   });
 
   const pushMessageButton = document.getElementById("push-message-button");
-  pushMessageButton.addEventListener("click", () => {
+  pushMessageButton.addEventListener("click", async() => {
     const pointValue =document.getElementById("point-input").value;
     const pointCondition = document.querySelector('input[name="point"]:checked').value;
     const messageCondigion = document.querySelector('input[name="message"]:checked').value;
-    filter_type = sessionStorage.getItem("filter_type");
-    filter_value = sessionStorage.getItem("filter_value");
 
     let conditionText = (pointCondition == "equal") ?"대상":"이하";
     let title = "";  
@@ -100,28 +98,36 @@ document.addEventListener('DOMContentLoaded', async() => {
       message = `${conditionText} 포인트 적립으로 시험이 필요합니다.`;
     }
 
-    const csrfToken = getCookie("access_token_cookie");
+    const csrfToken = await getCookie();
     const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
-    fetch(url,{
+    const response = await fetch(url,{
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken
+        "X-CSRF-Token": csrfToken,
       },
-      credentials: "include",
       body: JSON.stringify({
         filter_type,
         filter_value,
         title,
         message
       })
-    })
+    });
+
+    const data = await response.json();
+    console.log(data);
   });
 
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+  async function getCookie() {
+    const url = `${window.baseUrl}user/csrf_token`;
+    const response =  await fetch(url)
+    const data = await response.json();
+    if(response.ok){
+      return data.csrf_token;
+    }
+    else{
+      return '';
+    }
   }
 
   setOnSelectPeriodCallback(async() =>

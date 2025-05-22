@@ -137,10 +137,26 @@ def data():
         end_date = request.args.get('end_date')
         
         base_query = """
-            SELECT v.id, v.user_id, COALESCE(u.name,'[삭제된 사용자]') AS name, v.file_id, COALESCE(f.file_name,'[삭제된 파일]') As file_name, v.start_time, v.end_time, v.stay_duration, v.ip_address
+            SELECT v.id, v.user_id, COALESCE(u.name,'[삭제된 사용자]') AS name,
+            v.file_id, 
+            COALESCE(
+                CASE
+                    WHEN v.file_type='page' THEN p.name
+                    WHEN v.file_type='detail' THEN dp.name
+                    ELSE NULL
+                END,
+                '[삭제된 파일]'
+                ) As file_name, 
+            CASE
+                WHEN v.file_type='detail' THEN d.name
+                ELSE ''
+            END AS detail_name,
+            v.start_time, v.end_time, v.stay_duration, v.ip_address
             FROM content_viewing_history_view v
             LEFT JOIN users u ON v.user_id = u.id
-            LEFT JOIN files f ON v.file_id = f.file_id
+            LEFT JOIN content_rel_pages p ON v.file_type='page' AND v.file_id = p.id
+            LEFT JOIN content_rel_page_details d ON v.file_type='detail' AND v.file_id = d.id
+            LEFT JOIN content_rel_pages dp ON d.page_id = dp.id 
             """
         
         filters = []
@@ -153,7 +169,12 @@ def data():
             filters.append("u.name LIKE :user_name")
             params['user_name'] = f"%{user_name}%"
         if file_name:
-            filters.append("f.file_name LIKE :file_name")
+            filters.append("""
+                (
+                    (v.file_type='page' AND p.name LIKE :file_name)
+                    OR (v.file_type='detail' AND d.name LIKE :file_name)
+                )
+            """)
             params['file_name'] = f"%{file_name}%"
         if start_date:
             filters.append("v.start_time >= :start_date")
@@ -170,8 +191,9 @@ def data():
         count_query = """SELECT COUNT(*) 
                          FROM content_viewing_history_view v
                          LEFT JOIN users u ON v.user_id = u.id
-                         LEFT JOIN files f ON v.file_id = f.file_id
-        """
+                         LEFT JOIN content_rel_pages p ON v.file_type='page' AND v.file_id = p.id
+                         LEFT JOIN content_rel_page_details d ON v.file_type='detail' AND v.file_id = d.id
+                    """
         if(filters):
             count_query += " WHERE " + " AND ".join(filters)
         

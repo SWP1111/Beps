@@ -2,7 +2,7 @@ import logging
 import log_config
 import decryption
 from flask import Blueprint, jsonify, request, make_response
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
+from flask_jwt_extended import create_access_token, decode_token, get_csrf_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 import datetime
 from datetime import timezone
 from extensions import db
@@ -45,6 +45,20 @@ def check():
         return jsonify({"success": True, "user": current_user}), 200
     else:
         return jsonify({"success": False, "error":"Invalid token"}), 401
+
+# GET /user/csrf_token API CSRF 토큰 조회
+@api_user_bp.route('/csrf_token', methods=['GET'])
+@jwt_required(locations=['cookies'])  # JWT 검증을 먼저 수행
+def get_csrf_token_route():
+    token = request.cookies.get('access_token_cookie')
+    if not token:
+        return jsonify({'error': 'No access token found'}), 401
+    
+    decoded = decode_token(token)
+    csrf_token = decoded.get('csrf')
+    if not csrf_token:
+        return jsonify({'error': 'No CSRF token found'}), 401
+    return jsonify({'csrf_token': csrf_token}), 200
 
 # POST /user/user API Users 테이블 Row 조회 API (로그인)
 @api_user_bp.route('/user', methods=['POST'])
@@ -109,7 +123,8 @@ def get_user():
                     secure=False,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
                     samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
                     expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
-                )     
+                )
+                response.json['csrf_token'] = get_csrf_token(access_token) # CSRF 토큰 추가
             
             
             
