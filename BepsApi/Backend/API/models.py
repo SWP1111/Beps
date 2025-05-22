@@ -412,8 +412,7 @@ class ContentManager(db.Model):
 class MemoData(db.Model):
     __tablename__ = 'memos'
     
-    id = db.Column(db.String, primary_key=True)
-    serial_number = db.Column(db.Integer, nullable=False)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=True)
     title = db.Column(db.String, nullable=True)
@@ -436,7 +435,6 @@ class MemoData(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'serial_number': self.serial_number,
             'modified_at': self.modified_at,
             'user_id': self.user_id,
             'title': self.title,
@@ -457,7 +455,7 @@ class MemoReply(db.Model):
     __tablename__ = 'memo_replies'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    memo_id = db.Column(db.String, db.ForeignKey('memos.id'), nullable=False)
+    memo_id = db.Column(db.Integer, db.ForeignKey('memos.id'), nullable=False)
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())

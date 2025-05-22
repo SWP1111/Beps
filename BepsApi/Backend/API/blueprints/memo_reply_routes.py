@@ -39,7 +39,7 @@ def create_memo_reply():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@api_memo_reply_bp.route('/memo/<memo_id>', methods=['GET'])
+@api_memo_reply_bp.route('/memo/<int:memo_id>', methods=['GET'])
 def get_replies_by_memo(memo_id):
     try:
         # Check if memo exists
@@ -56,7 +56,7 @@ def get_replies_by_memo(memo_id):
         logging.error(f"Error retrieving memo replies: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@api_memo_reply_bp.route('/<id>', methods=['PUT'])
+@api_memo_reply_bp.route('/<int:id>', methods=['PUT'])
 def update_reply(id):
     try:
         reply = MemoReply.query.get_or_404(id)
@@ -77,7 +77,7 @@ def update_reply(id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@api_memo_reply_bp.route('/<id>', methods=['DELETE'])
+@api_memo_reply_bp.route('/<int:id>', methods=['DELETE'])
 def delete_reply(id):
     try:
         reply = MemoReply.query.get_or_404(id)
