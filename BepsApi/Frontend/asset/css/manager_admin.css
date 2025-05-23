@@ -222,7 +222,7 @@ th:not(.hidden), td:not(.hidden) {
 /* Permission type column styling */
 .permission-type-col {
     text-align: center;
-    width: 60px;
+    width: 40px;
     font-weight: bold;
     white-space: pre-line;
 }
@@ -251,32 +251,32 @@ th:not(.hidden), td:not(.hidden) {
 
 /* User info columns */
 .company-col {
-    width: 100px;
+    width: 80px;
     text-align: center;
 }
 
 .department-col {
-    width: 100px;
+    width: 90px;
     text-align: center;
 }
 
 .position-col {
-    width: 80px;
+    width: 60px;
     text-align: center;
 }
 
 .name-col {
-    width: 80px;
+    width: 60px;
     text-align: center;
 }
 
 .id-col {
-    width: 80px;
+    width: 60px;
     text-align: center;
 }
 
 .action-col {
-    width: 120px;
+    width: 100px;
     text-align: center;
 }
 
