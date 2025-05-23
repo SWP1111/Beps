@@ -4,12 +4,12 @@ body {
     margin: 0;
     background-color: white;
     font-family: Arial, sans-serif;
-    min-width: 1600px;
+    min-width: 1800px;
 }
 
 .header {
     width: 100%;
-    min-width: 1600px;
+    min-width: 1800px;
     max-width: 3840px;
     height: 70px;
     background:linear-gradient(0deg, #0C271E 0%, #285B4A 100%);
@@ -318,15 +318,16 @@ body {
     height: auto;               /* ✅ 내부 콘텐츠에 따라 유동 */
     /* min-height: 100vh;          ✅ 화면 꽉 채우기 */
     box-sizing: border-box;
-    overflow: visible;          /* ✅ 이중 스크롤 방지 */
-    min-width: 1600px;
-  }
+    overflow-x: auto;           /* Allow horizontal scrolling if needed */
+    min-width: 1800px;          /* Increased from 1600px */
+}
 
-  #content-frame {
+#content-frame {
     width: 100%;
+    min-width: 1800px;          /* Ensure iframe is wide enough */
     height: auto;               /* ✅ 내부에 따라 조정 */
     border: none;
     display: block;
     box-sizing: border-box;
     /* min-height: 100vh;          너무 작을 때를 방지 */
-  }
+}

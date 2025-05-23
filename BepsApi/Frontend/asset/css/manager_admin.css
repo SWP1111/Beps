@@ -3,15 +3,18 @@ body {
     margin: 0;
     padding: 20px;
     background-color: #f5f5f5;
+    min-width: 1600px; /* Ensure minimum width for wide content */
+    overflow-x: auto; /* Allow horizontal scrolling if needed */
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1600px; /* Increased from 1400px to be even wider */
     margin: 0 auto;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
+    min-width: 1500px; /* Ensure minimum width */
 }
 
 h1 {
@@ -141,7 +144,7 @@ th:not(.hidden), td:not(.hidden) {
 #permissions-table .edit-btn,
 #permissions-table .delete-btn {
     padding: 5px 10px;
-    font-size: 12px;
+    font-size: 11px;
     margin: 2px;
     width: 45px;
     display: inline-block;
@@ -327,4 +330,62 @@ th:not(.hidden), td:not(.hidden) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Center both tables horizontally */
+.input-table,
+.permissions-list {
+    width: 100%;
+    text-align: center; /* Center align the content */
+}
+
+.input-table table,
+#permissions-table {
+    margin: 0 auto; /* Center the table itself */
+    display: table; /* Ensure table display */
+}
+
+/* Ensure headers and error messages are also centered */
+.permission-header,
+.list-header,
+#error-message {
+    text-align: center;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.permission-header h2,
+.list-header h3 {
+    margin: 0 auto;
+}
+
+/* Reset text alignment for table cells to left */
+.input-table th,
+.input-table td,
+#permissions-table th,
+#permissions-table td {
+    text-align: left;
+}
+
+/* Keep action column centered */
+.action-col {
+    text-align: center !important;
+}
+
+/* Keep permission type column centered */
+.permission-type-col {
+    text-align: center !important;
+}
+
+/* Permissions table font size - made smaller */
+#permissions-table {
+    font-size: 13px;
+}
+
+#permissions-table th,
+#permissions-table td {
+    font-size: 13px;
 } 
