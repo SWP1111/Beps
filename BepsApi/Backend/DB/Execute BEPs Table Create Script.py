@@ -534,6 +534,24 @@ try:
     """
     #endregion
     
+    #region push_messages 테이블 (푸시 메시지 테이블)
+    push_messages_queries = [
+        """
+        CREATE TABLE push_messages (
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,       -- 사용자 ID
+            title TEXT,                                                         -- 제목   
+            message TEXT NOT NULL,                                              -- 메시지 내용
+            is_read BOOLEAN DEFAULT FALSE,                                      -- 읽음 여부
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()                   -- 생성 시간
+        );
+        """,
+        """
+        CREATE INDEX idx_push_messages_user_read ON push_messages (user_id, is_read);     -- 사용자 ID와 읽음 상태태에 대한 인덱스 생성
+        """
+    ]
+    #endregion 
+   
     #region stay_duration(content_viewing_history) 업데이트 트리거
     stay_duration_update_queries = [
         """
@@ -635,7 +653,8 @@ try:
         login_summary_queries,
         learning_summary_queries,
         content_point_record_queries,
-        content_manager_queries
+        content_manager_queries,
+        push_messages_queries
         ]
 
     for query in queries:

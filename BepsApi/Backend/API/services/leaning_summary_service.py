@@ -5,7 +5,7 @@ from services import user_summary_service
 from models import ( LearningSummaryAgg, LearningSummaryDay, ContentViewingHistory, Users, 
                     ContentRelChannels,ContentRelFolders, ContentRelPages, ContentRelPageDetails)
 from extensions import db
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.sql import union_all
 from sqlalchemy.orm import aliased
 
@@ -183,30 +183,22 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         
         Page = aliased(ContentRelPages) # 🔹 ContentRelPages 테이블을 alias로 사용
         Detail = aliased(ContentRelPageDetails) # 🔹 ContentRelPageDetails 테이블을 alias로 사용
+        DetailPage = aliased(ContentRelPages) # 🔹 ContentRelPages 테이블을 alias로 사용
         Folder = aliased(ContentRelFolders) # 🔹 ContentRelFolders 테이블을 alias로 사용
-        TopFolder = aliased(ContentRelFolders) # 🔹 ContentRelFolders 테이블을 alias로 사용
         Channel = aliased(ContentRelChannels) # 🔹 ContentRelChannels 테이블을 alias로 사용
-        
-        page_subq = db.session.query(
-            Page.id.label('file_id'),
-            Page.folder_id.label('folder_id')
-        )  
-        
-        detail_subq = db.session.query(
-            Detail.id.label('file_id'),
-            ContentRelPages.folder_id.label('folder_id')
-        ).join(ContentRelPages, Detail.page_id == ContentRelPages.id)
-        
-        file_folder_union = union_all(page_subq, detail_subq).alias('f')
-        
+
         query = db.session.query(
             Channel.id.label('channel_id'),
             Channel.name.label('channel_name'),
             func.sum(ContentViewingHistory.stay_duration).label('total')
-        ).join(
-            file_folder_union, file_folder_union.c.file_id == ContentViewingHistory.file_id
-        ).join(
-            Folder, Folder.id == file_folder_union.c.folder_id
+        ).outerjoin(
+            Page, and_(ContentViewingHistory.file_type == 'page', ContentViewingHistory.file_id == Page.id)   
+        ).outerjoin(
+            Detail, and_(ContentViewingHistory.file_type == 'detail', ContentViewingHistory.file_id == Detail.id)        
+        ).outerjoin(
+            DetailPage, Detail.page_id == DetailPage.id
+        ).outerjoin(
+            Folder, or_(Folder.id == Page.folder_id, Folder.id == DetailPage.folder_id) # 🔹 Page와 DetailPage의 folder_id를 join
         ).join(
             Channel, Channel.id == Folder.channel_id
         ).join(
@@ -265,32 +257,25 @@ def add_summary_day_date_by_users(user_ids, start_dt, end_dt, folder_duration_by
         utc_start_dt = datetime.datetime.combine(start_dt, datetime.time.min, local_tz).astimezone(datetime.timezone.utc)
         utc_end_dt = datetime.datetime.combine(end_dt, datetime.time.max, local_tz).astimezone(datetime.timezone.utc)
         
-        Page = aliased(ContentRelPages)
-        Detail = aliased(ContentRelPageDetails)
-        Folder = aliased(ContentRelFolders)
-        Channel = aliased(ContentRelChannels)
-        
-        page_subq = db.session.query(
-            Page.id.label('file_id'),
-            Page.folder_id.label('folder_id')
-        )
-        
-        detail_subq = db.session.query(
-            Detail.id.label('file_id'),
-            ContentRelPages.folder_id.label('folder_id')
-        ).join(ContentRelPages, Detail.page_id == ContentRelPages.id)
-        
-        file_folder_union = union_all(page_subq, detail_subq).alias('f')
-        
+        Page = aliased(ContentRelPages) # 🔹 ContentRelPages 테이블을 alias로 사용
+        Detail = aliased(ContentRelPageDetails) # 🔹 ContentRelPageDetails 테이블을 alias로 사용
+        DetailPage = aliased(ContentRelPages) # 🔹 ContentRelPages 테이블을 alias로 사용
+        Folder = aliased(ContentRelFolders) # 🔹 ContentRelFolders 테이블을 alias로 사용
+        Channel = aliased(ContentRelChannels) # 🔹 ContentRelChannels 테이블을 alias로 사용
+           
         query = db.session.query(
             ContentViewingHistory.user_id.label('user_id'),
             Channel.id.label('channel_id'),
             Channel.name.label('channel_name'),
             func.sum(ContentViewingHistory.stay_duration).label('total')
-        ).join(
-            file_folder_union, file_folder_union.c.file_id == ContentViewingHistory.file_id
-        ).join(
-            Folder, Folder.id == file_folder_union.c.folder_id
+        ).outerjoin(
+            Page, and_(ContentViewingHistory.file_type == 'page', ContentViewingHistory.file_id == Page.id)   
+        ).outerjoin(
+            Detail, and_(ContentViewingHistory.file_type == 'detail', ContentViewingHistory.file_id == Detail.id)        
+        ).outerjoin(
+            DetailPage, Detail.page_id == DetailPage.id
+        ).outerjoin(
+            Folder, or_(Folder.id == Page.folder_id, Folder.id == DetailPage.folder_id) # 🔹 Page와 DetailPage의 folder_id를 join
         ).join(
             Channel, Channel.id == Folder.channel_id
         ).join(

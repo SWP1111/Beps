@@ -25,9 +25,9 @@ export function initPeriod()
      if (period_type == "year")
         selectedDispPeriod = `${period_value}년`;
     else if (period_type == "half")
-        selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}년`;
+        selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}`;
     else if (period_type == "quarter")
-        selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}년`;
+        selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}`;
     else if (period_type == "day")
         selectedDispPeriod = `${period_value.replace("~", " ~ ").replace(/-/g, ".")}`;
 
@@ -41,9 +41,9 @@ export function initPeriod()
         if (period_type == "year")
             selectedDispPeriod = `${period_value}년`;
         else if (period_type == "half")
-            selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}년`;
+            selectedDispPeriod = `${period_value.replace("-H1", " 상반기").replace("-H2", " 하반기")}`;
         else if (period_type == "quarter")
-            selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}년`;
+            selectedDispPeriod = `${period_value.replace("-Q1", " 1분기").replace("-Q2", " 2분기").replace("-Q3", " 3분기").replace("-Q4", " 4분기")}`;
         else if (period_type == "day")
             selectedDispPeriod = `${period_value.replace("~", " ~ ").replace(/-/g, ".")}`;
         selectedPeriod.textContent = `${selectedDispfilter} (${selectedDispPeriod})`;

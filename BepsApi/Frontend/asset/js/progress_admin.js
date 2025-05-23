@@ -82,6 +82,54 @@ document.addEventListener('DOMContentLoaded', async() => {
     getStatisticsPreview();
   });
 
+  const pushMessageButton = document.getElementById("push-message-button");
+  pushMessageButton.addEventListener("click", async() => {
+    const pointValue =document.getElementById("point-input").value;
+    const pointCondition = document.querySelector('input[name="point"]:checked').value;
+    const messageCondigion = document.querySelector('input[name="message"]:checked').value;
+
+    let conditionText = (pointCondition == "equal") ?"대상":"이하";
+    let title = "";  
+    let message = "";
+    if(messageCondigion == "study"){
+      message = `학습진도율 ${pointValue} 포인트 ${conditionText} 학습자에게 보내는 메시지입니다.`;
+    }
+    else{
+      message = `${conditionText} 포인트 적립으로 시험이 필요합니다.`;
+    }
+
+    const csrfToken = await getCookie();
+    const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
+    const response = await fetch(url,{
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({
+        filter_type,
+        filter_value,
+        title,
+        message
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+  });
+
+  async function getCookie() {
+    const url = `${window.baseUrl}user/csrf_token`;
+    const response =  await fetch(url)
+    const data = await response.json();
+    if(response.ok){
+      return data.csrf_token;
+    }
+    else{
+      return '';
+    }
+  }
+
   setOnSelectPeriodCallback(async() =>
   {
     period_type = sessionStorage.getItem("period_type");
