@@ -6,7 +6,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     background-color: white;
     border-radius: 8px;
@@ -62,6 +62,8 @@ th, td {
     padding: 10px;
     border: 1px solid #ddd;
     text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 th {
@@ -143,6 +145,7 @@ th:not(.hidden), td:not(.hidden) {
     margin: 2px;
     width: 45px;
     display: inline-block;
+    vertical-align: top;
 }
 
 #permissions-table .edit-btn {
@@ -212,8 +215,9 @@ th:not(.hidden), td:not(.hidden) {
 /* Permission type column styling */
 .permission-type-col {
     text-align: center;
-    width: 80px;
+    width: 60px;
     font-weight: bold;
+    white-space: pre-line;
 }
 
 /* Permissions list header */
@@ -265,6 +269,62 @@ th:not(.hidden), td:not(.hidden) {
 }
 
 .action-col {
-    width: 100px;
+    width: 120px;
     text-align: center;
+}
+
+/* Input table specific column widths */
+.input-table table {
+    table-layout: fixed;
+}
+
+.input-table th,
+.input-table td {
+    vertical-align: top;
+}
+
+/* Manager column in input table - made wider for comboboxes */
+.input-table .manager-col {
+    width: 400px !important;
+}
+
+/* Content columns in permissions table - made wider to show full content */
+#permissions-table th:nth-child(2),
+#permissions-table td:nth-child(2) {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#permissions-table th:nth-child(3),
+#permissions-table td:nth-child(3) {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#permissions-table th:nth-child(4),
+#permissions-table td:nth-child(4) {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#permissions-table th:nth-child(5),
+#permissions-table td:nth-child(5) {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#permissions-table th:nth-child(6),
+#permissions-table td:nth-child(6) {
+    width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 } 
