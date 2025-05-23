@@ -581,6 +581,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Sort permissions by hierarchy (channel, folder1, folder2, folder3, file)
+    function sortPermissionsByHierarchy(permissions) {
+        return permissions.sort((a, b) => {
+            // Get hierarchy info for both permissions
+            const aInfo = getHierarchyInfo(a);
+            const bInfo = getHierarchyInfo(b);
+            
+            // Compare each level of hierarchy
+            for (let i = 0; i < 4; i++) {
+                const aValue = aInfo.folderParts[i] || '';
+                const bValue = bInfo.folderParts[i] || '';
+                
+                if (aValue !== bValue) {
+                    return aValue.localeCompare(bValue, 'ko');
+                }
+            }
+            
+            // If all folder parts are equal, compare file names
+            const aFile = aInfo.fileName || '';
+            const bFile = bInfo.fileName || '';
+            return aFile.localeCompare(bFile, 'ko');
+        });
+    }
+
     // Load existing permissions
     function loadPermissions() {
         console.log('Loading permissions from API:', `${baseApiUrl}/contents/content_manager`);
@@ -626,7 +650,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add each permission to the table
             if (Array.isArray(data)) {
-                data.forEach(permission => {
+                // Sort permissions by hierarchy before displaying
+                const sortedPermissions = sortPermissionsByHierarchy(data);
+                
+                sortedPermissions.forEach(permission => {
                     addPermissionToTable(permission);
                 });
                 
@@ -761,8 +788,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                // Add new permission to table
-                addPermissionToTable(data);
+                // Reload permissions list to maintain sorted order
+                loadPermissions();
                 
                 // Clear form
                 managerInput.value = '';
@@ -1092,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     managerInput.value !== user.id) {
                     managerInput.value = user.id;
                 }
-                validationMessage.textContent = `올바른 ID입니다(${user.company} ${user.department} ${user.name} ${user.position})`;
+                validationMessage.textContent = `${user.company} ${user.department} ${user.name} ${user.position}\n올바른 ID입니다.`;
                 validationMessage.className = 'validation-message success';
             }
         })
@@ -1672,7 +1699,7 @@ function updatePermission(permissionId) {
             return response.json();
         })
         .then(data => {
-            // Reload permissions to show updated list
+            // Reload permissions list to maintain sorted order
             loadPermissions();
             
             // Clear form
