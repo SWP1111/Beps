@@ -55,15 +55,8 @@
                 const iframe = document.getElementById('content-frame');
 
                 iframe.onload = () => {
-                try {
-                    const innerDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const scrollHeight = innerDoc.body.scrollHeight;
-                    iframe.style.height = (scrollHeight + 2) + 'px';
-                    console.log("iframe height: " + (scrollHeight + 2) + 'px');
-
-                } catch (e) {
-                    console.warn("다른 도메인이라면 자동 조정 불가");
-                }
+                    // No longer auto-adjusting height since iframe now fills full available space
+                    console.log("Content loaded in iframe");
                 };
             </script>
         </div>

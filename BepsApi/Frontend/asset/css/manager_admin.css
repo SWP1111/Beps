@@ -5,6 +5,8 @@ body {
     background-color: #f5f5f5;
     min-width: 1600px; /* Ensure minimum width for wide content */
     overflow-x: auto; /* Allow horizontal scrolling if needed */
+    min-height: 100vh; /* Ensure body fills full viewport height */
+    box-sizing: border-box;
 }
 
 .container {
@@ -15,6 +17,8 @@ body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
     min-width: 1500px; /* Ensure minimum width */
+    min-height: calc(100vh - 40px); /* Fill height minus body padding */
+    box-sizing: border-box;
 }
 
 h1 {

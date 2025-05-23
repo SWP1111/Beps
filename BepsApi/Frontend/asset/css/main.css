@@ -315,19 +315,17 @@ body {
 .content {
     padding: 0px;
     width: 100%;
-    height: auto;               /* ✅ 내부 콘텐츠에 따라 유동 */
-    /* min-height: 100vh;          ✅ 화면 꽉 채우기 */
+    height: calc(100vh - 70px);     /* Full viewport height minus header height */
     box-sizing: border-box;
-    overflow-x: auto;           /* Allow horizontal scrolling if needed */
-    min-width: 1800px;          /* Increased from 1600px */
+    overflow-x: auto;               /* Allow horizontal scrolling if needed */
+    min-width: 1800px;              /* Increased from 1600px */
 }
 
 #content-frame {
     width: 100%;
-    min-width: 1800px;          /* Ensure iframe is wide enough */
-    height: auto;               /* ✅ 내부에 따라 조정 */
+    min-width: 1800px;              /* Ensure iframe is wide enough */
+    height: 100%;                   /* Fill the full height of content container */
     border: none;
     display: block;
     box-sizing: border-box;
-    /* min-height: 100vh;          너무 작을 때를 방지 */
 }
