@@ -232,6 +232,7 @@ class ContentHierarchyService:
         """
         folder_node = {
             'id': folder.id,
+            'channel_id': folder.channel_id,
             'name': folder.name,
             'type': 'folder',
             'subfolders': [],
