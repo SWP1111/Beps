@@ -53,20 +53,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function openManagerAdmin() {
-    const width = 1000;
-    const height = 700;
-    const left = (window.innerWidth - width) / 2;
-    const top = (window.innerHeight - height) / 2;
+    // Remove active class from all nav buttons
+    const navButtons = document.querySelectorAll(".nav-button");
+    navButtons.forEach(btn => btn.classList.remove("active"));
     
-    const popup = window.open(
-        "manager_admin.html", 
-        "managerAdminPopup", 
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
-    
-    if (popup) {
-        popup.focus();
-    }
+    // Load manager admin page in the content frame
+    loadContent("manager_admin.html");
 }
 
 async function logout(){
