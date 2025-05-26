@@ -20,8 +20,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 담당자 관리 버튼은 role_id가 1 또는 999일 때만 표시
+    console.log("User role:", user_role);
     if(user_role != 1 && user_role != 999) {
+        console.log("Hiding manager admin button for role:", user_role);
         document.getElementById("manager-admin-button").style.display = "none";
+    } else {
+        console.log("Showing manager admin button for role:", user_role);
     }
 
     if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
@@ -53,13 +57,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const managerAdminButton = document.getElementById("manager-admin-button");
     if(managerAdminButton) {
         managerAdminButton.addEventListener("click", openManagerAdmin);
+        console.log("Manager admin button found and event listener added");
+    } else {
+        console.error("Manager admin button not found!");
     }
 });
 
 function openManagerAdmin() {
+    console.log("Opening manager admin page");
     // Remove active class from all nav buttons
     const navButtons = document.querySelectorAll(".nav-button");
     navButtons.forEach(btn => btn.classList.remove("active"));
+    
+    // Add active class to manager admin button
+    const managerAdminButton = document.getElementById("manager-admin-button");
+    if(managerAdminButton) {
+        managerAdminButton.classList.add("active");
+    }
     
     // Load manager admin page in the content frame
     loadContent("manager_admin.html");
