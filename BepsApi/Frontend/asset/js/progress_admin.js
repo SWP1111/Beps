@@ -229,13 +229,8 @@ document.addEventListener('DOMContentLoaded', async() => {
   }
 
   async function getCategoryLearingRate() {
-    const categorArea = document.getElementById("category_area");
+    const categorArea = document.getElementById("category-chart");
     categorArea.innerHTML = ""; // Clear previous content
-
-    const element = document.createElement("span");
-    element.className = "category-item";
-    element.textContent = `카테고리 학습 현황`;
-    categorArea.appendChild(element);
 
     let url = `${window.baseUrl}leaning/category_progress?period_value=${period_value}`;
     if(period_type != null)
@@ -250,19 +245,65 @@ document.addEventListener('DOMContentLoaded', async() => {
     
     if(response.ok)
     {
-      getCategory.progress.sort((a,b)=> {
-        if (a.channel_name < b.channel_name) return -1;
-        if (a.channel_name > b.channel_name) return 1;
-        return 0;
-      });
+      echarts.dispose(categorArea); // 이전 인스턴스 제거 (optional but safe)
+      const myChart = echarts.init(categorArea);
+      const chartData = getCategory.progress.map((item, index) => {      
+        const prefix = String.fromCharCode(65 + index); // A, B, C, ...
+        const isSamll = item.percentage < 20;
 
-      for(let i = 0; i < getCategory.progress.length; i++)
-      {
-        const element = document.createElement("span");
-        element.className = "category-item";
-        element.textContent = `${getCategory.progress[i].channel_name.replace(/^\d+_/, '')} : ${getCategory.progress[i].percentage}% (${getCategory.progress[i].duration})`;
-        categorArea.appendChild(element);
-      }
+        return {
+          name: `${prefix}_${item.channel_name.replace(/^\d+_/, '')}`,
+          value: item.percentage,
+          time: item.duration,
+          label: {
+            show: item.percentage === 0? false : true,
+            formatter: `${item.percentage}`,
+            fontSize: 12,
+            position: isSamll ? 'outside' : 'inside',
+            fontFamily: 'Noto Sans KR'
+          },
+          labelLine: {
+            show: item.percentage > 0 && isSamll,
+          }
+        }       
+      })
+
+      const channelsOption = {
+        color: [
+          '#B7F362', '#FFA778', '#806FBC', '#170068', '#80CEC8', '#FFB0B0', '#FF6565',
+          '#F3DE62', '#4D66E7', '#A59684', '#DA8EC7', '#BFABCC', '#FF4567', '#65ABCD', '#123456'
+        ],
+        legend: {
+          orient: 'vertical',
+          right: 13,
+          top: 'top',
+          textStyle: {
+            fontWeight: '700',
+            fontFamily: 'Noto Sans KR'
+          },
+          formatter: function (name) {
+            return '  ' + name;
+          }
+        },
+        series: [
+          {
+            name: 'Access From',
+            type: 'pie',
+            radius: '55%',
+            center: ['33%', '45%'],
+            data: chartData,
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }
+        ]
+      };
+      myChart.setOption(channelsOption);
+
     }
   }
 
@@ -410,6 +451,11 @@ document.addEventListener('DOMContentLoaded', async() => {
     if(data.data.top.length > 2)
       companyRankBottonThird.textContent = `, ${data.data.bottom[2][0]} (${formatSecondsToHHMMSS(data.data.bottom[2][1])})`;
   }
+
+  window.parent.postMessage({
+    type: 'resize',
+    height: document.documentElement.scrollHeight
+  }, '*');
 
 });
 

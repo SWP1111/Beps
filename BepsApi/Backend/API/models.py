@@ -183,7 +183,7 @@ class ContentViewingHistory(db.Model):
     time_stamp = db.Column(db.BigInteger)
 
     __table_args__ = (
-        CheckConstraint("file_type IN ('page', 'detail')", name='check_file_type'),
+        CheckConstraint("file_type IN ('page', 'detail')", name='chk_file_type'),
     )
     
     def to_dict(self):
@@ -292,7 +292,12 @@ class ContentPointRecord(db.Model):
     file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=False)
     point = db.Column(db.Integer, nullable=False)
     earned_times = db.Column(JSONB, nullable=False, default=list)
+    file_type = db.Column(db.String(10), nullable=False, server_default='page')
     
+    __table_args__ = (
+        CheckConstraint("file_type IN ('page', 'detail')", name='chk_file_type'),
+    )
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -427,7 +432,7 @@ class PushMessages(db.Model):
             'title': self.title,
             'message': self.message,
             'is_read': self.is_read,
-            'created_at': self.created_at
+            'created_at': self.created_at.isoformat()
         }
         
 

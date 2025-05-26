@@ -257,6 +257,39 @@ background-color: #f0f0f0;
     margin-top: 20px;
     margin-left: 150px;   
 }
+
+.category-area {
+    background-color: #FFFFFF;
+    box-shadow: 2px 2px 30px 0 rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    gap: 20px;
+}
+
+.category-area span{
+    font-family: NotosansKR;
+    font-weight: 700;
+    font-size: 20px;
+    margin-top: 10px;
+}
+.category-area span.category-area-unit
+{
+    font-size: 15px;
+    margin-right: 20px;
+}
+.category-area-header{
+    margin-left: 20px;
+    margin-right: 20px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,1);
+}
+.category-chart{
+    width: 450px;
+    height: 400px;
+}
+
 @media (min-width: 3400px){
     #map {
         height: 443px;

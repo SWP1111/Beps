@@ -78,8 +78,8 @@ def end():
                 end_time=end_time,
                 ip_address=ip_address,
                 )
-            db.session.add(learning)            
-            point_success, point_reason = try_add_point(user_id, file_id, end_time, duration)
+            db.session.add(learning)     
+            point_success, point_reason = try_add_point(user_id, file_id, file_type, end_time, duration)            
             db.session.commit()
 
             return jsonify({
@@ -94,7 +94,7 @@ def end():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def try_add_point(user_id, file_id, end_time, duration, max_point=5):
+def try_add_point(user_id, file_id, file_type, end_time, duration, max_point=5):
     """포인트 추가 로직"""
     try:
         if duration.total_seconds() >= Config.POINT_DURATION_SECONDS:  # 5분 이상 시청한 경우
@@ -111,6 +111,7 @@ def try_add_point(user_id, file_id, end_time, duration, max_point=5):
                 record = ContentPointRecord(
                     user_id=user_id,
                     file_id=file_id,
+                    file_type=file_type,
                     point=1,
                     earned_times=[end_time.strftime("%Y-%m-%d %H:%M:%S")]
                 )
@@ -235,6 +236,7 @@ def point():
         
         filters = {}
 
+        # 포인트 조회(file_type = page)
         base_sql = """
             SELECT SUM(cpr.point) AS total_points,
             (
@@ -246,7 +248,7 @@ def point():
                     WHERE (
                         et::timestamp BETWEEN :start_date AND :end_date
                         OR et IS NULL
-                    )
+                    ) AND cpr2.file_type = 'page'
                     {inner_clause}
                     GROUP BY u2.id
                 ) AS avg_points_sub
@@ -254,7 +256,7 @@ def point():
             FROM content_point_record cpr
             JOIN users u ON cpr.user_id = u.id
             JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
-            WHERE earned_time::timestamp BETWEEN :start_date AND :end_date
+            WHERE earned_time::timestamp BETWEEN :start_date AND :end_date AND cpr.file_type = 'page' 
             """
         filters['start_date'] = utc_start_date
         filters['end_date'] = utc_end_date

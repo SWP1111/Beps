@@ -221,13 +221,14 @@ try:
             id SERIAL NOT NULL,
             user_id text,                                   -- 사용자 ID
             file_id integer,                                -- 컨텐츠(파일) ID
-            file_type varchar(10) DEFAULT 'page' CHECK (file_type IN ('page','detail')), -- 파일 타입(페이지, 상세)
+            file_type varchar(10) DEFAULT 'page',           -- 파일 타입(페이지, 상세)
             start_time timestamp with time zone NOT NULL,   -- 시작 시간
             end_time timestamp with time zone,              -- 종료 시간
             stay_duration interval,                         -- 체류 시간
             ip_address text NOT NULL,                       -- IP 주소
             time_stamp bigint,
-            CONSTRAINT content_viewing_history_pkey PRIMARY KEY (id)
+            CONSTRAINT content_viewing_history_pkey PRIMARY KEY (id),
+            CONSTRAINT chk_file_type  CHECK (file_type IN ('page','detail'))         -- 파일 타입 체크
         );
         """,
         """
@@ -507,7 +508,9 @@ try:
             file_id INTEGER NOT NULL REFERENCES content_rel_pages(id) ON DELETE CASCADE,    -- 컨텐츠(파일) ID
             point INTEGER NOT NULL CHECK (point >= 1),                          -- 포인트. 최소 1 이상 (insert로만 생성)
             earned_times JSONB NOT NULL DEFAULT '[]'::jsonb,                    -- 포인트 획득 시간 (JSON 배열로 저장)
-            UNIQUE (user_id, file_id)                                           -- 사용자 ID와 파일 ID의 조합은 유일해야 함
+            file_type varchar(10) DEFAULT 'page',                               -- 파일 타입(페이지, 상세)
+            UNIQUE (user_id, file_id),                                          -- 사용자 ID와 파일 ID의 조합은 유일해야 함
+            CONSTRAINT chk_file_type CHECK (file_type IN ('page','detail'))     -- 파일 타입 체크
         );
         """
     ]

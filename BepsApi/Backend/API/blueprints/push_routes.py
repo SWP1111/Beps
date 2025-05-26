@@ -64,11 +64,11 @@ def send():
     for msg in messages:
         if redis_client.exists(f"push_cache:{msg.user_id}"):           
             redis_client.rpush(f"push_cache:{msg.user_id}", json.dumps({
-                'type':'push_message',
                 'id': msg.id,
                 'title': title,
                 'message': message,     
-                'created_at': msg.created_at.isoformat()  
+                'created_at': msg.created_at.isoformat(),
+                'user_id': msg.user_id,
             }))
             redis_client.ltrim(f"push_cache:{msg.user_id}", -20, -1)  # 최근 20개만 유지
             redis_client.expire(f"push_cache:{msg.user_id}", 600) # 10분 후 만료
@@ -99,11 +99,27 @@ def check():
     messages = [msg.to_dict() for msg in db_messages]
     
     if messages:
-        redis_client.set(redis_key, json.dumps(messages), ex=600)
+       for msg in messages:
+           redis_client.rpush(redis_key, json.dumps(msg))
+       redis_client.expire(redis_key, 600)  # Redis 키의 만료 시간을 10분으로 설정
         
     return jsonify({
         'status': 'success',
         'messages': messages
     })
+    
+@api_push_bp.route('/read', methods=['GET'])
+@jwt_required(locations=["headers","cookies"])
+def read():
+    user_id = get_jwt_identity()
+    redis_key = f"push_cache:{user_id}"
+    
+    if redis_client.exists(redis_key):
+        raw_messages = redis_client.lrange(redis_key, 0, -1)
+        for msg in raw_messages:
+            msg_data = json.loads(msg)
+            if msg_data['type'] == 'push_message':
+                push_message = PushMessages.query.get(msg_data['id'])
+               
         
     

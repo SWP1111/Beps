@@ -160,18 +160,18 @@ createApp({
             loadProgressData();
         });
 
-        // setInterval(() => {
-        //     const checkurl = `${url}leaning/push/check`;
-        //     fetch(checkurl, {
-        //         method: "GET",
-        //         credentials: "include",
-        //     }).then(response => {
-        //         return response.json();
-        //     }).then(data => {
-        //         console.log("Push check response:", data);
-        //     });
+        setInterval(() => {
+            const checkurl = `${url}leaning/push/check`;
+            fetch(checkurl, {
+                method: "GET",
+                credentials: "include",
+            }).then(response => {
+                return response.json();
+            }).then(data => {
+                console.log("Push check response:", data);
+            });
 
-        // }, 10000);
+        }, 10000);
 
         return {
             url,
