@@ -304,7 +304,7 @@ def download_file(file_id):
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/channel', methods=['POST'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def create_channel():
     """
     Create a new channel
@@ -343,7 +343,7 @@ def create_channel():
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/channel/<int:channel_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def delete_channel(channel_id):
     """
     Delete a channel
@@ -376,7 +376,7 @@ def delete_channel(channel_id):
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file', methods=['POST'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])  
 def upload_file():
     """
     Upload a file to a channel or folder
@@ -494,7 +494,7 @@ def delete_files():
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/folder', methods=['POST'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def create_folder():
     """
     Create a new folder
@@ -548,7 +548,7 @@ def create_folder():
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/folder/<int:folder_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def delete_folder(folder_id):
     """
     Delete a folder and its contents
@@ -940,7 +940,7 @@ def generate_signed_url(image_id, variant='public', expire_in_seconds=3600):
     return f"{base_url}?{query}&sig={signature}"
 
 @api_contents_bp.route('/file/<int:file_id>/image-url', methods=['GET'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def get_file_image_url(file_id):
     """
     Get a signed URL for viewing a file's image
@@ -999,7 +999,7 @@ def get_file_image_url(file_id):
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/upload-image', methods=['POST'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def upload_file_image(file_id):
     """
     Upload an image for a file to Cloudflare Images
@@ -1063,7 +1063,7 @@ def upload_file_image(file_id):
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/remove-image', methods=['DELETE'])
-@jwt_required()
+@jwt_required(locations=['headers','cookies'])
 def remove_file_image(file_id):
     """
     Remove the image associated with a file

@@ -976,6 +976,7 @@
                 // 업로드 API 호출
                 fetch(`/contents/file/${fileId}/upload-image`, {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 })
                 .then(response => {
@@ -1013,7 +1014,13 @@
             console.log(`이미지 보기: ${fileId}`);
             
             // 이미지 URL 가져오기
-            fetch(`/contents/file/${fileId}/image-url`)
+            fetch(`/contents/file/${fileId}/image-url`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`이미지 URL을 가져오는데 실패했습니다: ${response.status}`);
