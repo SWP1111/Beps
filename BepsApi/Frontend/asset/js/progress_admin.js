@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     if(response.ok)
     {
       const completionRateElement = document.getElementById("completion-rate");
-      completionRateElement.textContent = `학습 완료율: ${data.completion_rate}%`;
+      completionRateElement.textContent = `학습 진도율: ${data.completion_rate}% \n (학습 완료 페이지 / 전체 페이지)`;
     }
   }
 
