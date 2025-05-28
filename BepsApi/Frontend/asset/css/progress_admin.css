@@ -203,11 +203,55 @@ background-color: #f0f0f0;
     flex-shrink: 0;
 }
 
-.login-time {
+.login-history-area {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    flex-direction: row;
+    background-color: #FFFFFF;
+    box-shadow: 2px 2px 30px 0 rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    gap: 10px;
+    padding: 10px;
 }
+
+.login-history-area span{
+    font-family: NotosansKR;
+    font-weight: 700;
+    font-size: 20px;
+    margin-top: 10px;
+    margin-left: 40px;
+}
+
+.login-chart-area-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: 10px;
+    margin-right: 20px;
+    border-bottom: 1px solid rgba(0,0,0,1);
+}
+
+.login-history-area .login-total-value {
+    font-family: NotosansKR;
+    font-weight: 700;
+    font-size: 15px;
+    user-select: none;
+    background-color: #b1b1b1;
+    border: none;
+    border-radius: 20px;
+    text-align: center;
+    
+    padding: 0px 5px 0px 5px;
+    margin-right: 20px;
+    margin-left: 0px;
+    margin-bottom: 2px;
+}
+
+.login-chart {
+    width: 250px;
+    height: 250px;
+}
+
 
 .learning-time {
     display: flex;
@@ -276,7 +320,7 @@ background-color: #f0f0f0;
     font-size: 15px;
     margin-right: 20px;
 }
-.category-area-header{
+.chart-area-header{
     margin-left: 20px;
     margin-right: 20px;
     display: flex;
@@ -290,7 +334,7 @@ background-color: #f0f0f0;
     height: 400px;
 }
 
-@media (min-width: 3400px){
+/* @media (min-width: 3400px){
     #map {
         height: 443px;
         width: 443px;
@@ -403,4 +447,4 @@ background-color: #f0f0f0;
     font-weight: 700;
     font-size: 26px;
     }
-}
+} */

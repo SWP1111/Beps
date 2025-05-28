@@ -121,14 +121,21 @@
 
             <div class="chart-area">
 
-                <div class="login-time">
-                    <span class="total-login-time" id="total-login-time">접속 시간</span>
-                    <span class="worktime-duration" id="worktime-duration">근무 시간 내</span>
-                    <span class="offhour-duration" id="offhour-duration">근무 시간 외</span> 
-                    <span></span> 
-                    <span class="total-login-count" id="total-login-count">총 접속 횟수</span>
-                    <span class="internal-count" id="internal-count">내부 접속 횟수</span>
-                    <span class="external-count" id="external-count">외부 접속 횟수</span> 
+                <div class="login-history-area">
+                    <div class="login-time-area">
+                        <div class="login-chart-area-header">
+                            <span>접속 시간</span>
+                            <span class="login-total-value" id="login-total-times"></span>
+                        </div>
+                        <div class="login-chart" id="login-time-chart"></div>
+                    </div>
+                    <div class="login-count-area">
+                        <div class="login-chart-area-header">
+                            <span>접속 위치</span>
+                            <span class="login-total-value" id="login-total-count"></span>
+                        </div>
+                        <div class="login-chart" id="login-count-chart"></div>
+                    </div>
                 </div>
                             
                 <div class="learing-time-Rank">
@@ -169,13 +176,10 @@
 
             <div class="point">
                 <div>
-                    <input type="number" class="point-input" id="point-input" placeholder="포인트" style="width: 80px;" />
-                    <input type="radio" class="point-equal" id="point-equal" name="point" value="equal">동일
-                    <input type="radio" class="point-less-than" id="point-less-than" name="point" value="less-than" checked>이하
-                    <input type="radio" class="study-button" id="study-button" name="message" value="study" checked>학습 독려</button>
-                    <input type="radio" class="exam-button" id="exam-button" name="message" value="exam">시험 독려</button>
+                    <input type="number" class="point-input" id="point-input" placeholder="백분율" style="width: 80px;" />
                     <button class="push-message-button" id="push-message-button">push message</button>
                 </div>
+                <span class="completion-rate" id="completion-rate">학습 진도율</span>
                 <span class="total-point" id="total-point">총 포인트</span>
                 <span class="top-point" id="top-point">최상위 포인트</span>
                 <span class="bottom-point" id="bottom-point">최하위 포인트</span>
@@ -183,7 +187,7 @@
 
             <div class="learning-area">
                 <div class="category-area" id="category_area">
-                    <div class="category-area-header">
+                    <div class="chart-area-header">
                         <span>콘텐츠 학습 현황</span>
                         <span class="category-area-unit">단위 : %</span>
                     </div>

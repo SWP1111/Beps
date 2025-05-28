@@ -307,6 +307,27 @@ class ContentPointRecord(db.Model):
             'earned_times': self.earned_times
         }
 
+class LearningCompletionHistory(db.Model):
+    __tablename__ = 'learning_completion_history'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Text, nullable=False)
+    page_id = db.Column(db.Integer, nullable=False)
+    completed_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    total_duration = db.Column(db.Interval, nullable=False)
+    
+    __table_args__ = (
+    db.UniqueConstraint('user_id', 'page_id', name='uq_user_page'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'page_id': self.page_id,
+            'completed_at': self.completed_at,
+            'total_duration': str(self.total_duration)
+        }
+    
 class ContentRelChannels(db.Model):
     __tablename__ = 'content_rel_channels'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)

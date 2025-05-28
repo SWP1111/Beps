@@ -14,6 +14,7 @@ const dbPool = require('../config/db');
 const router = express.Router();
 const service_type = "cdn";
 
+
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (password === CONSTANTS.PASSWORD) {
@@ -26,6 +27,7 @@ router.post('/login', (req, res) => {
   }
 });
 
+
 // 전체 "채널" 조회
 router.get('/list-directories', authenticateJwtHeader, (req, res) => {
   try {
@@ -34,6 +36,7 @@ router.get('/list-directories', authenticateJwtHeader, (req, res) => {
     res.status(500).json({ error: 'Unable to scan directory' });
   }
 });
+
 
 router.get(`/${service_type}/list-directories`, async (req, res) => {
   try {
@@ -44,7 +47,15 @@ router.get(`/${service_type}/list-directories`, async (req, res) => {
     `;
 
     const result = await dbPool.query(query);
-    res.json(result.rows);
+
+    // 숫자 추출 후 오름차순 정렬
+    const sorted = result.rows.sort((a, b) => {
+      const numA = parseInt(a.name.split('_')[0]) || 0;
+      const numB = parseInt(b.name.split('_')[0]) || 0;
+      return numA - numB;
+    });
+
+    res.json(sorted);
 
     console.log(`/${service_type}/list-directories`);
   } catch (err) {    
@@ -53,12 +64,14 @@ router.get(`/${service_type}/list-directories`, async (req, res) => {
   }
 });
 
+
 // 특정 "채널" 의 하위 전체 목록 조회
 router.get('/list-directories/*', authenticateJwtHeader, (req, res) => {
   const folderPath = path.join(CONSTANTS.CONTENTS_DIR, req.params[0]);
   if (!fs.existsSync(folderPath)) return res.status(404).json({ error: 'Folder not found' });
   res.json(getDirectoryTree(folderPath));
 });
+
 
 router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
   const channelId = parseInt(req.params.channelId);
@@ -79,27 +92,13 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
 async function getFoldersWithPages(channelId) {
   // 폴더 조회
   const { rows: folders } = await dbPool.query(
-    `WITH RECURSIVE folder_tree AS (
-    SELECT *, 1 AS depth, ARRAY[name] AS name_childname
-    FROM content_rel_folders
-    WHERE channel_id = $1 AND is_deleted = false AND parent_id IS NULL
-
-    UNION ALL
-
-    SELECT f.*, ft.depth + 1, ft.name_childname || f.name
-    FROM content_rel_folders f
-    INNER JOIN folder_tree ft ON f.parent_id = ft.id
-    WHERE f.channel_id = $1 AND f.is_deleted = false
-    )
-    SELECT *
-    FROM folder_tree
-    ORDER BY name_childname`,
+    `SELECT * FROM content_rel_folders WHERE channel_id = $1 AND is_deleted = false ORDER BY id`,
     [channelId]
   );
 
   // 페이지 전체 조회
   const { rows: pages } = await dbPool.query(
-    `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY name`
+    `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY id`
   );
 
   // 폴더별로 묶기
@@ -119,6 +118,24 @@ async function getFoldersWithPages(channelId) {
   return { folderItems };
 }
 
+
+// 해당 페이지의 상세페이지 조회
+router.get(`/${service_type}/page/:pageId`, async (req, res) => {
+  const pageId = parseInt(req.params.pageId);
+  if (!pageId) {
+    return res.status(400).json({ error: 'pageId를 URL 파라미터로 전달해주세요.' });
+  }
+  try {
+    const { rows } = await dbPool.query(
+      `SELECT * FROM content_rel_page_details WHERE page_id = $1 AND is_deleted = false ORDER BY id`,
+      [pageId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('에러 발생:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // 하위 폴더 재귀 조회
 async function getSubFolders(parentId, channelId) {
@@ -142,6 +159,14 @@ async function getSubFolders(parentId, channelId) {
 
     folder.folders = await getSubFolders(folder.id, channelId);
     folder.pages = await getPages(folder.id);
+
+    if (folder.pages && folder.pages.length) {
+      folder.pages.sort((a, b) => {
+        const numA = parseInt(a.attributes.name.split('_')[0], 10) || 0;
+        const numB = parseInt(b.attributes.name.split('_')[0], 10) || 0;
+        return numA - numB;
+      });
+    }
 
     // folders, pages가 비어있으면 삭제 (선택사항)
     if (folder.folders.length === 0) delete folder.folders;

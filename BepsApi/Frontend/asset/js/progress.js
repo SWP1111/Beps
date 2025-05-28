@@ -158,10 +158,23 @@ createApp({
             searchStartDate.value = formatDate(oneWeekAgo);
             searchEndDate.value = formatDate(today);
             loadProgressData();
+            loadPushMessage();
         });
 
+        const loadPushMessage = () => {
+            let pushUrl = `${url}leaning/push/load`;
+            fetch(pushUrl, {
+                method: "GET",
+                credentials: "include",
+            }).then(response =>{
+                return response.json();
+            }).then(data => {
+                console.log("Push message response:", data);
+            });
+        }
+
         setInterval(() => {
-            const checkurl = `${url}leaning/push/check`;
+            const checkurl = `${url}leaning/push/count`;
             fetch(checkurl, {
                 method: "GET",
                 credentials: "include",
@@ -187,7 +200,8 @@ createApp({
             formatDate,
             formatDateTime,
             formatDuration,
-            
+            loadPushMessage,
+
             searchUserType,
             searchUserPlaceholder,
 
