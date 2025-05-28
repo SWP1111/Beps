@@ -85,19 +85,10 @@ document.addEventListener('DOMContentLoaded', async() => {
   const pushMessageButton = document.getElementById("push-message-button");
   pushMessageButton.addEventListener("click", async() => {
     const pointValue =document.getElementById("point-input").value;
-    const pointCondition = document.querySelector('input[name="point"]:checked').value;
-    const messageCondigion = document.querySelector('input[name="message"]:checked').value;
 
-    let conditionText = (pointCondition == "equal") ?"대상":"이하";
     let title = "";  
-    let message = "";
-    if(messageCondigion == "study"){
-      message = `학습진도율 ${pointValue} 포인트 ${conditionText} 학습자에게 보내는 메시지입니다.`;
-    }
-    else{
-      message = `${conditionText} 포인트 적립으로 시험이 필요합니다.`;
-    }
-
+    let message = `학습진도율 ${pointValue}% 미만 학습자에게 보내는 메시지입니다.`;
+       
     const csrfToken = await getCookie();
     const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
     const response = await fetch(url,{
@@ -160,6 +151,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     getCategoryLearingRate();
     getTopViewdPages();
     getMemoRank();
+    getCompletionRate();
   });
 
   setOnSelectFilterCallback(async({type, company, department, user}) =>
@@ -173,6 +165,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     getCategoryLearingRate();
     getTopViewdPages();
     getMemoRank();
+    getCompletionRate();
   });
 
 
@@ -249,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       const myChart = echarts.init(categorArea);
       const chartData = getCategory.progress.map((item, index) => {      
         const prefix = String.fromCharCode(65 + index); // A, B, C, ...
-        const isSamll = item.percentage < 20;
+        const isSamll = item.percentage < 10;
 
         return {
           name: `${prefix}_${item.channel_name.replace(/^\d+_/, '')}`,
@@ -260,7 +253,8 @@ document.addEventListener('DOMContentLoaded', async() => {
             formatter: `${item.percentage}`,
             fontSize: 12,
             position: isSamll ? 'outside' : 'inside',
-            fontFamily: 'Noto Sans KR'
+            fontFamily: 'Noto Sans KR',
+            fontWeight: '700',
           },
           labelLine: {
             show: item.percentage > 0 && isSamll,
@@ -369,6 +363,24 @@ document.addEventListener('DOMContentLoaded', async() => {
         element.textContent = `${i+1}위: ${path} (${data[i].cnt}회)`;
         memoRank.appendChild(element);
       }
+    }
+  }
+
+  async function getCompletionRate() {
+    let url = `${window.baseUrl}leaning/completion-rate?period_value=${period_value}`;
+    if(period_type != null)
+      url += `&period_type=${period_type}`;
+    if(filter_type != null)
+      url += `&filter_type=${filter_type}`;
+    if(filter_value != null)
+      url += `&filter_value=${encodeURIComponent(filter_value)}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    if(response.ok)
+    {
+      const completionRateElement = document.getElementById("completion-rate");
+      completionRateElement.textContent = `학습 완료율: ${data.completion_rate}%`;
     }
   }
 

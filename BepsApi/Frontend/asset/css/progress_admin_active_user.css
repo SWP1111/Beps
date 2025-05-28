@@ -93,13 +93,13 @@
     flex-shrink: 0;
 }
 
-@media (min-width: 3400px) and (min-height: 1800px) {
+/* @media (min-width: 3400px) and (min-height: 1800px) {
     .active-user {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        width: 500px; /* 고정 너비 */
-        margin-left: 40px; /* filter와 일치하게 */
+        width: 500px;
+        margin-left: 40px; 
         margin-top: 20px;
         background-color: #fff;
     }
@@ -137,7 +137,7 @@
         flex-shrink: 0;
         position: absolute;
         margin-top: 1px;
-        right: 10px;                  /* container 오른쪽에서 10px */
+        right: 10px;                  
         top: 50%;
         transform: translateY(-50%);
     }
@@ -149,7 +149,7 @@
         border-radius: 50%;
         flex-shrink: 0;
         position: absolute;
-        right: 10px;                  /* container 오른쪽에서 10px */
+        right: 10px;                  
         top: 50%;
         transform: translateY(-50%);
     }
@@ -175,4 +175,4 @@
         border-radius: 50%;
         flex-shrink: 0;
     }
-}
+} */

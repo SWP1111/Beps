@@ -309,6 +309,9 @@ try:
         """,
         """
         CREATE TRIGGER set_timestamp_login_history BEFORE INSERT OR UPDATE ON public.login_history FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+        """,
+        """
+        CREATE TRIGGER set_timestamp_learning_completion_history BEFORE INSERT OR UPDATE ON public.learning_completion_history FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
         """    
     ]
     #endregion
@@ -516,6 +519,20 @@ try:
     ]
     #endregion
     
+    #region learning_complettion_history 테이블(학습 완료 기록 테이블)
+    learning_completion_history_queries = """
+        CREATE TABLE learning_completion_history (
+            id SERIAL PRIMARY KEY,                -- 학습 완료 기록 ID
+            user_id TEXT NOT NULL,               -- 사용자 ID
+            page_id INTEGER NOT NULL,            -- 페이지 ID
+            completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),  -- 완료 시간
+            total_duration INTERVAL NOT NULL,  -- 총 학습 시간
+            time_stamp bigint,
+            UNIQUE (user_id, page_id),          -- 사용자 ID와 페이지 ID의 조합은 유일해야 함
+        )
+    """
+    #endregion
+    
     #region content_manager 테이블 (컨텐츠 담당 테이블)
     content_manager_queries = """
         CREATE TABLE content_manager (
@@ -657,7 +674,8 @@ try:
         learning_summary_queries,
         content_point_record_queries,
         content_manager_queries,
-        push_messages_queries
+        push_messages_queries,
+        learning_completion_history_queries
         ]
 
     for query in queries:

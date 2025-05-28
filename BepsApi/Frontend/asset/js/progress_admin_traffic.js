@@ -1,4 +1,4 @@
-let isLargeScreen = window.matchMedia("(min-width: 3000px) and (min-height: 1800px)").matches;
+let isLargeScreen = false;//window.matchMedia("(min-width: 3000px) and (min-height: 1800px)").matches;
 
 const baseGaugeOption = {
   series: [

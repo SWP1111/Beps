@@ -35,7 +35,7 @@
     height: 17px;
 }
 
-@media (min-width: 3400px) and (min-height: 1800px) {
+/* @media (min-width: 3400px) and (min-height: 1800px) {
     .filter {
         display: flex;
         align-items: center;
@@ -65,7 +65,7 @@
         width: 34px;
         height: 34px;
     }
-}
+} */
 
 .search-container-wrapper {
     display: flex;
@@ -74,7 +74,6 @@
     width: 258px; /* 고정 너비 */
     margin-left: 20px; /* filter와 일치하게 */
     margin-top: 5px;
-    background-color: #fff;
 }
 .search-container {
     display: flex;
@@ -138,13 +137,13 @@
   }
 
   
-  @media (min-width: 3400px) and (min-height: 1800px) {
+  /* @media (min-width: 3400px) and (min-height: 1800px) {
     .search-container-wrapper {
       display: flex;
       position: relative;
       align-items: flex-start;
-      width: 500px; /* 고정 너비 */
-      margin-left: 40px; /* filter와 일치하게 */
+      width: 500px; 
+      margin-left: 40px;
       margin-top: 5px;
       background-color: #fff;
   }
@@ -173,4 +172,4 @@
       cursor: pointer;
       font-size: 30px;
     }
-  }
+  } */

@@ -19,3 +19,5 @@ class Config:
     CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")  # 기본값은 SimpleCache (메모리 기반)
     CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_TIMEOUT", 3600))  # 캐시 기본 만료 시간(초)
     
+    LEARNING_COMPLETED_MINUTES = 1
+    PUSH_MESSAGE_LIMIT = 5  # 🔹 푸시 메시지 최대 개수

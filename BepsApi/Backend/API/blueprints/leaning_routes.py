@@ -6,7 +6,7 @@ from datetime import timezone
 from datetime import timedelta
 from extensions import db
 from flask_jwt_extended import jwt_required
-from models import Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, ContentRelPageDetails
+from models import Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, ContentRelPageDetails, LearningCompletionHistory
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 from config import Config
@@ -15,7 +15,7 @@ import glob
 import os
 import pickle
 from flask import session
-from sqlalchemy import func
+from sqlalchemy import distinct, func
 import traceback
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
@@ -79,7 +79,10 @@ def end():
                 ip_address=ip_address,
                 )
             db.session.add(learning)     
-            point_success, point_reason = try_add_point(user_id, file_id, file_type, end_time, duration)            
+            point_success, point_reason = try_add_point(user_id, file_id, file_type, end_time, duration)
+            if(file_type == 'page'):
+                add_comletion_history(user_id, file_id, duration, end_time)            
+
             db.session.commit()
 
             return jsonify({
@@ -121,6 +124,32 @@ def try_add_point(user_id, file_id, file_type, end_time, duration, max_point=5):
             return False, "Duration too short"
     except Exception as e:
         return False, str(e)  # 에러 메시지 반환
+
+def add_comletion_history(user_id, page_id, duration, end_time):
+    """학습 완료 기록 추가"""
+    try:
+        item = LearningCompletionHistory.query.filter_by(user_id=user_id, page_id=page_id).first()
+        if item:
+             already_completed = item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES) 
+             
+             item.total_duration += duration
+             if not already_completed and item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES):
+                 item.completed_at = end_time           
+        else:
+            total_duration = duration
+            completed_at = end_time if total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES) else None
+            
+            item = LearningCompletionHistory(
+                user_id=user_id,
+                page_id=page_id,
+                total_duration=total_duration,
+                completed_at=completed_at
+            )
+            db.session.add(item)
+    except Exception as e:
+        logging.error(f"Error adding completion history: {str(e)}")
+        return False
+    return True
 
 # 🔹 GET /leaning/data API 기록 조회
 @api_leaning_bp.route('/data', methods=['GET']) # 🔹 GET /leaning/data API
@@ -475,3 +504,66 @@ def get_top_viewd_pages():
     except Exception as e:
         logging.error(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
+    
+@api_leaning_bp.route('/completion-rate', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def get_completion_rate():
+    from services.user_summary_service import get_period_value
+    try:
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        period_type = request.args.get('period_type', 'year')
+        period_value = request.args.get('period_value')
+        
+        if not period_type or not period_value:
+            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
+        
+        if filter_type != 'all' and not filter_value:
+            return jsonify({'error': 'Please provide filter_type and filter_value'}), 400
+        
+        start_date, end_date = get_period_value(period_type, period_value)
+        local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+        utc_start_dt = datetime.datetime.combine(start_date, datetime.time.min, local_tz).astimezone(datetime.timezone.utc)
+        utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, local_tz).astimezone(datetime.timezone.utc)
+        
+        user_ids = []
+        if filter_type == 'all':
+            user_ids = db.session.query(Users.id).all()
+        elif filter_type == 'company':
+            user_ids = db.session.query(Users.id).filter(Users.company == filter_value).all()
+        elif filter_type == 'department':
+            parts = filter_value.split('||', 1)
+            if len(parts) == 2:
+                user_ids = db.session.query(Users.id).filter(Users.company == parts[0], Users.department == parts[1]).all()
+            else:
+                user_ids = db.session.query(Users.id).filter(Users.department == filter_value).all()
+        elif filter_type == 'user':
+            user_ids = db.session.query(Users.id).filter(Users.id == filter_value).all()
+        if not user_ids:
+            return jsonify({'error': 'No users found for the given filter'}), 404       
+        user_ids = [u[0] for u in user_ids]  # 튜플 → id만 추출
+        
+        completion_threshold = timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES)
+        
+        completed_pages = db.session.query(func.count(distinct(LearningCompletionHistory.page_id))) \
+            .filter(
+                LearningCompletionHistory.user_id.in_(user_ids),
+                LearningCompletionHistory.completed_at.between(utc_start_dt, utc_end_dt),
+                LearningCompletionHistory.total_duration >= completion_threshold
+            ).scalar() or 0
+            
+        total_pages = db.session.query(func.count(ContentRelPages.id)) \
+            .filter(ContentRelPages.is_deleted == False).scalar() or 0
+        
+        completion_rate = (completed_pages / (total_pages * len(user_ids)) * 100) if total_pages else 0
+        
+        return jsonify({
+            'completion_rate': round(completion_rate, 2),
+            'completed_pages': completed_pages,
+            'total_pages': total_pages,
+            'completion_threshold_minutes': Config.LEARNING_COMPLETED_MINUTES
+        }), 200  # 200: OK
+        
+    except Exception as e:
+        logging.error(f"[get_completion_rate] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[get_completion_rate] error': str(e)}), 500

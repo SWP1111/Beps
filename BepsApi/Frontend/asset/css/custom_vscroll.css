@@ -23,7 +23,7 @@
     border-radius: 6px;
   }
 
-  @media (min-width: 3400px) and (min-height: 1800px)
+  /* @media (min-width: 3400px) and (min-height: 1800px)
   {
     .custom-scrollbar {
         border: 1px solid #ccc;
@@ -45,5 +45,5 @@
         background-color: #ccc;
         border-radius: 6px;
       }
-  }
+  } */
   
