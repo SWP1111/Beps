@@ -355,7 +355,7 @@ class ContentRelPages(db.Model):
     folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'))
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
-    object_id = db.Column(db.String, nullable=False)
+    object_id = db.Column(db.String, nullable=True)
     created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
     is_deleted = db.Column(db.Boolean, default=False)

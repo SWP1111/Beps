@@ -19,3 +19,7 @@ class Config:
     CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")  # 기본값은 SimpleCache (메모리 기반)
     CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_TIMEOUT", 3600))  # 캐시 기본 만료 시간(초)
     
+    # Cloudflare Images 설정
+    CLOUDFLARE_ACCOUNT_HASH = os.getenv("CLOUDFLARE_ACCOUNT_HASH")  # Cloudflare Images 계정 해시
+    CLOUDFLARE_SIGNING_KEY = os.getenv("CLOUDFLARE_SIGNING_KEY")  # 서명용 비밀 키
+    

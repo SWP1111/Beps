@@ -15,6 +15,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.content_hierarchy_service import ContentHierarchyService
 from werkzeug.utils import secure_filename
 import uuid
+import hmac
+import hashlib
+import time
 
 api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
 
@@ -901,4 +904,207 @@ def update_content_manager(manager_id):
         db.session.rollback()
         logging.error(f"Error updating content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# Image handling endpoints
+
+def generate_signed_url(image_id, variant='public', expire_in_seconds=3600):
+    """
+    Generate a signed URL for Cloudflare Images
+    
+    Args:
+        image_id: The Cloudflare image ID
+        variant: Image variant (default: 'public')
+        expire_in_seconds: URL expiration time in seconds
+        
+    Returns:
+        Signed URL string
+    """
+    account_hash = current_app.config.get('CLOUDFLARE_ACCOUNT_HASH')
+    signing_key = current_app.config.get('CLOUDFLARE_SIGNING_KEY')
+    
+    if not account_hash or not signing_key:
+        raise ValueError("Cloudflare configuration not found")
+    
+    expires = int(time.time()) + expire_in_seconds
+    query = f"expires={expires}"
+    
+    # Create HMAC signature
+    hmac_obj = hmac.new(
+        signing_key.encode('utf-8'),
+        query.encode('utf-8'),
+        hashlib.sha256
+    )
+    signature = hmac_obj.hexdigest()
+    
+    base_url = f"https://imagedelivery.net/{account_hash}/{image_id}/{variant}"
+    return f"{base_url}?{query}&sig={signature}"
+
+@api_contents_bp.route('/file/<int:file_id>/image-url', methods=['GET'])
+@jwt_required()
+def get_file_image_url(file_id):
+    """
+    Get a signed URL for viewing a file's image
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Query parameters:
+    - variant: Image variant (optional, default: 'public')
+    - expires: Expiration time in seconds (optional, default: 3600)
+    """
+    try:
+        # Check if user has access to this file
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file has an image (object_id is not null/empty)
+        if not page.object_id or page.object_id.strip() == '':
+            return jsonify({'error': 'No image associated with this file'}), 404
+        
+        # Check user permissions (admin, developer, or has specific access)
+        if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer
+            # Check if user has specific access to this file
+            service = ContentHierarchyService()
+            folder_ids, file_ids = service.get_user_accessible_content(int(user_id))
+            
+            if file_id not in file_ids:
+                return jsonify({'error': 'Access denied'}), 403
+        
+        # Get query parameters
+        variant = request.args.get('variant', 'public')
+        expires = int(request.args.get('expires', 3600))
+        
+        # Generate signed URL
+        signed_url = generate_signed_url(page.object_id, variant, expires)
+        
+        return jsonify({
+            'signed_url': signed_url,
+            'expires_in': expires,
+            'image_id': page.object_id
+        })
+        
+    except ValueError as e:
+        logging.error(f"Configuration error: {str(e)}")
+        return jsonify({'error': 'Server configuration error'}), 500
+    except Exception as e:
+        logging.error(f"Error generating image URL: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/upload-image', methods=['POST'])
+@jwt_required()
+def upload_file_image(file_id):
+    """
+    Upload an image for a file to Cloudflare Images
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Form data:
+    - image: The image file to upload
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file already has an image
+        if page.object_id and page.object_id.strip() != '':
+            return jsonify({'error': 'File already has an image. Delete the existing image first.'}), 409
+        
+        # Check if image file is provided
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({'error': 'No image file selected'}), 400
+        
+        # Validate file type (basic check)
+        allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+        file_ext = os.path.splitext(image_file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Only PNG, JPG, JPEG, GIF, and WebP are allowed.'}), 400
+        
+        # TODO: Implement actual Cloudflare Images upload
+        # For now, we'll generate a placeholder object_id
+        placeholder_object_id = str(uuid.uuid4())
+        
+        # Update the page with the new object_id
+        page.object_id = placeholder_object_id
+        page.updated_at = datetime.datetime.now()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Image uploaded successfully',
+            'object_id': placeholder_object_id,
+            'file_id': file_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error uploading image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/remove-image', methods=['DELETE'])
+@jwt_required()
+def remove_file_image(file_id):
+    """
+    Remove the image associated with a file
+    
+    Path parameter:
+    - file_id: ID of the file
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file has an image
+        if not page.object_id or page.object_id.strip() == '':
+            return jsonify({'error': 'No image associated with this file'}), 404
+        
+        # TODO: Implement actual Cloudflare Images deletion
+        # For now, we'll just clear the object_id
+        
+        # Clear the object_id
+        page.object_id = None
+        page.updated_at = datetime.datetime.now()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Image removed successfully',
+            'file_id': file_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error removing image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 #endregion

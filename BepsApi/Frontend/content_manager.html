@@ -206,6 +206,71 @@
             color: #555;
         }
         
+        .upload-icon {
+            margin-left: auto;
+            cursor: pointer;
+            color: #4caf50;
+        }
+        
+        .file-name-clickable {
+            cursor: pointer;
+            color: #1976d2;
+            text-decoration: underline;
+        }
+        
+        .file-name-normal {
+            color: inherit;
+        }
+        
+        /* Image modal styles */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .image-modal-content {
+            position: relative;
+            margin: 5% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 5px;
+        }
+        
+        .image-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        
+        .image-modal-close:hover {
+            color: #000;
+        }
+        
+        .image-modal img {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            object-fit: contain;
+        }
+        
+        .image-modal-title {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 5px;
@@ -326,6 +391,15 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal">
+        <div class="image-modal-content">
+            <span class="image-modal-close">&times;</span>
+            <div class="image-modal-title" id="imageModalTitle">이미지 보기</div>
+            <img id="imageModalImg" src="" alt="파일 이미지">
         </div>
     </div>
     
@@ -767,7 +841,27 @@
                     fileIcon.innerHTML = '&#128196;';
                     
                     fileNameContent.appendChild(fileIcon);
-                    fileNameContent.appendChild(document.createTextNode(page.name || '제목 없음'));
+                    
+                    // Check if file has an image (object_id is not null/empty)
+                    const hasImage = page.object_id && page.object_id.trim() !== '';
+                    
+                    // Create filename text element
+                    const fileNameText = document.createElement('span');
+                    fileNameText.textContent = page.name || '제목 없음';
+                    
+                    if (hasImage) {
+                        // State 2: File has image - make filename clickable
+                        fileNameText.className = 'file-name-clickable';
+                        fileNameText.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showImageModal(page.id, page.name);
+                        });
+                    } else {
+                        // State 1: File has no image - normal text
+                        fileNameText.className = 'file-name-normal';
+                    }
+                    
+                    fileNameContent.appendChild(fileNameText);
                     
                     if (page.is_new) {
                         const newBadge = document.createElement('span');
@@ -778,15 +872,24 @@
                     
                     fileNameDiv.appendChild(fileNameContent);
                     
-                    const downloadIcon = document.createElement('span');
-                    downloadIcon.className = 'download-icon';
-                    downloadIcon.innerHTML = '&#8595;';
-                    downloadIcon.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        downloadFile(page.id);
-                    });
+                    // Add appropriate icon based on state
+                    if (hasImage) {
+                        // State 2: No icon (image available)
+                        // Don't add any icon
+                    } else {
+                        // State 1: Show upload icon
+                        const uploadIcon = document.createElement('span');
+                        uploadIcon.className = 'upload-icon';
+                        uploadIcon.innerHTML = '&#8593;'; // Upload arrow
+                        uploadIcon.title = '이미지 업로드';
+                        uploadIcon.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            uploadImage(page.id);
+                        });
+                        
+                        fileNameDiv.appendChild(uploadIcon);
+                    }
                     
-                    fileNameDiv.appendChild(downloadIcon);
                     fileDiv.appendChild(fileNameDiv);
                     
                     // 버전 열
@@ -836,6 +939,130 @@
             // 다운로드 API 엔드포인트 호출
             window.location.href = `/contents/file/${fileId}/download`;
         }
+        
+        // 이미지 업로드
+        function uploadImage(fileId) {
+            console.log(`이미지 업로드: ${fileId}`);
+            
+            // 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
+                alert('이미지 업로드 권한이 없습니다.');
+                return;
+            }
+            
+            // 파일 선택 다이얼로그 생성
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.multiple = false;
+            
+            fileInput.onchange = function() {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    return;
+                }
+                
+                const imageFile = fileInput.files[0];
+                
+                // 파일 크기 검사 (100MB 제한)
+                if (imageFile.size > 100 * 1024 * 1024) {
+                    alert('파일 크기가 너무 큽니다. 10MB 이하의 파일을 선택해주세요.');
+                    return;
+                }
+                
+                // FormData 생성
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                
+                // 업로드 API 호출
+                fetch(`/contents/file/${fileId}/upload-image`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`이미지 업로드에 실패했습니다: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('이미지가 성공적으로 업로드되었습니다.');
+                    
+                    // 파일 목록 새로고침
+                    if (currentSelectedChannel) {
+                        const filters = {
+                            all: document.getElementById('filter-all').checked,
+                            reviewing: document.getElementById('filter-reviewing').checked,
+                            rejected: document.getElementById('filter-rejected').checked,
+                            approved: document.getElementById('filter-approved').checked,
+                            updated: document.getElementById('filter-updated').checked
+                        };
+                        fetchChannelHierarchy(currentSelectedChannel, filters);
+                    }
+                })
+                .catch(error => {
+                    console.error('이미지 업로드 중 오류가 발생했습니다:', error);
+                    alert('이미지 업로드 중 오류가 발생했습니다.');
+                });
+            };
+            
+            fileInput.click();
+        }
+        
+        // 이미지 모달 표시
+        function showImageModal(fileId, fileName) {
+            console.log(`이미지 보기: ${fileId}`);
+            
+            // 이미지 URL 가져오기
+            fetch(`/contents/file/${fileId}/image-url`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`이미지 URL을 가져오는데 실패했습니다: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 모달 요소 가져오기
+                const modal = document.getElementById('imageModal');
+                const modalImg = document.getElementById('imageModalImg');
+                const modalTitle = document.getElementById('imageModalTitle');
+                
+                // 모달 설정
+                modalTitle.textContent = fileName || '이미지 보기';
+                modalImg.src = data.signed_url;
+                
+                // 모달 표시
+                modal.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('이미지를 불러오는 중 오류가 발생했습니다:', error);
+                alert('이미지를 불러오는 중 오류가 발생했습니다.');
+            });
+        }
+        
+        // 이미지 모달 닫기 이벤트 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('imageModal');
+            const closeBtn = document.querySelector('.image-modal-close');
+            
+            // 닫기 버튼 클릭
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            // 모달 배경 클릭
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // ESC 키 누르기
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.style.display === 'block') {
+                    modal.style.display = 'none';
+                }
+            });
+        });
         
         // 콘텐츠 추가 버튼 이벤트
         document.getElementById('add-content').addEventListener('click', function() {
