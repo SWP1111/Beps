@@ -18,6 +18,8 @@ import uuid
 import hmac
 import hashlib
 import time
+import requests
+import json
 
 api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
 
@@ -1025,7 +1027,7 @@ def upload_file_image(file_id):
         
         # Check if file already has an image
         if page.object_id and page.object_id.strip() != '':
-            return jsonify({'error': 'File already has an image. Delete the existing image first.'}), 409
+            return jsonify({'error': 'File already has an image. Use modify endpoint to change it.'}), 409
         
         # Check if image file is provided
         if 'image' not in request.files:
@@ -1035,27 +1037,71 @@ def upload_file_image(file_id):
         if image_file.filename == '':
             return jsonify({'error': 'No image file selected'}), 400
         
-        # Validate file type (basic check)
+        # Validate file type
         allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
         file_ext = os.path.splitext(image_file.filename)[1].lower()
         if file_ext not in allowed_extensions:
             return jsonify({'error': 'Invalid file type. Only PNG, JPG, JPEG, GIF, and WebP are allowed.'}), 400
         
-        # TODO: Implement actual Cloudflare Images upload
-        # For now, we'll generate a placeholder object_id
-        placeholder_object_id = str(uuid.uuid4())
+        # Validate file size (10MB limit)
+        image_file.seek(0, os.SEEK_END)
+        file_size = image_file.tell()
+        image_file.seek(0)
         
-        # Update the page with the new object_id
-        page.object_id = placeholder_object_id
-        page.updated_at = datetime.datetime.now()
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            return jsonify({'error': 'File size too large. Maximum 10MB allowed.'}), 400
         
-        db.session.commit()
+        # Upload to Cloudflare Images
+        account_id = current_app.config.get('CLOUDFLARE_ACCOUNT_ID')
+        api_token = current_app.config.get('CLOUDFLARE_API_TOKEN')
         
-        return jsonify({
-            'message': 'Image uploaded successfully',
-            'object_id': placeholder_object_id,
-            'file_id': file_id
-        })
+        if not account_id or not api_token:
+            return jsonify({'error': 'Cloudflare configuration not found'}), 500
+        
+        # Prepare the upload
+        url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1"
+        headers = {
+            'Authorization': f'Bearer {api_token}'
+        }
+        
+        # Prepare file data
+        files = {
+            'file': (image_file.filename, image_file.stream, image_file.content_type)
+        }
+        
+        # Optional metadata
+        data = {
+            'metadata': json.dumps({
+                'file_id': str(file_id),
+                'filename': image_file.filename,
+                'uploaded_by': str(user_id),
+                'upload_time': datetime.datetime.now().isoformat()
+            })
+        }
+        
+        # Upload to Cloudflare
+        response = requests.post(url, headers=headers, files=files, data=data)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('success'):
+                cloudflare_id = result['result']['id']
+                
+                # Update the page with the new object_id
+                page.object_id = cloudflare_id
+                page.updated_at = datetime.datetime.now()
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'Image uploaded successfully',
+                    'object_id': cloudflare_id,
+                    'file_id': file_id,
+                    'cloudflare_response': result['result']
+                })
+            else:
+                return jsonify({'error': 'Cloudflare upload failed', 'details': result}), 500
+        else:
+            return jsonify({'error': f'Cloudflare API error: {response.status_code}', 'details': response.text}), 500
         
     except Exception as e:
         db.session.rollback()
@@ -1088,13 +1134,26 @@ def remove_file_image(file_id):
         if not page.object_id or page.object_id.strip() == '':
             return jsonify({'error': 'No image associated with this file'}), 404
         
-        # TODO: Implement actual Cloudflare Images deletion
-        # For now, we'll just clear the object_id
+        # Delete from Cloudflare Images
+        account_id = current_app.config.get('CLOUDFLARE_ACCOUNT_ID')
+        api_token = current_app.config.get('CLOUDFLARE_API_TOKEN')
         
-        # Clear the object_id
+        if account_id and api_token:
+            url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1/{page.object_id}"
+            headers = {
+                'Authorization': f'Bearer {api_token}'
+            }
+            
+            # Delete from Cloudflare
+            response = requests.delete(url, headers=headers)
+            
+            if response.status_code != 200:
+                logging.warning(f"Failed to delete image from Cloudflare: {response.status_code} - {response.text}")
+                # Continue anyway to clean up database
+        
+        # Clear the object_id from database
         page.object_id = None
         page.updated_at = datetime.datetime.now()
-        
         db.session.commit()
         
         return jsonify({
@@ -1105,6 +1164,386 @@ def remove_file_image(file_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error removing image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/modify-image', methods=['PUT'])
+@jwt_required(locations=['headers','cookies'])
+def modify_file_image(file_id):
+    """
+    Modify/replace the image associated with a file
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Form data:
+    - image: The new image file to upload
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file has an image to modify
+        if not page.object_id or page.object_id.strip() == '':
+            return jsonify({'error': 'No image associated with this file. Use upload endpoint instead.'}), 404
+        
+        # Check if new image file is provided
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({'error': 'No image file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+        file_ext = os.path.splitext(image_file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Only PNG, JPG, JPEG, GIF, and WebP are allowed.'}), 400
+        
+        # Validate file size (10MB limit)
+        image_file.seek(0, os.SEEK_END)
+        file_size = image_file.tell()
+        image_file.seek(0)
+        
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            return jsonify({'error': 'File size too large. Maximum 10MB allowed.'}), 400
+        
+        # Get Cloudflare configuration
+        account_id = current_app.config.get('CLOUDFLARE_ACCOUNT_ID')
+        api_token = current_app.config.get('CLOUDFLARE_API_TOKEN')
+        
+        if not account_id or not api_token:
+            return jsonify({'error': 'Cloudflare configuration not found'}), 500
+        
+        old_object_id = page.object_id
+        
+        # Upload new image to Cloudflare Images
+        url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1"
+        headers = {
+            'Authorization': f'Bearer {api_token}'
+        }
+        
+        # Prepare file data
+        files = {
+            'file': (image_file.filename, image_file.stream, image_file.content_type)
+        }
+        
+        # Optional metadata
+        data = {
+            'metadata': json.dumps({
+                'file_id': str(file_id),
+                'filename': image_file.filename,
+                'modified_by': str(user_id),
+                'modify_time': datetime.datetime.now().isoformat(),
+                'replaced_image_id': old_object_id
+            })
+        }
+        
+        # Upload new image to Cloudflare
+        response = requests.post(url, headers=headers, files=files, data=data)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('success'):
+                new_cloudflare_id = result['result']['id']
+                
+                # Update the page with the new object_id
+                page.object_id = new_cloudflare_id
+                page.updated_at = datetime.datetime.now()
+                db.session.commit()
+                
+                # Delete old image from Cloudflare (best effort)
+                if old_object_id:
+                    delete_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1/{old_object_id}"
+                    delete_response = requests.delete(delete_url, headers=headers)
+                    
+                    if delete_response.status_code != 200:
+                        logging.warning(f"Failed to delete old image from Cloudflare: {delete_response.status_code} - {delete_response.text}")
+                        # Continue anyway since new image is uploaded and DB is updated
+                
+                return jsonify({
+                    'message': 'Image modified successfully',
+                    'old_object_id': old_object_id,
+                    'new_object_id': new_cloudflare_id,
+                    'file_id': file_id,
+                    'cloudflare_response': result['result']
+                })
+            else:
+                return jsonify({'error': 'Cloudflare upload failed', 'details': result}), 500
+        else:
+            return jsonify({'error': f'Cloudflare API error: {response.status_code}', 'details': response.text}), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error modifying image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Page Detail Management Endpoints
+
+@api_contents_bp.route('/page/<int:page_id>/details', methods=['GET'])
+def get_page_details(page_id):
+    """
+    Get all page details for a specific page
+    
+    Path parameter:
+    - page_id: ID of the parent page
+    """
+    try:
+        service = ContentHierarchyService()
+        page_details = service.get_page_details(page_id)
+        
+        return jsonify({
+            'page_details': page_details,
+            'count': len(page_details)
+        })
+    except Exception as e:
+        logging.error(f"Error getting page details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page/<int:page_id>/detail', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def create_page_detail(page_id):
+    """
+    Create a new page detail
+    
+    Path parameter:
+    - page_id: ID of the parent page
+    
+    Request body:
+    - name: Name of the page detail
+    - description: (Optional) Description
+    - object_id: (Optional) Object ID for content files
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get request data
+        request_data = request.json
+        if not request_data or 'name' not in request_data:
+            return jsonify({'error': 'Page detail name is required'}), 400
+        
+        name = request_data['name']
+        description = request_data.get('description', None)
+        object_id = request_data.get('object_id', None)
+        
+        # Create page detail
+        service = ContentHierarchyService()
+        detail_id = service.add_page_detail(
+            page_id=page_id,
+            name=name,
+            description=description,
+            object_id=object_id,
+            user_id=user_id
+        )
+        
+        return jsonify({
+            'message': 'Page detail created successfully',
+            'detail_id': detail_id
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error creating page detail: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>', methods=['PUT'])
+@jwt_required(locations=['headers','cookies'])
+def update_page_detail(detail_id):
+    """
+    Update an existing page detail
+    
+    Path parameter:
+    - detail_id: ID of the page detail to update
+    
+    Request body:
+    - name: (Optional) New name
+    - description: (Optional) New description
+    - object_id: (Optional) New object ID
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get request data
+        request_data = request.json
+        if not request_data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        name = request_data.get('name', None)
+        description = request_data.get('description', None)
+        object_id = request_data.get('object_id', None)
+        
+        # Update page detail
+        service = ContentHierarchyService()
+        success = service.update_page_detail(
+            detail_id=detail_id,
+            name=name,
+            description=description,
+            object_id=object_id,
+            user_id=user_id
+        )
+        
+        if not success:
+            return jsonify({'error': 'Page detail not found or could not be updated'}), 404
+        
+        return jsonify({
+            'message': 'Page detail updated successfully'
+        })
+    except Exception as e:
+        logging.error(f"Error updating page detail: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>', methods=['DELETE'])
+@jwt_required(locations=['headers','cookies'])
+def delete_page_detail(detail_id):
+    """
+    Delete a page detail
+    
+    Path parameter:
+    - detail_id: ID of the page detail to delete
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Delete page detail
+        service = ContentHierarchyService()
+        success = service.delete_page_detail(detail_id, user_id)
+        
+        if not success:
+            return jsonify({'error': 'Page detail not found or could not be deleted'}), 404
+        
+        return jsonify({
+            'message': 'Page detail deleted successfully'
+        })
+    except Exception as e:
+        logging.error(f"Error deleting page detail: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>/upload-content', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def upload_page_detail_content(detail_id):
+    """
+    Upload content for a page detail
+    
+    Path parameter:
+    - detail_id: ID of the page detail
+    
+    Form data:
+    - file: The content file to upload (PDF, WEBM, MP4, etc.)
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the page detail
+        page_detail = ContentRelPageDetails.query.filter_by(id=detail_id, is_deleted=False).first()
+        if not page_detail:
+            return jsonify({'error': 'Page detail not found'}), 404
+        
+        # Check if file is included
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part in the request'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Validate file type (allow common content types)
+        allowed_extensions = {'.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'Invalid file type. Allowed types: {", ".join(allowed_extensions)}'}), 400
+        
+        # Validate file size (100MB limit for content files)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 100 * 1024 * 1024:  # 100MB
+            return jsonify({'error': 'File size too large. Maximum 100MB allowed.'}), 400
+        
+        # Save file to storage
+        filename = secure_filename(file.filename)
+        upload_dir = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_uuid = str(uuid.uuid4())
+        file_path = os.path.join(upload_dir, f"{file_uuid}_{filename}")
+        file.save(file_path)
+        
+        # Update page detail with object_id
+        service = ContentHierarchyService()
+        success = service.update_page_detail(
+            detail_id=detail_id,
+            object_id=file_uuid,  # Store the UUID as object_id
+            user_id=user_id
+        )
+        
+        if not success:
+            # Clean up uploaded file
+            os.remove(file_path)
+            return jsonify({'error': 'Failed to update page detail'}), 500
+        
+        return jsonify({
+            'message': 'Content uploaded successfully',
+            'object_id': file_uuid,
+            'detail_id': detail_id,
+            'filename': filename
+        })
+    except Exception as e:
+        logging.error(f"Error uploading content: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>/download', methods=['GET'])
+def download_page_detail(detail_id):
+    """
+    Download content for a page detail
+    
+    Path parameter:
+    - detail_id: ID of the page detail
+    """
+    try:
+        service = ContentHierarchyService()
+        file_path, filename = service.get_file_download_info(detail_id)
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'Content not found or not available for download'}), 404
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logging.error(f"Error downloading page detail: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 #endregion

@@ -23,6 +23,8 @@ class Config:
     PUSH_MESSAGE_LIMIT = 5  # 🔹 푸시 메시지 최대 개수
 
     # Cloudflare Images 설정
+    CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")  # Cloudflare 계정 ID
+    CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")  # Cloudflare API 토큰
     CLOUDFLARE_ACCOUNT_HASH = os.getenv("CLOUDFLARE_ACCOUNT_HASH")  # Cloudflare Images 계정 해시
     CLOUDFLARE_SIGNING_KEY = os.getenv("CLOUDFLARE_SIGNING_KEY")  # 서명용 비밀 키
     

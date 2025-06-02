@@ -9,12 +9,12 @@ from sqlalchemy import or_, and_
 
 class ContentHierarchyService:
     """
-    Service for managing content hierarchy (channels > folders > files)
+    Service for managing content hierarchy (channels > folders > pages > page details)
     
     Provides methods to:
-    - Build a complete tree structure of all content
+    - Build a complete tree structure of all content including page details
     - Get children of a specific channel/folder
-    - Find the path to a specific file
+    - Find the path to a specific file or page detail
     - Cache the hierarchy for improved performance
     """
     
@@ -28,7 +28,7 @@ class ContentHierarchyService:
         
     def get_full_hierarchy(self, use_cache: bool = True) -> Dict[str, Any]:
         """
-        Build and return the complete channel > folder > file hierarchy
+        Build and return the complete channel > folder > page > page detail hierarchy
         
         Args:
             use_cache: Whether to use cached data (if available)
@@ -109,16 +109,17 @@ class ContentHierarchyService:
     
     def get_file_path(self, file_id: int, use_cache: bool = True) -> Dict[str, Any]:
         """
-        Get the complete path to a specific file
+        Get the complete path to a specific file (page or page detail)
         
         Args:
-            file_id: ID of the file (page) to find
+            file_id: ID of the file (page or page detail) to find
             use_cache: Whether to use cached data (if available)
             
         Returns:
             Dict containing:
             - path_components: List of names from root to file
             - ids: Dict mapping each level to its ID
+            - file_type: 'page' or 'page_detail'
         """
         cache_key = f"{self.CACHE_KEY_PATH_PREFIX}{file_id}"
         
@@ -128,17 +129,34 @@ class ContentHierarchyService:
             if cached_path:
                 return cached_path
         
-        # Start with the file
+        # Start with checking if it's a page
         page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
-        if not page:
-            return None
-            
-        # Build path components
-        path_components = [page.name]
-        ids = {'file': file_id}
         
-        # Get folder
-        folder_id = page.folder_id
+        if page:
+            # This is a page
+            path_components = [page.name]
+            ids = {'file': file_id, 'page': file_id}
+            folder_id = page.folder_id
+            file_type = 'page'
+        else:
+            # Check if it's a page detail
+            detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+            if not detail:
+                return None
+                
+            path_components = [detail.name]
+            ids = {'file': file_id, 'page_detail': file_id}
+            
+            # Get the parent page
+            parent_page = ContentRelPages.query.filter_by(id=detail.page_id, is_deleted=False).first()
+            if parent_page:
+                path_components.append(parent_page.name)
+                ids['page'] = parent_page.id
+                folder_id = parent_page.folder_id
+                file_type = 'page_detail'
+            else:
+                return None
+        
         ids['folder'] = folder_id
         
         # Traverse the folder hierarchy
@@ -165,7 +183,8 @@ class ContentHierarchyService:
         result = {
             'path_components': path_components,
             'ids': ids,
-            'path_string': '/'.join(path_components)
+            'path_string': '/'.join(path_components),
+            'file_type': file_type
         }
         
         # Cache result
@@ -256,16 +275,33 @@ class ContentHierarchyService:
             is_deleted=False
         ).all()
         
-        # Add pages
-        folder_node['pages'] = [
-            {
+        # Add pages with their details
+        for page in pages:
+            # Get page details for this page
+            page_details = ContentRelPageDetails.query.filter_by(
+                page_id=page.id,
+                is_deleted=False
+            ).all()
+            
+            page_node = {
                 'id': page.id,
                 'name': page.name,
                 'type': 'page',
-                'object_id': page.object_id
+                'object_id': page.object_id,
+                'details': [
+                    {
+                        'id': detail.id,
+                        'name': detail.name,
+                        'type': 'page_detail',
+                        'object_id': detail.object_id,
+                        'page_id': detail.page_id,
+                        'has_content': detail.object_id is not None and detail.object_id.strip() != ''
+                    }
+                    for detail in page_details
+                ]
             }
-            for page in pages
-        ]
+            
+            folder_node['pages'].append(page_node)
         
         return folder_node
 
@@ -341,21 +377,45 @@ class ContentHierarchyService:
         # Create a shallow copy to avoid modifying the original
         filtered_node = hierarchy_node.copy()
         
-        # If this is a page/file node, check its status
+        # If this is a page/file node, check its properties
         if hierarchy_node.get('type') == 'page':
-            # Get the page to check its status
+            # Get the page to check its properties
             page = ContentRelPages.query.filter_by(id=hierarchy_node.get('id'), is_deleted=False).first()
             if page:
-                # Check if this page's status matches any active filter
-                if (filters.get('reviewing') and page.status == '검토중') or \
-                   (filters.get('rejected') and page.status == '반려') or \
-                   (filters.get('approved') and page.status == '승인') or \
-                   (filters.get('updated') and page.status == '업데이트'):
+                # Since status field doesn't exist in ContentRelPages, we'll use other criteria
+                # For now, just return the page if any filter is active (except 'all')
+                # In the future, this could be extended with custom status logic
+                if filters.get('all', False):
+                    # Also apply filters to page details
+                    if 'details' in hierarchy_node:
+                        filtered_details = []
+                        for detail in hierarchy_node.get('details', []):
+                            filtered_detail = self._apply_filters_to_hierarchy(detail, filters)
+                            if filtered_detail:
+                                filtered_details.append(filtered_detail)
+                        filtered_node['details'] = filtered_details
                     return filtered_node
                 else:
+                    # For specific filters (reviewing, rejected, approved, updated),
+                    # we would need additional metadata to determine status
+                    # For now, return None to exclude pages when specific filters are applied
                     return None
             else:
                 return None
+        
+        # If this is a page detail node, check its parent page
+        elif hierarchy_node.get('type') == 'page_detail':
+            page_id = hierarchy_node.get('page_id')
+            if page_id:
+                page = ContentRelPages.query.filter_by(id=page_id, is_deleted=False).first()
+                if page:
+                    # Since status field doesn't exist, apply same logic as pages
+                    if filters.get('all', False):
+                        return filtered_node
+                    else:
+                        return None
+                else:
+                    return None
                 
         # For folders, process subfolders and pages
         if 'subfolders' in hierarchy_node:
@@ -396,12 +456,12 @@ class ContentHierarchyService:
             user_id: ID of the user
             
         Returns:
-            Tuple of (folder_ids, file_ids) that the user has access to
+            Tuple of (folder_ids, file_ids) that the user has access to.
+            file_ids includes both page IDs and page detail IDs.
         """
         # Get content assignments for this user from ContentManager table
         content_assignments = ContentManager.query.filter_by(
-            user_id=user_id,
-            is_deleted=False
+            user_id=user_id
         ).all()
         
         folder_ids = [cm.folder_id for cm in content_assignments if cm.folder_id is not None]
@@ -418,6 +478,10 @@ class ContentHierarchyService:
             # Get page IDs for this folder and subfolders
             page_ids = self._get_all_page_ids_in_folders([folder_id] + subfolder_ids)
             file_ids.extend(page_ids)
+            
+            # Get page detail IDs for all accessible pages
+            page_detail_ids = self._get_all_page_detail_ids_for_pages(page_ids)
+            file_ids.extend(page_detail_ids)
             
         return list(set(all_folder_ids)), list(set(file_ids))
         
@@ -466,6 +530,26 @@ class ContentHierarchyService:
         ).all()
         
         return [page.id for page in pages]
+    
+    def _get_all_page_detail_ids_for_pages(self, page_ids: List[int]) -> List[int]:
+        """
+        Get all page detail IDs for a list of page IDs
+        
+        Args:
+            page_ids: List of page IDs
+            
+        Returns:
+            List of page detail IDs
+        """
+        if not page_ids:
+            return []
+            
+        page_details = ContentRelPageDetails.query.filter(
+            ContentRelPageDetails.page_id.in_(page_ids),
+            ContentRelPageDetails.is_deleted == False
+        ).all()
+        
+        return [detail.id for detail in page_details]
         
     def channel_has_accessible_content(self, channel_id: int, user_id: int) -> bool:
         """
@@ -498,38 +582,58 @@ class ContentHierarchyService:
                 return True
                 
         # Check if any of the user's accessible files are in this channel
+        # This includes both pages and page details
         for file_id in file_ids:
+            # Check if it's a page
             page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
             if page and page.folder_id in channel_folder_ids:
                 return True
+            
+            # Check if it's a page detail
+            page_detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+            if page_detail:
+                parent_page = ContentRelPages.query.filter_by(id=page_detail.page_id, is_deleted=False).first()
+                if parent_page and parent_page.folder_id in channel_folder_ids:
+                    return True
                 
         return False
         
     def get_file_download_info(self, file_id: int) -> Tuple[Optional[str], Optional[str]]:
         """
-        Get download information for a file
+        Get download information for a file (page or page detail)
         
         Args:
-            file_id: ID of the file (page)
+            file_id: ID of the file (page or page detail)
             
         Returns:
             Tuple of (file_path, filename) or (None, None) if not found
         """
+        # Check if it's a page
         page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
-        if not page:
-            return None, None
+        if page:
+            file_path = page.file_path if hasattr(page, 'file_path') and page.file_path else None
+            filename = page.name if page.name else f"page_{file_id}"
             
-        # In a real implementation, this would get the actual file path
-        # Here we simulate by returning a placeholder
-        # Actual implementation would retrieve the file path from storage
-        file_path = page.file_path if hasattr(page, 'file_path') and page.file_path else None
-        filename = page.name if page.name else f"file_{file_id}"
+            # Add extension if missing
+            if filename and '.' not in filename:
+                filename += '.pdf'  # Default extension
+                
+            return file_path, filename
         
-        # Add extension if missing
-        if filename and '.' not in filename:
-            filename += '.pdf'  # Default extension
+        # Check if it's a page detail
+        page_detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+        if page_detail:
+            file_path = page_detail.file_path if hasattr(page_detail, 'file_path') and page_detail.file_path else None
+            filename = page_detail.name if page_detail.name else f"detail_{file_id}"
             
-        return file_path, filename
+            # Add extension if missing
+            if filename and '.' not in filename:
+                # Try to determine extension based on object_id or default to pdf
+                filename += '.pdf'  # Default extension
+                
+            return file_path, filename
+            
+        return None, None
         
     def create_channel(self, name: str, created_by: int) -> int:
         """
@@ -537,7 +641,7 @@ class ContentHierarchyService:
         
         Args:
             name: Name of the channel
-            created_by: User ID of creator
+            created_by: User ID of creator (not stored in DB for channels)
             
         Returns:
             ID of the created channel
@@ -546,8 +650,6 @@ class ContentHierarchyService:
             # Create new channel in ContentRelChannels table
             channel = ContentRelChannels(
                 name=name,
-                object_id=str(uuid.uuid4()),
-                created_by=created_by,
                 created_at=datetime.datetime.now()
             )
             
@@ -569,7 +671,7 @@ class ContentHierarchyService:
         
         Args:
             channel_id: ID of the channel to delete
-            deleted_by: User ID performing the deletion
+            deleted_by: User ID performing the deletion (not stored in DB for channels)
             
         Returns:
             True if successful, False otherwise
@@ -581,8 +683,7 @@ class ContentHierarchyService:
                 
             # Mark as deleted
             channel.is_deleted = True
-            channel.deleted_by = deleted_by
-            channel.deleted_at = datetime.datetime.now()
+            channel.updated_at = datetime.datetime.now()
             
             # Mark all associated folders as deleted
             folders = ContentRelFolders.query.filter_by(
@@ -612,7 +713,7 @@ class ContentHierarchyService:
             name: Name of the folder
             channel_id: ID of the channel it belongs to
             parent_id: Optional parent folder ID
-            user_id: User ID of creator
+            user_id: User ID of creator (not stored in DB for folders)
             
         Returns:
             ID of the created folder
@@ -623,8 +724,6 @@ class ContentHierarchyService:
                 name=name,
                 channel_id=channel_id,
                 parent_id=parent_id,
-                object_id=str(uuid.uuid4()),
-                created_by=user_id,
                 created_at=datetime.datetime.now()
             )
             
@@ -646,7 +745,7 @@ class ContentHierarchyService:
         
         Args:
             folder_id: ID of the folder to delete
-            deleted_by: User ID performing the deletion
+            deleted_by: User ID performing the deletion (not stored in DB)
             
         Returns:
             True if successful, False otherwise
@@ -664,7 +763,7 @@ class ContentHierarchyService:
         
         Args:
             folder_id: ID of the folder to mark as deleted
-            deleted_by: User ID performing the deletion
+            deleted_by: User ID performing the deletion (not stored in DB)
             
         Returns:
             True if successful, False otherwise
@@ -675,8 +774,7 @@ class ContentHierarchyService:
             
         # Mark folder as deleted
         folder.is_deleted = True
-        folder.deleted_by = deleted_by
-        folder.deleted_at = datetime.datetime.now()
+        folder.updated_at = datetime.datetime.now()
         
         # Mark all subfolders as deleted
         subfolders = ContentRelFolders.query.filter_by(
@@ -695,8 +793,17 @@ class ContentHierarchyService:
         
         for page in pages:
             page.is_deleted = True
-            page.deleted_by = deleted_by
-            page.deleted_at = datetime.datetime.now()
+            page.updated_at = datetime.datetime.now()
+            
+            # Mark all page details as deleted
+            page_details = ContentRelPageDetails.query.filter_by(
+                page_id=page.id,
+                is_deleted=False
+            ).all()
+            
+            for detail in page_details:
+                detail.is_deleted = True
+                detail.updated_at = datetime.datetime.now()
             
         db.session.commit()
         
@@ -715,8 +822,8 @@ class ContentHierarchyService:
             name: Name of the file
             channel_id: ID of the channel
             folder_id: Optional folder ID (required if not at root)
-            version: Version string
-            user_id: User ID of the uploader
+            version: Version string (not stored in DB - ContentRelPages doesn't have this field)
+            user_id: User ID of the uploader (not stored in DB)
             
         Returns:
             ID of the created file
@@ -738,8 +845,6 @@ class ContentHierarchyService:
                         name="Files",
                         channel_id=channel_id,
                         parent_id=None,
-                        object_id=str(uuid.uuid4()),
-                        created_by=user_id,
                         created_at=datetime.datetime.now()
                     )
                     
@@ -753,11 +858,7 @@ class ContentHierarchyService:
             page = ContentRelPages(
                 name=name,
                 folder_id=folder_id,
-                object_id=str(uuid.uuid4()),
-                version=version,
-                status='검토중',  # Default status
-                file_path=file_path,  # Store the file path
-                created_by=user_id,
+                object_id=str(uuid.uuid4()),  # Generate UUID for object_id
                 created_at=datetime.datetime.now()
             )
             
@@ -776,10 +877,11 @@ class ContentHierarchyService:
     def delete_files(self, file_ids: List[int], deleted_by: int) -> Tuple[List[int], List[int]]:
         """
         Delete multiple files (mark as deleted)
+        This handles both pages and page details
         
         Args:
-            file_ids: List of file IDs to delete
-            deleted_by: User ID performing the deletion
+            file_ids: List of file IDs to delete (can be page IDs or page detail IDs)
+            deleted_by: User ID performing the deletion (not stored in DB)
             
         Returns:
             Tuple of (successful_ids, failed_ids)
@@ -789,18 +891,38 @@ class ContentHierarchyService:
         
         try:
             for file_id in file_ids:
+                # Try as page first
                 page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
                 
-                if not page:
-                    failed_ids.append(file_id)
-                    continue
+                if page:
+                    # Mark page as deleted
+                    page.is_deleted = True
+                    page.updated_at = datetime.datetime.now()
                     
-                # Mark as deleted
-                page.is_deleted = True
-                page.deleted_by = deleted_by
-                page.deleted_at = datetime.datetime.now()
+                    # Mark all page details as deleted
+                    page_details = ContentRelPageDetails.query.filter_by(
+                        page_id=page.id,
+                        is_deleted=False
+                    ).all()
+                    
+                    for detail in page_details:
+                        detail.is_deleted = True
+                        detail.updated_at = datetime.datetime.now()
+                    
+                    successful_ids.append(file_id)
+                    continue
                 
-                successful_ids.append(file_id)
+                # Try as page detail
+                page_detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+                
+                if page_detail:
+                    # Mark page detail as deleted
+                    page_detail.is_deleted = True
+                    page_detail.updated_at = datetime.datetime.now()
+                    
+                    successful_ids.append(file_id)
+                else:
+                    failed_ids.append(file_id)
                 
             db.session.commit()
             
@@ -811,4 +933,155 @@ class ContentHierarchyService:
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error deleting files: {str(e)}")
-            raise 
+            raise
+    
+    def add_page_detail(self, page_id: int, name: str, description: str = None, 
+                        object_id: str = None, user_id: Optional[int] = None) -> int:
+        """
+        Add a new page detail to an existing page
+        
+        Args:
+            page_id: ID of the parent page
+            name: Name of the page detail
+            description: Optional description
+            object_id: Optional object ID (for content files) - required by model
+            user_id: User ID of creator (not stored in DB)
+            
+        Returns:
+            ID of the created page detail
+        """
+        try:
+            # Verify the parent page exists
+            page = ContentRelPages.query.filter_by(id=page_id, is_deleted=False).first()
+            if not page:
+                raise ValueError(f"Parent page with ID {page_id} not found")
+            
+            # ContentRelPageDetails model requires object_id to be not null
+            if object_id is None:
+                object_id = str(uuid.uuid4())  # Generate a default UUID
+            
+            # Create the page detail entry
+            page_detail = ContentRelPageDetails(
+                page_id=page_id,
+                name=name,
+                description=description,
+                object_id=object_id,
+                created_at=datetime.datetime.now()
+            )
+            
+            db.session.add(page_detail)
+            db.session.commit()
+            
+            # Clear cache to reflect changes
+            self.clear_hierarchy_cache()
+            
+            return page_detail.id
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding page detail: {str(e)}")
+            raise
+    
+    def update_page_detail(self, detail_id: int, name: str = None, description: str = None, 
+                          object_id: str = None, user_id: Optional[int] = None) -> bool:
+        """
+        Update an existing page detail
+        
+        Args:
+            detail_id: ID of the page detail to update
+            name: Optional new name
+            description: Optional new description
+            object_id: Optional new object ID
+            user_id: User ID performing the update (not stored in DB)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            page_detail = ContentRelPageDetails.query.filter_by(id=detail_id, is_deleted=False).first()
+            if not page_detail:
+                return False
+            
+            # Update fields if provided
+            if name is not None:
+                page_detail.name = name
+            if description is not None:
+                page_detail.description = description
+            if object_id is not None:
+                page_detail.object_id = object_id
+                
+            page_detail.updated_at = datetime.datetime.now()
+            
+            db.session.commit()
+            
+            # Clear cache to reflect changes
+            self.clear_hierarchy_cache()
+            
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating page detail: {str(e)}")
+            return False
+    
+    def delete_page_detail(self, detail_id: int, deleted_by: int) -> bool:
+        """
+        Delete a page detail (mark as deleted)
+        
+        Args:
+            detail_id: ID of the page detail to delete
+            deleted_by: User ID performing the deletion (not stored in DB)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            page_detail = ContentRelPageDetails.query.filter_by(id=detail_id, is_deleted=False).first()
+            if not page_detail:
+                return False
+            
+            # Mark as deleted
+            page_detail.is_deleted = True
+            page_detail.updated_at = datetime.datetime.now()
+            
+            db.session.commit()
+            
+            # Clear cache to reflect changes
+            self.clear_hierarchy_cache()
+            
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error deleting page detail: {str(e)}")
+            return False
+    
+    def get_page_details(self, page_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all page details for a specific page
+        
+        Args:
+            page_id: ID of the parent page
+            
+        Returns:
+            List of page detail objects
+        """
+        try:
+            page_details = ContentRelPageDetails.query.filter_by(
+                page_id=page_id,
+                is_deleted=False
+            ).all()
+            
+            return [
+                {
+                    'id': detail.id,
+                    'page_id': detail.page_id,
+                    'name': detail.name,
+                    'description': detail.description,
+                    'object_id': detail.object_id,
+                    'has_content': detail.object_id is not None and detail.object_id.strip() != '',
+                    'created_at': detail.created_at.isoformat() if detail.created_at else None,
+                    'updated_at': detail.updated_at.isoformat() if detail.updated_at else None
+                }
+                for detail in page_details
+            ]
+        except Exception as e:
+            logging.error(f"Error getting page details: {str(e)}")
+            return [] 
