@@ -90,27 +90,28 @@ case "$NOW-$HOUR" in
             echo "$(date +"%Y-%m-%d %H:%M:%S"): ❌ 학습 현황 연간 집계 실패" >> "$LOG_PATH"
         fi
     ;;
-    "01-05-03" | "04-05-03" | "07-05-03" | "10-05-03")
-        #파티션 생성(3시)
-        psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
-        SELECT create_login_summary_quarter_partition();" >> "$LOG_PATH" 2>&1
+    # 파티셔닝은 추후 필요시 파티션 테이블 생성 후 실행
+    # "01-05-03" | "04-05-03" | "07-05-03" | "10-05-03")
+    #     #파티션 생성(3시)
+    #     psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
+    #     SELECT create_login_summary_quarter_partition();" >> "$LOG_PATH" 2>&1
 
-        if [ $? -eq 0 ]; then
-            echo "$(date +"%Y-%m-%d %H:%M:%S"): ✅ 접속 현황 파티션 생성 성공" >> "$LOG_PATH" 
-        else
-            echo "$(date +"%Y-%m-%d %H:%M:%S"): ❌ 접속 현황 파티션 생성 실패" >> "$LOG_PATH"
-        fi    
+    #     if [ $? -eq 0 ]; then
+    #         echo "$(date +"%Y-%m-%d %H:%M:%S"): ✅ 접속 현황 파티션 생성 성공" >> "$LOG_PATH" 
+    #     else
+    #         echo "$(date +"%Y-%m-%d %H:%M:%S"): ❌ 접속 현황 파티션 생성 실패" >> "$LOG_PATH"
+    #     fi    
 
-        psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
-        SELECT create_learning_summary_quarter_partition();" >> "$LOG_PATH" 2>&1
+    #     psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "
+    #     SELECT create_learning_summary_quarter_partition();" >> "$LOG_PATH" 2>&1
         
-        if [ $? -eq 0 ]; then
-            echo "$(date +"%Y-%m-%d %H:%M:%S"): ✅ 학습 현황 파티션 생성 성공" >> "$LOG_PATH" 
-        else
-            echo "$(date +"%Y-%m-%d %H:%M:%S"): ❌ 학습 현황 파티션 생성 실패" >> "$LOG_PATH"
-        fi
-    ;;
-    *)
+    #     if [ $? -eq 0 ]; then
+    #         echo "$(date +"%Y-%m-%d %H:%M:%S"): ✅ 학습 현황 파티션 생성 성공" >> "$LOG_PATH" 
+    #     else
+    #         echo "$(date +"%Y-%m-%d %H:%M:%S"): ❌ 학습 현황 파티션 생성 실패" >> "$LOG_PATH"
+    #     fi
+    # ;;
+     *)
     
     if [ "$HOUR" == "01" ]; then
         #일일 집계(1시) 데이터 누락을 피하기 위해 2일전 데이터 집계(전날은 예를 들어 밤 11시에 로그인해서 집계 시간까지 로그아웃 안 하는 경우도 있을 수 있음음)
@@ -150,5 +151,5 @@ esac
 # 0 3 4 1,7 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
 # # 연간 집계(1월 5일 3시)
 # 0 3 5 1 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1
-# # 분기 파티션(1/4/7/10월 6일 3시)
+# # 분기 파티션(1/4/7/10월 6일 3시) - 추후 파티션 테이블 생성 후 실행
 # 0 3 6 1,4,7,10 * cd /home/user_ccp/service/BepsApi/Backend/DB && /bin/bash login_summary_executor.bash >> log/archive_automation.log 2>&1

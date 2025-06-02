@@ -179,18 +179,18 @@ try:
             time_stamp bigint,
             CONSTRAINT login_history_pkey PRIMARY KEY (id)
         );
-        """,
-        """
-        CREATE TABLE public.login_history_archive (
-            id integer NOT NULL,                                                   -- 로그인 기록 ID
-            user_id text NOT NULL,                                                -- 사용자 ID
-            ip_address text NOT NULL,                                             -- IP 주소
-            login_time timestamp with time zone NOT NULL,                         -- 로그인 시간
-            logout_time timestamp with time zone,                                 -- 로그아웃 시간
-            session_duration interval,                                            -- 세션 지속 시간
-            time_stamp bigint
-        ) PARTITION BY RANGE (login_time);
-        """
+        # """,
+        # """ 아카이브는 추후 필요할 때, 추가
+        # CREATE TABLE public.login_history_archive (
+        #     id integer NOT NULL,                                                   -- 로그인 기록 ID
+        #     user_id text NOT NULL,                                                -- 사용자 ID
+        #     ip_address text NOT NULL,                                             -- IP 주소
+        #     login_time timestamp with time zone NOT NULL,                         -- 로그인 시간
+        #     logout_time timestamp with time zone,                                 -- 로그아웃 시간
+        #     session_duration interval,                                            -- 세션 지속 시간
+        #     time_stamp bigint
+        # ) PARTITION BY RANGE (login_time);
+        # """
     ]
     
     calculate_session_duration_queries = [
@@ -318,6 +318,7 @@ try:
     
     #region login_summary 테이블(로그인 통계 테이블)
     login_summary_queries = [
+        # 파티셔닝은 추후 필요할 때 추가 PARTITION BY RANGE (period_value); <-- CREATE TABLE 괄호 뒤에 추가
         """
         CREATE TABLE login_summary_day (
             period_value DATE NOT NULL,         -- '2024-03-28' 등
@@ -354,7 +355,7 @@ try:
                 (scope = 'department' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NULL) OR    -- scope가 'department'인 경우 company, department 컬럼만 NOT NULL이어야 함
                 (scope = 'user' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NOT NULL)         -- scope가 'user'인 경우 company, department, user_id 컬럼 NOT NULL이어야 함    
             )
-        ) PARTITION BY RANGE (period_value);
+        );
         """,      
         """
         CREATE INDEX login_summary_day_unique_user_idx ON login_summary_day (period_value, user_id) WHERE scope = 'user'; -- 조회 시 칼럼 순서 동일해야 함
@@ -425,6 +426,7 @@ try:
     
     #region leaning_summary 테이블(학습 통계 테이블)
     learning_summary_queries = [
+    # 파티셔닝은 추후 필요할 때 추가 PARTITION BY RANGE (stat_date); <-- CREATE TABLE 괄호 뒤에 추가
     """
     CREATE TABLE learning_summary_day (
         stat_date  DATE NOT NULL,         -- '2024-03-28' 등
@@ -447,7 +449,7 @@ try:
         
         --제약 조건
         CONSTRAINT pk_learning_summary_day PRIMARY KEY (stat_date , scope, company_key, department_key, user_id_key, channel_key)
-    ) PARTITION BY RANGE (stat_date);
+    );
     """,
     """
     CREATE INDEX learning_summary_day_user_idx ON learning_summary_day (stat_date, user_id) WHERE scope = 'user'; -- 조회 시 칼럼 순서 동일해야 함
@@ -663,8 +665,8 @@ try:
         login_history_queries,
         calculate_session_duration_queries,
         content_viewing_history_queries,
-        content_viewing_history_archive_queries,
-        content_viewing_history_view_queries,
+        #content_viewing_history_archive_queries,  아카이브는 추후 필요할 때 추가
+        #content_viewing_history_view_queries,
         timestamp_update_queries, 
         stay_duration_update_queries,
         default_insert_queries,

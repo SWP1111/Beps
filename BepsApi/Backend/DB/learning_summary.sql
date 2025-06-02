@@ -11,7 +11,7 @@ BEGIN
     )
     SELECT
         v_start_value, 'all', c.id, c.name,SUM(cvh.stay_duration) AS total_duration
-    FROM content_viewing_history_view cvh
+    FROM content_viewing_history cvh
      -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
     LEFT JOIN content_rel_page_details d ON cvh.file_type = 'detail' AND cvh.file_id = d.id
@@ -34,7 +34,7 @@ BEGIN
     SELECT
         v_start_value, 'company', NULL, u.company, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
-    FROM content_viewing_history_view cvh
+    FROM content_viewing_history cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
@@ -59,7 +59,7 @@ BEGIN
     SELECT
         v_start_value, 'department', NULL, u.company, NULL, u.department, c.id, c.name,
         SUM(cvh.stay_duration) AS total_duration
-    FROM content_viewing_history_view cvh
+    FROM content_viewing_history cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id
@@ -83,7 +83,7 @@ BEGIN
     SELECT
         v_start_value, 'user', NULL, u.company, NULL, u.department, u.id, u.name, c.id, c.name,
         SUM(cvh.stay_duration)
-    FROM content_viewing_history_view cvh
+    FROM content_viewing_history cvh
     JOIN users u ON u.id = cvh.user_id
     -- 폴더 ID 추출: content_rel_page_details, content_rel_pages를 조인해서 폴더 ID를 가져옴
     LEFT JOIN content_rel_pages p ON cvh.file_type = 'page' AND cvh.file_id = p.id

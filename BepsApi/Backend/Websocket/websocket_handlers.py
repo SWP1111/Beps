@@ -6,7 +6,6 @@ import logging
 import log_config
 import requests
 
-MAX_CONNECTIONS = 30    # 최대 동시 연결 수
 all_clients = set()     # 모든 클라이언트 (로그인 여부와 관계없이)
 active_users = {}       # 로그인한 클라이언트 {sid: {"user_id": ID, "ip": IP, "last_active": timestamp}}
 TIMEOUT = 40           # 클라이언트 타임아웃 시간 (초)
@@ -18,7 +17,7 @@ async def broadcast_user_count():
     message = json.dumps({
         "type": "user_count",
         "count": len(active_users),
-        "max_users": MAX_CONNECTIONS,
+        #"max_users": MAX_CONNECTIONS,
         "users": [
             {
             "user_id": user["user_id"]
@@ -38,7 +37,6 @@ async def websocket_handler(websocket, path=""):
         await websocket.send(json.dumps({
             "type": "user_count",
             "count": len(active_users),
-            "max_users": MAX_CONNECTIONS,
             "users": [
                 {
                 "user_id": user["user_id"]
@@ -48,22 +46,9 @@ async def websocket_handler(websocket, path=""):
         
         while True:
             message = await websocket.recv()
-            data = json.loads(message)
+            data = json.loads(message)           
             
-            if data.get("type") == "check_max_users":   # 최대 동시 연결 수 체크
-                
-                if len(active_users) >= MAX_CONNECTIONS:
-                    await websocket.send(json.dumps({
-                        "type": "max_users_exceeded",
-                        "message": "🚫 서버 연결 수용량 초과"
-                    }))
-                    continue
-                           
-                await websocket.send(json.dumps({
-                    "type": "pass_check_max_users"
-                }))
-            
-            elif data.get("type") == "verify_user_exists":    # 이미 존재하는 사용자가 있는 지 확인인
+            if data.get("type") == "verify_user_exists":    # 이미 존재하는 사용자가 있는 지 확인인
                 user_id = data.get("user_id").lower()
                 
                 existing_sid = next((sid for sid, user in active_users.items() if user["user_id"].lower() == user_id), None)

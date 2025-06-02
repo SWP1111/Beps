@@ -9,9 +9,9 @@ export async function setLoginData(period_type, period_value, filter_type, filte
 
     const value = await getUserConnectionDuration(period_type, period_value, filter_type, filter_value);
 
-    const total_duration = value.total_duration ?? "0";
-    const worktime_duration_value = value.worktime_duration ?? "0";
-    const offhour_duration_value = value.offhour_duration ?? "0";
+    const total_duration = value.total_duration ?? 0;
+    const worktime_duration_value = value.worktime_duration ?? 0;
+    const offhour_duration_value = value.offhour_duration ?? 0;
     const internal_count_value = value.internal_count ?? 0;
     const external_count_value = value.external_count ?? 0;
     const total_login_count_value = internal_count_value + external_count_value;
@@ -34,8 +34,8 @@ export async function setLoginData(period_type, period_value, filter_type, filte
     const pie_series_type = 'pie';
 
     const loginTimeChart = echarts.init(logintimeArea);
-    const worktime_ratio = (worktime_duration_value/ total_duration) * 100;
-    const offhour_ratio = 100 - worktime_ratio;
+    const worktime_ratio = total_duration > 0 ? (worktime_duration_value/ total_duration) * 100 : 0;
+    const offhour_ratio = total_duration > 0 ? 100 - worktime_ratio : 0;
     const loginTimeChartData = [
       createChartData("근무시간 내", worktime_ratio, formatSecondsToHoursFloat(worktime_duration_value)),
       createChartData("근무시간 외", offhour_ratio, formatSecondsToHoursFloat(offhour_duration_value))       
@@ -59,9 +59,12 @@ export async function setLoginData(period_type, period_value, filter_type, filte
 
     echarts.dispose(loginCountArea);
     const loginCountChart = echarts.init(loginCountArea);
+
+    const internal_count_ratio =  total_login_count_value > 0 ? ((internal_count_value / total_login_count_value) * 100) : 0;
+    const external_count_ratio =  total_login_count_value > 0 ? ((external_count_value / total_login_count_value) * 100) : 0;
     const loginCountChartData = [
-      createChartData("내부 접속", ((internal_count_value / total_login_count_value) * 100), internal_count_value),
-      createChartData("외부 접속", ((external_count_value / total_login_count_value) * 100), external_count_value)
+      createChartData("내부 접속", internal_count_ratio, internal_count_value),
+      createChartData("외부 접속", external_count_ratio, external_count_value)
     ]
     const loginCountChartOptions = {     
         color: ['#49A66B', '#EC9823'],   

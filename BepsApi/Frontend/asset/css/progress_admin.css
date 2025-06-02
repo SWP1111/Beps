@@ -257,8 +257,9 @@ background-color: #f0f0f0;
     background-color: #FFFFFF;
     box-shadow: 2px 2px 30px 0 rgba(0, 0, 0, 0.2);
     border-radius: 30px;
+    margin-left: 20px;
     gap: 10px;
-    padding: 10px;
+    padding: 10px 25px 10px 25px;
 }
 
 .learning-rate-area-header {
@@ -278,18 +279,187 @@ background-color: #f0f0f0;
     margin-left: 5px;
 }
 
-.learing-time-Rank {
+.learning-rate-container {
+    display: flex;
+    flex-direction: column;;
+    position: relative;
+    height: 260px;
+}
+
+.learning-rate-top-container {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 20px;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.learning-rate-top-container img {
+    width: 72px;
+    height: 72px;
+}
+
+.learning-rate-avg-container {
+    position: absolute;
+    top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-left: 0px;
+    width: 100%;
+}
+
+.learning-rate-avg-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 0px;
+    width: 100%;
+    gap: 0px;
+    text-align: center;
+}
+
+.learning-rate-avg-container span {
+    font-family: NotosansKR;
+    font-weight: 700;
+    font-size: 20px;
+}
+
+.learning-rate-avg-arrow {
+    position: absolute;
+    top: 71px;    
+    width: 25px;
+    height: 17px;
+    margin-top: 0px;
+    margin-left: 400px;
+}
+
+.learning-rate-bottom-container {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 5px;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.learning-pointer-container {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+}
+
+.learning-pointer-content {    
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+    width: 80px;
+    gap: 2px;
+    background-color: white;
+}
+
+.learning-pointer-percent {
+    border: none;
+    border-bottom: 2px solid blue;
+    outline: none;
+    color: blue;
+    padding: 4px 0;
+    font-family: NotosansKR;
+    font-weight: 700;
+    font-size: 17px;
+    width: 35px;
+}
+
+.push-message-button {
+    border: 2px solid rgba(48,201,48,1);
+    border-radius: 10px;
+    background-color: transparent;    
+    padding: 0px 0px 0px 0px;
+    margin-left: -20px;
+    width: 85px;
+}
+
+.triangle-down {
+  width: 0;
+  height: 0;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-top: 10px solid black;  /* 역삼각형 색상 */
+}
+
+.learning-rate-progress {
+    width: 421px;
+    height: 23px;
+    border-radius: 15px;
+    background: linear-gradient(to right, #29B81C 0%, #FF3131 100%);
+    margin-top: 10px;
+}
+
+.top-last-area {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    margin-left: 0px;
+}
+
+.login-rank-area {
+    display: flex;
+    flex-direction: column;
+    background-color: #FFFFFF;
+    box-shadow: 2px 2px 30px 0 rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
     margin-left: 10px;
+    gap: 10px;
+    width: 530px;
+    padding: 10px 5px 10px 5px;
+}
+
+.top-bottom-selector {
+    background-color: white;
+    text-align: center; 
+    display: flex; 
+    align-items: center; 
+    gap: 5px; 
+    border-radius: 10px; 
+    border: none;
+}
+.top-bottom-selector.active {
+    background-color:rgba(253,224,224,1); 
+}
+
+.ellipse-button {
+  width: 5px;
+  height: 5px;
+  background-color: rgba(167,167,167,1);
+  border: none;
+  border-radius: 50%;
+  padding: 0;              /* 내부 여백 제거 */
+  font-size: 0;            /* 폰트 크기 제거 */
+  cursor: pointer;
+  }
+
+.ellipse-button.active {
+    background-color: black;
+}
+
+.updated-pages-area {
+    display: flex;
+    flex-direction: column;
+    background-color: #FFFFFF;
+    box-shadow: 2px 2px 30px 0 rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    margin-left: 10px;
+    margin-top: 5px;
+    gap: 10px;
+    padding: 10px 5px 10px 5px;
 }
 
 .point {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-top: 50px;   
+    margin-top: 0px;  
 }
 
 .learning-area {
@@ -348,7 +518,7 @@ background-color: #f0f0f0;
     border-bottom: 1px solid rgba(0,0,0,1);
 }
 .category-chart{
-    width: 450px;
+    width: 530px;
     height: 400px;
 }
 

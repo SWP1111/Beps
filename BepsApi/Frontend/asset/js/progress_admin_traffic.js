@@ -108,8 +108,8 @@ export function initTrafficGaugeChart(value = 0) {
 
 
   
-export function updateTrafficGaugeValue(activeUser, maxUser) {
-  if (!trafficChart) return;
+export function updateTrafficGaugeValue(activeUser, maxUser = 100) {
+  if (!trafficChart) return;  
 
   const raw = (activeUser / maxUser);
   const value = Math.round(raw * 10) / 10;
