@@ -15,7 +15,7 @@ import glob
 import os
 import pickle
 from flask import session
-from sqlalchemy import distinct, func
+from sqlalchemy import distinct, func, tuple_
 import traceback
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
@@ -182,7 +182,7 @@ def data():
                 ELSE ''
             END AS detail_name,
             v.start_time, v.end_time, v.stay_duration, v.ip_address
-            FROM content_viewing_history_view v
+            FROM content_viewing_history v
             LEFT JOIN users u ON v.user_id = u.id
             LEFT JOIN content_rel_pages p ON v.file_type='page' AND v.file_id = p.id
             LEFT JOIN content_rel_page_details d ON v.file_type='detail' AND v.file_id = d.id
@@ -219,7 +219,7 @@ def data():
         final_query = base_query + " ORDER BY v.id LIMIT :limit OFFSET :offset"
         
         count_query = """SELECT COUNT(*) 
-                         FROM content_viewing_history_view v
+                         FROM content_viewing_history v
                          LEFT JOIN users u ON v.user_id = u.id
                          LEFT JOIN content_rel_pages p ON v.file_type='page' AND v.file_id = p.id
                          LEFT JOIN content_rel_page_details d ON v.file_type='detail' AND v.file_id = d.id
@@ -504,7 +504,8 @@ def get_top_viewd_pages():
     except Exception as e:
         logging.error(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
-    
+ 
+# 🔹 GET /leaning/completion-rate API 학습 완료율 조회   
 @api_leaning_bp.route('/completion-rate', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def get_completion_rate():
@@ -545,7 +546,7 @@ def get_completion_rate():
         
         completion_threshold = timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES)
         
-        completed_pages = db.session.query(func.count(distinct(LearningCompletionHistory.page_id))) \
+        completed_pages = db.session.query(func.count(distinct(tuple_(LearningCompletionHistory.user_id, LearningCompletionHistory.page_id)))) \
             .filter(
                 LearningCompletionHistory.user_id.in_(user_ids),
                 LearningCompletionHistory.completed_at.between(utc_start_dt, utc_end_dt),
@@ -561,9 +562,57 @@ def get_completion_rate():
             'completion_rate': round(completion_rate, 2),
             'completed_pages': completed_pages,
             'total_pages': total_pages,
-            'completion_threshold_minutes': Config.LEARNING_COMPLETED_MINUTES
+            'completion_threshold_minutes': Config.LEARNING_COMPLETED_MINUTES,
+            'count_users': len(user_ids)
         }), 200  # 200: OK
         
     except Exception as e:
         logging.error(f"[get_completion_rate] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_completion_rate] error': str(e)}), 500
+
+# 🔹 GET /leaning/rank-update-contents API 최근 업데이트된 콘텐츠 랭킹 조회
+@api_leaning_bp.route('/rank-update-contents', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def rank_update_contents():
+    try:
+        
+        top_rows = db.session.query(
+                ContentRelPages.id,
+                ContentRelPages.name,
+                ContentRelPages.updated_at
+            ).filter(
+                ContentRelPages.is_deleted == False
+            ).order_by(
+                ContentRelPages.updated_at.desc()
+            ).limit(5).all()  # 상위 5개만 조회
+            
+        bottom_rows = db.session.query(
+                ContentRelPages.id,
+                ContentRelPages.name,
+                ContentRelPages.updated_at
+            ).filter(
+                ContentRelPages.is_deleted == False
+            ).order_by(
+                ContentRelPages.updated_at.asc()
+            ).limit(5).all()  # 하위 5개만 조회
+
+        return jsonify({
+            'top': [
+                {
+                    'id': row.id,
+                    'name': row.name,
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
+                } for row in top_rows
+            ],
+            'bottom': [
+                {
+                    'id': row.id,
+                    'name': row.name,
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
+                } for row in bottom_rows
+            ]
+        }), 200  # 200: OK
+        
+    except Exception as e:
+        logging.error(f"[rank_update_contents] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'[rank_update_contents] error': str(e)}), 500

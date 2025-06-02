@@ -42,7 +42,17 @@ def check():
     current_user = get_jwt_identity()
     
     if current_user:
-        return jsonify({"success": True, "user": current_user}), 200
+        response = jsonify({"success": True, "user": current_user})
+        access_token = create_access_token(identity=current_user, expires_delta=datetime.timedelta(days=1))
+        response.set_cookie(
+            'access_token_cookie',     # 쿠키 이름
+            access_token,       # 쿠키 값
+            httponly=True,      # JS에서 쿠키 접근 금지
+            secure=False,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
+            samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
+            expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
+        )
+        return response, 200
     else:
         return jsonify({"success": False, "error":"Invalid token"}), 401
 
@@ -710,145 +720,4 @@ def get_search():
         return jsonify(result_map), 200 
     except Exception as e:
         logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
-
-@api_user_bp.route('/companies', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def get_companies():
-    """
-    Get all unique companies from users table
-    """
-    try:
-        # Query for distinct companies, excluding empty or null values
-        companies = db.session.query(Users.company).filter(
-            Users.is_deleted == False,
-            Users.company.isnot(None),
-            Users.company != ''
-        ).distinct().order_by(Users.company).all()
-        
-        # Extract company names from query result
-        company_list = [company[0] for company in companies]
-        
-        return jsonify(company_list)
-    except Exception as e:
-        logging.error(f"Error fetching companies: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@api_user_bp.route('/departments', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def get_departments():
-    """
-    Get all departments for a specific company
-    """
-    try:
-        company = request.args.get('company')
-        if not company:
-            return jsonify({'error': 'Company parameter is required'}), 400
-            
-        # Query for distinct departments in the specified company
-        departments = db.session.query(Users.department).filter(
-            Users.company == company,
-            Users.is_deleted == False,
-            Users.department.isnot(None),
-            Users.department != ''
-        ).distinct().order_by(Users.department).all()
-        
-        # Extract department names from query result
-        department_list = [dept[0] for dept in departments]
-        
-        return jsonify(department_list)
-    except Exception as e:
-        logging.error(f"Error fetching departments: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@api_user_bp.route('/positions', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def get_positions():
-    """
-    Get all positions for a specific company and department
-    """
-    try:
-        company = request.args.get('company')
-        department = request.args.get('department')
-        
-        if not company or not department:
-            return jsonify({'error': 'Company and department parameters are required'}), 400
-            
-        # Query for distinct positions in the specified company and department
-        positions = db.session.query(Users.position).filter(
-            Users.company == company,
-            Users.department == department,
-            Users.is_deleted == False,
-            Users.position.isnot(None),
-            Users.position != ''
-        ).distinct().order_by(Users.position).all()
-        
-        # Extract position names from query result
-        position_list = [pos[0] for pos in positions]
-        
-        return jsonify(position_list)
-    except Exception as e:
-        logging.error(f"Error fetching positions: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@api_user_bp.route('/names', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def get_names():
-    """
-    Get all users for a specific company, department, and position
-    """
-    try:
-        company = request.args.get('company')
-        department = request.args.get('department')
-        position = request.args.get('position')
-        
-        if not company or not department or not position:
-            return jsonify({'error': 'Company, department, and position parameters are required'}), 400
-            
-        # Query for users in the specified company, department, and position
-        users = db.session.query(Users.id, Users.name).filter(
-            Users.company == company,
-            Users.department == department,
-            Users.position == position,
-            Users.is_deleted == False
-        ).order_by(Users.name).all()
-        
-        # Format user data
-        user_list = [{'id': user.id, 'name': user.name} for user in users]
-        
-        return jsonify(user_list)
-    except Exception as e:
-        logging.error(f"Error fetching user names: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@api_user_bp.route('/verify', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def verify_user():
-    """
-    Verify if a user ID exists and return user details
-    """
-    try:
-        user_id = request.args.get('id')
-        if not user_id:
-            return jsonify({'error': 'User ID parameter is required'}), 400
-            
-        # Find the user - use case-insensitive search
-        user = Users.query.filter(Users.id.ilike(user_id), Users.is_deleted == False).first()
-        
-        if not user:
-            return jsonify({'exists': False}), 404
-            
-        # Return user details
-        return jsonify({
-            'exists': True,
-            'user': {
-                'id': user.id,
-                'name': user.name,
-                'company': user.company,
-                'department': user.department,
-                'position': user.position
-            }
-        })
-    except Exception as e:
-        logging.error(f"Error verifying user: {str(e)}")
         return jsonify({'error': str(e)}), 500

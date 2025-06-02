@@ -43,35 +43,130 @@ document.addEventListener('DOMContentLoaded', async() => {
   // 트래픽 게이지 차트 Init
   initTrafficGaugeChart(0);
   
+  let loginUserRank;
+  let loginDepartmentRank;
+  let loginCompanyRank;
+  let loginRankType = "top"; // 초기값은 top으로 설정
+
+  const loginRankPrev = document.getElementById("login-rank-prev");
+  const loginRankNext = document.getElementById("login-rank-next");
+  const loginRankTitile = document.getElementById("login-rank-title");
+
+  const loginRankTopFirst = document.getElementById("login-rank-top-first");
+  const loginRankTopSecond = document.getElementById("login-rank-top-second");
+  const loginRankTopThird = document.getElementById("login-rank-top-third");
+
+  if(loginRankPrev) {
+    loginRankPrev.addEventListener("click", () => {
+      const title = loginRankTitile.textContent;
+      let type;
+      if(title === "개인 순위")
+      {
+        loginRankTitile.textContent = "회사 순위";
+        type = "company";
+      }
+      else if(title === "팀 순위")
+      { 
+        loginRankTitile.textContent = "개인 순위";
+        type = "user";
+      }
+      else if(title === "회사 순위")
+      {
+        loginRankTitile.textContent = "팀 순위";
+        type = "team";
+      }
+      
+      displayRankbyType(loginRankTitile.textContent, loginRankType === "top");
+      setActiveLoginRankBottomButton(type);
+    });
+  }
+
+  if(loginRankNext) {
+    loginRankNext.addEventListener("click", () => {
+      const title = loginRankTitile.textContent;
+      let type;
+      if(title === "개인 순위")
+      {
+        loginRankTitile.textContent = "팀 순위";
+        type = "team";
+      }
+      else if(title === "팀 순위")
+      { 
+        loginRankTitile.textContent = "회사 순위";
+        type = "company";
+      }
+      else if(title === "회사 순위")
+      {
+        loginRankTitile.textContent = "개인 순위";
+        type = "user";
+      }
+      displayRankbyType(loginRankTitile.textContent, loginRankType === "top");
+      setActiveLoginRankBottomButton(type);
+    });
+  }
+
+  document.querySelectorAll('[data-group="login-rank"]').forEach((element) => {
+    element.addEventListener("click", (event) => {
+      const group = element.dataset.group;
+      document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+      element.classList.add('active');
+      
+      loginRankType = element.dataset.value;
+      displayRankbyType(loginRankTitile.textContent, loginRankType === "top");
+    });
+  });
+
+  document.querySelectorAll('[data-group="login-type"]').forEach((element) => {
+    element.addEventListener("click", (event) => {
+      const group = element.dataset.group;
+      document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+      element.classList.add('active');
+
+      const value = element.dataset.value;
+      if(value === "user") {
+        loginRankTitile.textContent = "개인 순위";
+      }
+      else if(value === "team") {
+        loginRankTitile.textContent = "팀 순위";
+      }
+      else if(value === "company") {
+        loginRankTitile.textContent = "회사 순위";
+      }
+      displayRankbyType(loginRankTitile.textContent, loginRankType === "top");
+
+    });
+  });
+
   getTopUserConnectionDuration(period_type, period_value)
   .then(data => {
-      displayUserTopBottom(data);
+      loginUserRank = data;
+      displayRankbyType(loginRankTitile.textContent, true);
   });
   
   getTopDepartmentConnectionDuration(period_type, period_value)
   .then(data => {
-    displayDipartmentTopBottom(data);
+    loginDepartmentRank = data;
   });
 
   getTopCompanyConnectionDuration(period_type, period_value)
   .then(data => {
-    displayCompanyTopBottom(data);
+    loginCompanyRank = data;
   });
-
+  
   setInterval(() => {
     getTopUserConnectionDuration(period_type, period_value)
     .then(data => {
-      displayUserTopBottom(data);
+      loginUserRank = data;
     });
 
     getTopDepartmentConnectionDuration(period_type, period_value)
     .then(data => {
-    displayDipartmentTopBottom(data);
+      loginDepartmentRank = data;
     });
 
     getTopCompanyConnectionDuration(period_type, period_value)
     .then(data => {
-      displayCompanyTopBottom(data);
+      loginCompanyRank = data;
     });
 
   }, 60*60*1000); // 1시간마다 업데이트
@@ -83,32 +178,33 @@ document.addEventListener('DOMContentLoaded', async() => {
   });
 
   const pushMessageButton = document.getElementById("push-message-button");
-  pushMessageButton.addEventListener("click", async() => {
-    const pointValue =document.getElementById("point-input").value;
+  if(pushMessageButton) {
+    pushMessageButton.addEventListener("click", async() => {
+      const pointValue = learningPointerPercent.value;
 
-    let title = "";  
-    let message = `학습진도율 ${pointValue}% 미만 학습자에게 보내는 메시지입니다.`;
-       
-    const csrfToken = await getCookie();
-    const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
-    const response = await fetch(url,{
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-      },
-      body: JSON.stringify({
-        filter_type,
-        filter_value,
-        title,
-        message
-      })
-    });
+      let title = "";  
+      let message = `학습진도율 ${pointValue}% 미만 학습자에게 보내는 메시지입니다.`;
+        
+      const csrfToken = await getCookie();
+      const url = `${window.baseUrl}leaning/push/send?filter_type=${filter_type}&filter_value=${filter_value}&title=${title}&message=${message}`;
+      const response = await fetch(url,{
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({
+          filter_type,
+          filter_value,
+          title,
+          message
+        })
+      });
 
-    const data = await response.json();
-    console.log(data);
+      const data = await response.json();
+      console.log(data);
   });
-
+  }
   async function getCookie() {
     const url = `${window.baseUrl}user/csrf_token`;
     const response =  await fetch(url)
@@ -119,6 +215,56 @@ document.addEventListener('DOMContentLoaded', async() => {
     else{
       return '';
     }
+  }
+
+
+  const pointer = document.getElementById("learning-pointer");
+  const learningPointerContent = document.getElementById("learning-pointer-content");
+  const learningPointerPercent = document.getElementById("learning-pointer-percent");
+  const MAX_LEFT = learningPointerContent.offsetWidth; 
+  if(pointer) {
+    let isDragging = false;
+    let startX;
+    let startLeft;
+
+    pointer.addEventListener("dragstart", (e) => {
+      e.preventDefault();
+    });
+
+    pointer.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startLeft = pointer.offsetLeft;
+      pointer.style.cursor = "grabbing";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      let newLeft = startLeft + dx;
+
+      // 범위 제한 (0px ~ 400px)
+      newLeft = Math.max(0, Math.min(newLeft, 400));
+      console.log(`newLeft: ${newLeft}, offsetWidth: ${learningPointerContent.offsetWidth}, parentWidth: ${learningPointerContent.parentElement.offsetWidth}`);
+      
+      if(learningPointerContent.style.marginLeft === "0px" && parseInt(pointer.style.marginLeft) >= newLeft) {
+       
+        pointer.style.marginLeft = "0px";
+      }
+      else if(newLeft + learningPointerContent.offsetWidth < learningPointerContent.parentElement.offsetWidth) {
+        learningPointerContent.style.marginLeft = `${newLeft}px`;
+      }
+      else {
+        pointer.style.marginLeft = `${newLeft - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
+      }
+
+      learningPointerPercent.value = `${Math.round((1 - newLeft / 400) * 100)}`;
+    });
+
+    document.addEventListener("mouseup", () => {
+      isDragging = false;
+      pointer.style.cursor = "grab";
+    });
   }
 
   setOnSelectPeriodCallback(async() =>
@@ -132,22 +278,22 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     getTopUserConnectionDuration(period_type, period_value)
     .then(data => {
-      displayUserTopBottom(data);
+      loginUserRank = data;
     });
 
     getTopDepartmentConnectionDuration(period_type, period_value)
     .then(data => {
-      displayDipartmentTopBottom(data);
+      loginDepartmentRank = data;
     });
 
     getTopCompanyConnectionDuration(period_type, period_value)
     .then(data => {
-      displayCompanyTopBottom(data);
+      loginCompanyRank = data;
     });
 
 
-    getTotalPoint();
-    getRankPoint();
+    // getTotalPoint();
+    //getRankPoint();
     getCategoryLearingRate();
     getTopViewdPages();
     getMemoRank();
@@ -160,8 +306,8 @@ document.addEventListener('DOMContentLoaded', async() => {
     filter_value = (type === "user") ? user.userId : (type === "department") ? `${company}||${department}` : company;
     setLoginData(period_type, period_value, filter_type, filter_value);
 
-    getTotalPoint();
-    getRankPoint();
+    // getTotalPoint();
+    //getRankPoint();
     getCategoryLearingRate();
     getTopViewdPages();
     getMemoRank();
@@ -366,6 +512,14 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
+  
+  const completionHorus = document.getElementById("completion-hours");
+  const completionMH = document.getElementById("completion-mh");
+  const completionZero = document.getElementById("completion-zero");
+  const completionTotalPages = document.getElementsByClassName("completion-total-pages");
+  const completionRateElement = document.getElementById("completion-rate");
+  const completionLearnedAvgPages = document.getElementById("completion-learned-avg-pages");
+
   async function getCompletionRate() {
     let url = `${window.baseUrl}leaning/completion-rate?period_value=${period_value}`;
     if(period_type != null)
@@ -379,8 +533,39 @@ document.addEventListener('DOMContentLoaded', async() => {
     const data = await response.json();
     if(response.ok)
     {
-      const completionRateElement = document.getElementById("completion-rate");
-      completionRateElement.textContent = `학습 진도율: ${data.completion_rate}% \n (학습 완료 페이지 / 전체 페이지)`;
+
+      //const completionTimes = formatMinutesToTime(data.total_pages * data.completion_threshold_minutes);
+
+      // completionHorus.textContent = `${completionTimes.hours}시간`;
+      // completionMH.textContent = `${completionTimes.minutes}분 ${completionTimes.seconds}초`;
+      //completionZero.textContent = `0 / ${data.total_pages}`;
+
+      //const completionRateTimes = formatMinutesToTime(data.total_pages * data.completion_threshold_minutes * (data.completion_rate / 100));
+      //completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br> (${completionRateTimes.hours}시간 ${completionRateTimes.minutes}분 ${completionRateTimes.seconds}초)`;
+      //completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br> (${(data.completed_pages / data.count_users).toFixed(2)} / ${data.total_pages})`;
+            
+      completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br>`;
+      completionLearnedAvgPages.textContent = `${(data.completed_pages / data.count_users).toFixed(2)}`;
+
+      const learningRateAvgArrow = document.getElementById("learning-rate-avg-arrow");
+
+      for (const span of completionTotalPages) {
+        span.textContent = `${data.total_pages}`;
+      }
+
+      const leftValue = (400 * (1 - data.completion_rate / 100));
+      learningRateAvgArrow.style.marginLeft = leftValue + "px"; // 395px은 100%에 해당하는 너비로 가정
+      
+      if(leftValue + learningPointerContent.offsetWidth < learningPointerContent.parentElement.offsetWidth) {
+        learningPointerContent.style.marginLeft = `${leftValue}px`;
+      }
+      else {
+        learningPointerContent.style.marginLeft = `${learningPointerContent.parentElement.offsetWidth - learningPointerContent.offsetWidth}px`;
+        pointer.style.marginLeft = `${leftValue - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
+      }
+
+      learningPointerPercent.value = `${Math.round((1 - leftValue / 400) * 100)}`;
+
     }
   }
 
@@ -406,68 +591,89 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
-  async function displayUserTopBottom(data)
-  {
-    const userRankTopFirst = document.getElementById("user-rank-top-first");
-    const userRankTopSecond = document.getElementById("user-rank-top-second");
-    const userRankTopThird = document.getElementById("user-rank-top-third");
-    const userRankBottonFirst = document.getElementById("user-rank-bottom-first");
-    const userRankBottonSecond = document.getElementById("user-rank-bottom-second");
-    const userRankBottonThird = document.getElementById("user-rank-bottom-third");
-    
-    userRankTopFirst.textContent = `개인 상위 Top3 : ${data.data.top[0][1]} (${formatSecondsToHHMMSS(data.data.top[0][2])})`;
-    userRankTopSecond.textContent = `, ${data.data.top[1][1]} (${formatSecondsToHHMMSS(data.data.top[1][2])})`;
-    userRankTopThird.textContent = `, ${data.data.top[2][1]} (${formatSecondsToHHMMSS(data.data.top[2][2])})`;
-
-    userRankBottonFirst.textContent = `개인 하위 Top3 : ${data.data.bottom[0][1]} (${formatSecondsToHHMMSS(data.data.bottom[0][2])})`;
-    userRankBottonSecond.textContent = `, ${data.data.bottom[1][1]} (${formatSecondsToHHMMSS(data.data.bottom[1][2])})`;
-    userRankBottonThird.textContent = `, ${data.data.bottom[2][1]} (${formatSecondsToHHMMSS(data.data.bottom[2][2])})`;
-  }
-
-  async function displayDipartmentTopBottom(data)
-  {
-    const departmentRankTopFirst = document.getElementById("team-rank-top-first");
-    const departmentRankTopSecond = document.getElementById("team-rank-top-second");
-    const departmentRankTopThird = document.getElementById("team-rank-top-third");
-
-    const departmentRankBottonFirst = document.getElementById("team-rank-bottom-first");
-    const departmentRankBottonSecond = document.getElementById("team-rank-bottom-second");
-    const departmentRankBottonThird = document.getElementById("team-rank-bottom-third");
-
-    departmentRankTopFirst.textContent = `부서 상위 Top3 : ${data.data.top[0][1]} (${formatSecondsToHHMMSS(data.data.top[0][2])})`;
-    departmentRankTopSecond.textContent = `, ${data.data.top[1][1]} (${formatSecondsToHHMMSS(data.data.top[1][2])})`;
-    departmentRankTopThird.textContent = `, ${data.data.top[2][1]} (${formatSecondsToHHMMSS(data.data.top[2][2])})`;
-
-    departmentRankBottonFirst.textContent = `부서 하위 Top3 : ${data.data.bottom[0][1]} (${formatSecondsToHHMMSS(data.data.bottom[0][2])})`;
-    departmentRankBottonSecond.textContent = `, ${data.data.bottom[1][1]} (${formatSecondsToHHMMSS(data.data.bottom[1][2])})`;
-    departmentRankBottonThird.textContent = `, ${data.data.bottom[2][1]} (${formatSecondsToHHMMSS(data.data.bottom[2][2])})`;
-  }
-
-  async function displayCompanyTopBottom(data)
-  {
-    const companyRankTopFirst = document.getElementById("company-rank-top-first");
-    const companyRankTopSecond = document.getElementById("company-rank-top-second");
-    const companyRankTopThird = document.getElementById("company-rank-top-third");
-
-    const companyRankBottonFirst = document.getElementById("company-rank-bottom-first");
-    const companyRankBottonSecond = document.getElementById("company-rank-bottom-second");
-    const companyRankBottonThird = document.getElementById("company-rank-bottom-third");
-
-    companyRankTopFirst.textContent = `회사 상위 Top3 : ${data.data.top[0][0]} (${formatSecondsToHHMMSS(data.data.top[0][1])})`;
-    companyRankTopSecond.textContent = `, ${data.data.top[1][0]} (${formatSecondsToHHMMSS(data.data.top[1][1])})`;
-    if(data.data.top.length > 2)
-      companyRankTopThird.textContent = `, ${data.data.top[2][0]} (${formatSecondsToHHMMSS(data.data.top[2][1])})`;
-
-    companyRankBottonFirst.textContent = `회사 하위 Top3 : ${data.data.bottom[0][0]} (${formatSecondsToHHMMSS(data.data.bottom[0][1])})`;
-    companyRankBottonSecond.textContent = `, ${data.data.bottom[1][0]} (${formatSecondsToHHMMSS(data.data.bottom[1][1])})`;
-    if(data.data.top.length > 2)
-      companyRankBottonThird.textContent = `, ${data.data.bottom[2][0]} (${formatSecondsToHHMMSS(data.data.bottom[2][1])})`;
-  }
-
   window.parent.postMessage({
     type: 'resize',
     height: document.documentElement.scrollHeight
   }, '*');
+
+  function formatMinutesToTime(totalMinutes) {
+    let hours = Math.floor(totalMinutes / 60);
+    let remainingMinutes = totalMinutes % 60;
+
+    let minutes = Math.floor(remainingMinutes);
+    let seconds = Math.round((remainingMinutes - minutes) * 60);
+
+    // 60초 = 1분 보정
+    if (seconds === 60) {
+      seconds = 0;
+      minutes += 1;
+    }
+
+    return {
+      hours: String(hours).padStart(2, '0'),
+      minutes: String(minutes).padStart(2, '0'),
+      seconds: String(seconds).padStart(2, '0')
+    }
+  }
+
+  function displayRankbyType(rankTitle, topRank) {
+    if(topRank === true){
+      if(rankTitle === "개인 순위")
+        {        
+          loginRankTopFirst.textContent = `${loginUserRank.data.top[0][1]}`;
+          loginRankTopSecond.textContent = `${loginUserRank.data.top[1][1]}`;
+          loginRankTopThird.textContent = `${loginUserRank.data.top[2][1]}`;
+
+        }
+        else if(rankTitle === "팀 순위")
+        {      
+          loginRankTopFirst.textContent = `${loginDepartmentRank.data.top[0][1]}`;
+          loginRankTopSecond.textContent = `${loginDepartmentRank.data.top[1][1]}`;
+          loginRankTopThird.textContent = `${loginDepartmentRank.data.top[2][1]}`;
+
+        }
+        else if(rankTitle === "회사 순위")
+        { 
+          loginRankTopFirst.textContent = `${loginCompanyRank.data.top[0][0]}`;
+          loginRankTopSecond.textContent = `${loginCompanyRank.data.top[1][0]}`;
+          loginRankTopThird.textContent = `${loginCompanyRank.data.top[2][0]}`;
+        }
+    }
+    else
+    {
+      if(rankTitle === "개인 순위")
+        {        
+          loginRankTopFirst.textContent = `${loginUserRank.data.bottom[0][1]}`;
+          loginRankTopSecond.textContent = `${loginUserRank.data.bottom[1][1]}`;
+          loginRankTopThird.textContent = `${loginUserRank.data.bottom[2][1]}`;
+
+        }
+        else if(rankTitle === "팀 순위")
+        {      
+          loginRankTopFirst.textContent = `${loginDepartmentRank.data.bottom[0][1]}`;
+          loginRankTopSecond.textContent = `${loginDepartmentRank.data.bottom[1][1]}`;
+          loginRankTopThird.textContent = `${loginDepartmentRank.data.bottom[2][1]}`;
+
+        }
+        else if(rankTitle === "회사 순위")
+        { 
+          loginRankTopFirst.textContent = `${loginCompanyRank.data.bottom[0][0]}`;
+          loginRankTopSecond.textContent = `${loginCompanyRank.data.bottom[1][0]}`;
+          loginRankTopThird.textContent = `${loginCompanyRank.data.bottom[2][0]}`;
+        }
+    }
+  }
+
+  function setActiveLoginRankBottomButton(type){
+    document.querySelectorAll('[data-group="login-type"]').forEach((element) => {
+        const group = element.dataset.group;      
+        loginRankType = element.dataset.value;
+        if(loginRankType === type) {
+            document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+            element.classList.add('active');
+        }   
+      });
+  }
 
 });
 
