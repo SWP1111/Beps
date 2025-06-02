@@ -459,6 +459,8 @@
                     <div>
                         <button class="add-btn" id="add-file">+</button>
                         <button class="remove-btn" id="remove-file">-</button>
+                        <!-- 🔧 Debug button for testing authentication -->
+                        <button id="test-auth" style="margin-left: 10px; padding: 5px 10px; background: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer;">Test Auth</button>
                     </div>
                 </div>
             </div>
@@ -484,6 +486,11 @@
             // Store user role ID for later access control checks
             window.userRoleId = roleId;
             window.userId = userId;
+            
+            // 🔍 Debug user information
+            console.log('👤 User Info from localStorage:', userInfo);
+            console.log('🔑 User Role ID:', roleId);
+            console.log('🆔 User ID:', userId);
             
             // Check if user is properly authenticated
             checkAuthenticationStatus();
@@ -511,6 +518,22 @@
             try {
                 console.log('🔍 Checking authentication status...');
                 
+                // 🍪 Check cookies
+                console.log('🍪 All cookies:', document.cookie);
+                const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+                    const [key, value] = cookie.split('=').map(s => s.trim());
+                    acc[key] = value;
+                    return acc;
+                }, {});
+                console.log('🍪 Parsed cookies:', cookies);
+                
+                // Check if JWT cookie exists
+                if (cookies.access_token_cookie) {
+                    console.log('🔑 JWT token cookie found (length):', cookies.access_token_cookie.length);
+                } else {
+                    console.warn('⚠️ No JWT token cookie found!');
+                }
+                
                 // Test authentication by making a simple authenticated request
                 const response = await fetch('/user/token_check', {
                     method: 'GET',
@@ -535,6 +558,22 @@
                 
                 const data = await response.json();
                 console.log('✅ Authentication status confirmed:', data);
+                
+                // 🔍 Additional check: test the specific endpoint that's failing
+                console.log('🧪 Testing direct upload URL endpoint with a safe request...');
+                try {
+                    const testResponse = await fetch('/contents/hierarchy', {
+                        method: 'GET',
+                        credentials: 'include',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    console.log('🧪 Contents hierarchy test:', testResponse.status, testResponse.statusText);
+                } catch (testError) {
+                    console.error('🧪 Contents endpoint test failed:', testError);
+                }
+                
                 return true;
                 
             } catch (error) {
@@ -1213,11 +1252,18 @@
         function uploadImage(fileId) {
             console.log(`이미지 업로드: ${fileId}`);
             
+            // 🔍 Debug current user information
+            console.log('🔍 Current user role ID:', window.userRoleId);
+            console.log('🔍 Current user ID:', window.userId);
+            
             // 권한 검사
             if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
+                console.error('❌ Permission denied. Required role: 1, 2, or 999. Current role:', window.userRoleId);
                 alert('이미지 업로드 권한이 없습니다.');
                 return;
             }
+            
+            console.log('✅ Permission check passed for role:', window.userRoleId);
             
             // 파일 선택 다이얼로그 생성
             const fileInput = document.createElement('input');
@@ -1239,6 +1285,20 @@
                 }
                 
                 try {
+                    // 🔍 Pre-upload checks
+                    console.log('📁 File details:', {
+                        name: imageFile.name,
+                        type: imageFile.type,
+                        size: imageFile.size
+                    });
+                    
+                    // 🔍 Check authentication right before the critical request
+                    console.log('🔐 Re-checking authentication before upload...');
+                    const authCheck = await checkAuthenticationStatus();
+                    if (!authCheck) {
+                        throw new Error('Pre-upload authentication check failed');
+                    }
+                    
                     // 1단계: 백엔드에서 직접 업로드 URL 요청
                     console.log('직접 업로드 URL 요청 중...');
                     const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
@@ -1546,6 +1606,49 @@
             fileInput.click();
         }
         
+        // 🔧 Test authentication function
+        async function testAuthentication() {
+            console.log('🧪 === AUTHENTICATION TEST START ===');
+            
+            try {
+                // Test 1: Basic authentication check
+                console.log('🧪 Test 1: Basic token check');
+                const tokenCheck = await checkAuthenticationStatus();
+                console.log('🧪 Token check result:', tokenCheck);
+                
+                // Test 2: Test a simple GET request to contents API
+                console.log('🧪 Test 2: Simple contents GET request');
+                const simpleResponse = await authenticatedFetch('/contents/hierarchy');
+                console.log('🧪 Simple GET response:', simpleResponse.status);
+                
+                // Test 3: Test the specific problematic endpoint with minimal payload
+                console.log('🧪 Test 3: Direct upload URL endpoint test');
+                const testFileId = 7; // Use a known file ID from the error logs
+                const directUploadResponse = await authenticatedFetch(`/contents/file/${testFileId}/direct-upload-url`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        filename: 'test.jpg',
+                        content_type: 'image/jpeg',
+                        file_size: 1024
+                    })
+                });
+                console.log('🧪 Direct upload URL response:', directUploadResponse.status);
+                
+                if (directUploadResponse.ok) {
+                    const data = await directUploadResponse.json();
+                    console.log('🧪 Direct upload URL data:', data);
+                } else {
+                    const errorData = await directUploadResponse.text();
+                    console.error('🧪 Direct upload URL error:', errorData);
+                }
+                
+            } catch (error) {
+                console.error('🧪 Authentication test failed:', error);
+            }
+            
+            console.log('🧪 === AUTHENTICATION TEST END ===');
+        }
+        
         // 이미지 모달 닫기 이벤트 설정
         document.addEventListener('DOMContentLoaded', function() {
             const modal = document.getElementById('imageModal');
@@ -1569,6 +1672,12 @@
                     modal.style.display = 'none';
                 }
             });
+            
+            // 🔧 Test auth button event listener
+            const testAuthBtn = document.getElementById('test-auth');
+            if (testAuthBtn) {
+                testAuthBtn.addEventListener('click', testAuthentication);
+            }
         });
         
         // 콘텐츠 추가 버튼 이벤트
