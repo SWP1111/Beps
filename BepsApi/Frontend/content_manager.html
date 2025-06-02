@@ -189,6 +189,66 @@
             align-items: center;
         }
         
+        /* Page detail styles */
+        .page-detail {
+            display: grid;
+            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 10px;
+            background-color: #fafafa;
+        }
+
+        .page-detail-name {
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .page-detail-name-content {
+            display: flex;
+            align-items: center;
+        }
+
+        .page-detail-icon {
+            color: #4caf50;
+            margin-right: 8px;
+            font-size: 12px;
+        }
+
+        .page-detail-name-clickable {
+            cursor: pointer;
+            color: #1976d2;
+            text-decoration: underline;
+            font-size: 14px;
+        }
+
+        .page-detail-name-normal {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .page-detail-icon-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .detail-download-icon {
+            cursor: pointer;
+            color: #555;
+            font-size: 12px;
+        }
+
+        .detail-upload-icon {
+            cursor: pointer;
+            color: #4caf50;
+            font-size: 12px;
+        }
+        
         .new-badge {
             display: inline-block;
             background-color: #3f51b5;
@@ -944,6 +1004,99 @@
                     
                     fileLi.appendChild(fileDiv);
                     contentUl.appendChild(fileLi);
+
+                    // Render page details under this page if they exist
+                    if (page.details && page.details.length > 0) {
+                        page.details.forEach(detail => {
+                            const detailLi = document.createElement('li');
+                            detailLi.className = 'tree-node';
+                            detailLi.dataset.id = detail.id;
+                            detailLi.dataset.type = 'page_detail';
+                            
+                            const detailDiv = document.createElement('div');
+                            detailDiv.className = 'page-detail';
+                            
+                            // Page detail name (first column) 
+                            const detailNameDiv = document.createElement('div');
+                            detailNameDiv.className = 'page-detail-name';
+                            
+                            const detailNameContent = document.createElement('div');
+                            detailNameContent.className = 'page-detail-name-content';
+                            // Add extra indentation for page details (20px more than parent page)
+                            detailNameContent.style.paddingLeft = `${(depth + 2) * 20}px`;
+                            
+                            const detailIcon = document.createElement('span');
+                            detailIcon.className = 'page-detail-icon';
+                            detailIcon.innerHTML = '&#128206;'; // Document icon
+                            
+                            detailNameContent.appendChild(detailIcon);
+                            
+                            // Check if detail has content (object_id is not null/empty)
+                            const hasContent = detail.has_content || (detail.object_id && detail.object_id.trim() !== '');
+                            
+                            // Create detail name text element
+                            const detailNameText = document.createElement('span');
+                            detailNameText.textContent = detail.name || '상세 정보';
+                            
+                            if (hasContent) {
+                                // Detail has content - make it clickable for download
+                                detailNameText.className = 'page-detail-name-clickable';
+                                detailNameText.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    downloadPageDetail(detail.id, detail.name);
+                                });
+                            } else {
+                                // Detail has no content - normal text
+                                detailNameText.className = 'page-detail-name-normal';
+                            }
+                            
+                            detailNameContent.appendChild(detailNameText);
+                            detailNameDiv.appendChild(detailNameContent);
+                            
+                            // Add appropriate icons based on content state
+                            const iconContainer = document.createElement('div');
+                            iconContainer.className = 'page-detail-icon-container';
+                            
+                            if (hasContent) {
+                                // Show download icon for details with content
+                                const downloadIcon = document.createElement('span');
+                                downloadIcon.className = 'detail-download-icon';
+                                downloadIcon.innerHTML = '&#8595;'; // Download arrow
+                                downloadIcon.title = '파일 다운로드';
+                                downloadIcon.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    downloadPageDetail(detail.id, detail.name);
+                                });
+                                iconContainer.appendChild(downloadIcon);
+                            } else {
+                                // Show upload icon for details without content
+                                const uploadIcon = document.createElement('span');
+                                uploadIcon.className = 'detail-upload-icon';
+                                uploadIcon.innerHTML = '&#8593;'; // Upload arrow
+                                uploadIcon.title = '파일 업로드';
+                                uploadIcon.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    uploadPageDetailContent(detail.id);
+                                });
+                                iconContainer.appendChild(uploadIcon);
+                            }
+                            
+                            detailNameDiv.appendChild(iconContainer);
+                            detailDiv.appendChild(detailNameDiv);
+                            
+                            // Empty columns for page details (they don't have version, author, etc.)
+                            for (let i = 0; i < 5; i++) {
+                                const emptyDiv = document.createElement('div');
+                                emptyDiv.className = 'file-detail';
+                                emptyDiv.textContent = '-';
+                                emptyDiv.style.color = '#ccc';
+                                detailDiv.appendChild(emptyDiv);
+                            }
+                            
+                            detailLi.appendChild(detailDiv);
+                            contentUl.appendChild(detailLi);
+                        });
+                    }
                 });
             }
             
@@ -1140,6 +1293,83 @@
             });
         }
         
+        // 페이지 상세 파일 다운로드
+        function downloadPageDetail(detailId, detailName) {
+            console.log(`페이지 상세 다운로드: ${detailId}`);
+            
+            // 다운로드 API 엔드포인트 호출
+            window.location.href = `/contents/page-detail/${detailId}/download`;
+        }
+
+        // 페이지 상세 파일 업로드
+        function uploadPageDetailContent(detailId) {
+            console.log(`페이지 상세 파일 업로드: ${detailId}`);
+            
+            // 권한 검사
+            if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
+                alert('파일 업로드 권한이 없습니다.');
+                return;
+            }
+            
+            // 파일 선택 다이얼로그 생성
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.pdf,.webm,.mp4,.avi,.mov,.wmv,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
+            fileInput.multiple = false;
+            
+            fileInput.onchange = function() {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    return;
+                }
+                
+                const contentFile = fileInput.files[0];
+                
+                // 파일 크기 검사 (100MB 제한)
+                if (contentFile.size > 100 * 1024 * 1024) {
+                    alert('파일 크기가 너무 큽니다. 100MB 이하의 파일을 선택해주세요.');
+                    return;
+                }
+                
+                // FormData 생성
+                const formData = new FormData();
+                formData.append('file', contentFile);
+                
+                // 업로드 API 호출
+                fetch(`/contents/page-detail/${detailId}/upload-content`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`파일 업로드에 실패했습니다: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('파일이 성공적으로 업로드되었습니다.');
+                    
+                    // 파일 목록 새로고침
+                    if (currentSelectedChannel) {
+                        const filters = {
+                            all: document.getElementById('filter-all').checked,
+                            reviewing: document.getElementById('filter-reviewing').checked,
+                            rejected: document.getElementById('filter-rejected').checked,
+                            approved: document.getElementById('filter-approved').checked,
+                            updated: document.getElementById('filter-updated').checked
+                        };
+                        fetchChannelHierarchy(currentSelectedChannel, filters);
+                    }
+                })
+                .catch(error => {
+                    console.error('파일 업로드 중 오류가 발생했습니다:', error);
+                    alert('파일 업로드 중 오류가 발생했습니다.');
+                });
+            };
+            
+            fileInput.click();
+        }
+        
         // 이미지 모달 닫기 이벤트 설정
         document.addEventListener('DOMContentLoaded', function() {
             const modal = document.getElementById('imageModal');
@@ -1305,11 +1535,12 @@
         
         // 파일 삭제 버튼 이벤트
         document.getElementById('remove-file').addEventListener('click', function() {
-            // 트리에서 선택된 파일 찾기
+            // 트리에서 선택된 파일 및 페이지 상세 찾기
             const selectedFiles = document.querySelectorAll('.tree-file.selected');
+            const selectedDetails = document.querySelectorAll('.page-detail.selected');
             
-            if (selectedFiles.length === 0) {
-                alert('삭제할 파일을 선택해주세요.');
+            if (selectedFiles.length === 0 && selectedDetails.length === 0) {
+                alert('삭제할 파일 또는 페이지 상세를 선택해주세요.');
                 return;
             }
             
@@ -1320,14 +1551,21 @@
             }
             
             // 확인 창
-            if (!confirm("선택한 파일을 삭제하시겠습니까?")) {
+            const totalSelected = selectedFiles.length + selectedDetails.length;
+            if (!confirm(`선택한 ${totalSelected}개 항목을 삭제하시겠습니까?`)) {
                 return;
             }
             
-            // 선택된 파일 ID 배열 가져오기
+            // 선택된 파일 ID 배열 가져오기 (페이지와 페이지 상세 모두 포함)
             const fileIds = Array.from(selectedFiles).map(file => 
                 file.closest('.tree-node').dataset.id
             );
+            const detailIds = Array.from(selectedDetails).map(detail => 
+                detail.closest('.tree-node').dataset.id
+            );
+            
+            // 모든 ID를 합침 (API는 페이지와 페이지 상세 모두 처리 가능)
+            const allIds = [...fileIds, ...detailIds];
             
             // 파일 삭제 API 엔드포인트 호출
             fetch('/contents/files', {
@@ -1335,7 +1573,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ fileIds: fileIds })
+                body: JSON.stringify({ fileIds: allIds })
             })
             .then(response => {
                 if (!response.ok) {
@@ -1365,14 +1603,20 @@
         // 파일 선택 기능 추가
         document.addEventListener('click', function(e) {
             const fileNode = e.target.closest('.tree-file');
-            if (fileNode) {
-                // 이미 선택된 파일 선택 해제
-                document.querySelectorAll('.tree-file.selected').forEach(node => {
+            const detailNode = e.target.closest('.page-detail');
+            
+            if (fileNode || detailNode) {
+                // 이미 선택된 파일/상세 선택 해제
+                document.querySelectorAll('.tree-file.selected, .page-detail.selected').forEach(node => {
                     node.classList.remove('selected');
                 });
                 
-                // 현재 파일 선택
-                fileNode.classList.add('selected');
+                // 현재 파일/상세 선택
+                if (fileNode) {
+                    fileNode.classList.add('selected');
+                } else if (detailNode) {
+                    detailNode.classList.add('selected');
+                }
             }
         });
     </script>
