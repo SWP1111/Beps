@@ -1452,7 +1452,7 @@ def get_direct_upload_url(file_id):
         form_data = {
             'metadata': (None, json.dumps(metadata)),  # Text field in multipart form
             'requireSignedURLs': (None, 'true'),       # Text field in multipart form  
-            'expiry': (None, (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z')  # Text field in multipart form
+            'expiry': (None, (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ'))  # 30 minutes in correct format
         }
         
         # Get direct upload URL from Cloudflare using multipart/form-data
@@ -1617,7 +1617,7 @@ def debug_cloudflare():
         form_data = {
             'metadata': (None, json.dumps({'test': 'debug'})),
             'requireSignedURLs': (None, 'true'),
-            'expiry': (None, (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z')
+            'expiry': (None, (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ'))
         }
         
         try:
