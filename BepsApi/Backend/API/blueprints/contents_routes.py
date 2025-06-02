@@ -1451,7 +1451,7 @@ def get_direct_upload_url(file_id):
         # Cloudflare requires multipart/form-data, so we use files parameter with text values
         form_data = {
             'metadata': (None, json.dumps(metadata)),  # Text field in multipart form
-            'requireSignedURLs': (None, 'true'),       # Text field in multipart form  
+            'requireSignedURLs': (None, 'false'),      # Disable signed URLs temporarily for testing
             'expiry': (None, (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ'))  # 30 minutes in correct format
         }
         
@@ -1616,7 +1616,7 @@ def debug_cloudflare():
         direct_upload_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v2/direct_upload"
         form_data = {
             'metadata': (None, json.dumps({'test': 'debug'})),
-            'requireSignedURLs': (None, 'true'),
+            'requireSignedURLs': (None, 'false'),
             'expiry': (None, (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ'))
         }
         
