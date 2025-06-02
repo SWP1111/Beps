@@ -513,6 +513,34 @@
         const contentListElement = document.getElementById('content-list');
         const fileTreeViewElement = document.getElementById('file-tree-view');
         
+        // 🔑 Authentication helper function
+        function authenticatedFetch(url, options = {}) {
+            // Get JWT token from localStorage
+            const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
+            const jwtToken = userInfo.token;
+            
+            if (!jwtToken) {
+                console.error('🚫 No JWT token found in localStorage');
+                throw new Error('Authentication token not found');
+            }
+            
+            // Add Authorization header
+            const headers = {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            console.log('🔑 Making authenticated request to:', url);
+            console.log('🔑 JWT token found (length):', jwtToken.length);
+            
+            return fetch(url, {
+                credentials: 'include',
+                ...options,
+                headers
+            });
+        }
+        
         // 필터 핸들러 설정
         function setupFilterHandlers() {
             const filterCheckboxes = document.querySelectorAll('.filter-options input[type="checkbox"]');
@@ -1145,12 +1173,8 @@
                 try {
                     // 1단계: 백엔드에서 직접 업로드 URL 요청
                     console.log('직접 업로드 URL 요청 중...');
-                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1188,12 +1212,8 @@
                     
                     // 3단계: 백엔드에 업로드 완료 확인
                     console.log('업로드 완료 확인 중...');
-                    const confirmResponse = await fetch(`/contents/file/${fileId}/confirm-upload`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/confirm-upload`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             upload_id: urlData.upload_id,
                             cloudflare_id: uploadResult.result.id
@@ -1267,12 +1287,8 @@
                 try {
                     // 1단계: 백엔드에서 직접 업로드 URL 요청 (수정용)
                     console.log('수정용 직접 업로드 URL 요청 중...');
-                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1311,12 +1327,8 @@
                     
                     // 3단계: 기존 modify-image API를 사용하여 데이터베이스 업데이트
                     console.log('이미지 수정 확인 중...');
-                    const confirmResponse = await fetch(`/contents/file/${fileId}/modify-image`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/modify-image`, {
                         method: 'PUT',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             cloudflare_id: uploadResult.result.id,
                             filename: imageFile.name
