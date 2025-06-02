@@ -1200,7 +1200,15 @@
                     });
                     
                     if (!uploadResponse.ok) {
-                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status}`);
+                        // Get the error response body for debugging
+                        const errorText = await uploadResponse.text();
+                        console.error('❌ Cloudflare upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            headers: Object.fromEntries(uploadResponse.headers.entries()),
+                            body: errorText
+                        });
+                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status} - ${errorText}`);
                     }
                     
                     const uploadResult = await uploadResponse.json();
@@ -1315,7 +1323,15 @@
                     });
                     
                     if (!uploadResponse.ok) {
-                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status}`);
+                        // Get the error response body for debugging
+                        const errorText = await uploadResponse.text();
+                        console.error('❌ Cloudflare upload failed:', {
+                            status: uploadResponse.status,
+                            statusText: uploadResponse.statusText,
+                            headers: Object.fromEntries(uploadResponse.headers.entries()),
+                            body: errorText
+                        });
+                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status} - ${errorText}`);
                     }
                     
                     const uploadResult = await uploadResponse.json();

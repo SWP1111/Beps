@@ -1650,6 +1650,20 @@ def debug_cloudflare():
                 'error': str(e)
             }
         
+        # Test 4: Check Images account status and limits
+        images_stats_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1/stats"
+        try:
+            stats_response = requests.get(images_stats_url, headers=headers, timeout=10)
+            debug_info['api_tests']['images_stats'] = {
+                'status_code': stats_response.status_code,
+                'success': stats_response.status_code == 200,
+                'response_snippet': stats_response.text[:200] if stats_response.text else None
+            }
+        except Exception as e:
+            debug_info['api_tests']['images_stats'] = {
+                'error': str(e)
+            }
+        
         return jsonify(debug_info)
         
     except Exception as e:
