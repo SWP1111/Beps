@@ -1447,15 +1447,16 @@ def get_direct_upload_url(file_id):
             metadata['replaced_image_id'] = page.object_id
             metadata['modify_time'] = datetime.datetime.now().isoformat()
         
-        # Use form data format as required by Cloudflare API (like the official docs)
+        # Use multipart/form-data format as required by Cloudflare API
+        # Cloudflare requires multipart/form-data, so we use files parameter with text values
         form_data = {
-            'metadata': json.dumps(metadata),  # Metadata must be JSON string in form data
-            'requireSignedURLs': True,
-            'expiry': (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z'  # Add 'Z' for UTC
+            'metadata': (None, json.dumps(metadata)),  # Text field in multipart form
+            'requireSignedURLs': (None, 'true'),       # Text field in multipart form  
+            'expiry': (None, (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z')  # Text field in multipart form
         }
         
-        # Get direct upload URL from Cloudflare using form data
-        response = requests.post(url, headers=headers, data=form_data)
+        # Get direct upload URL from Cloudflare using multipart/form-data
+        response = requests.post(url, headers=headers, files=form_data)
         
         if response.status_code == 200:
             result = response.json()
@@ -1555,6 +1556,104 @@ def confirm_direct_upload(file_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error confirming direct upload: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/debug/cloudflare', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def debug_cloudflare():
+    """
+    Debug endpoint to test Cloudflare API credentials
+    Only accessible by developers (role_id = 999)
+    """
+    try:
+        # Check user permissions - only developers can access this
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id != 999:  # Developer only
+            return jsonify({'error': 'Permission denied. Developer role required.'}), 403
+        
+        # Get Cloudflare configuration
+        account_id = current_app.config.get('CLOUDFLARE_ACCOUNT_ID')
+        api_token = current_app.config.get('CLOUDFLARE_API_TOKEN')
+        account_hash = current_app.config.get('CLOUDFLARE_ACCOUNT_HASH')
+        signing_key = current_app.config.get('CLOUDFLARE_SIGNING_KEY')
+        
+        debug_info = {
+            'config_loaded': {
+                'account_id': account_id[:10] + '...' if account_id else None,
+                'api_token_length': len(api_token) if api_token else 0,
+                'account_hash': account_hash[:10] + '...' if account_hash else None,
+                'signing_key_length': len(signing_key) if signing_key else 0
+            },
+            'api_tests': {}
+        }
+        
+        if not account_id or not api_token:
+            debug_info['api_tests']['error'] = 'Missing Cloudflare configuration'
+            return jsonify(debug_info)
+        
+        headers = {
+            'Authorization': f'Bearer {api_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Test 1: List images (basic authentication test)
+        list_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1"
+        try:
+            list_response = requests.get(list_url, headers=headers, timeout=10)
+            debug_info['api_tests']['list_images'] = {
+                'status_code': list_response.status_code,
+                'success': list_response.status_code == 200,
+                'response_snippet': list_response.text[:200] if list_response.text else None
+            }
+        except Exception as e:
+            debug_info['api_tests']['list_images'] = {
+                'error': str(e)
+            }
+        
+        # Test 2: Test direct upload endpoint (the one that's failing)
+        direct_upload_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v2/direct_upload"
+        form_data = {
+            'metadata': (None, json.dumps({'test': 'debug'})),
+            'requireSignedURLs': (None, 'true'),
+            'expiry': (None, (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z')
+        }
+        
+        try:
+            # Remove Content-Type header for form data
+            form_headers = {
+                'Authorization': f'Bearer {api_token}'
+            }
+            direct_response = requests.post(direct_upload_url, headers=form_headers, files=form_data, timeout=10)
+            debug_info['api_tests']['direct_upload'] = {
+                'status_code': direct_response.status_code,
+                'success': direct_response.status_code == 200,
+                'response_snippet': direct_response.text[:200] if direct_response.text else None
+            }
+        except Exception as e:
+            debug_info['api_tests']['direct_upload'] = {
+                'error': str(e)
+            }
+        
+        # Test 3: Get account info (to verify account access)
+        account_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
+        try:
+            account_response = requests.get(account_url, headers=headers, timeout=10)
+            debug_info['api_tests']['account_info'] = {
+                'status_code': account_response.status_code,
+                'success': account_response.status_code == 200,
+                'response_snippet': account_response.text[:200] if account_response.text else None
+            }
+        except Exception as e:
+            debug_info['api_tests']['account_info'] = {
+                'error': str(e)
+            }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        logging.error(f"Error in debug cloudflare: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 #endregion
