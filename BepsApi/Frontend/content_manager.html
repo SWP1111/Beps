@@ -1113,7 +1113,7 @@
             window.location.href = `/contents/file/${fileId}/download`;
         }
         
-        // 이미지 업로드
+        // 이미지 업로드 (최적화된 직접 업로드 방식)
         function uploadImage(fileId) {
             console.log(`이미지 업로드: ${fileId}`);
             
@@ -1129,36 +1129,84 @@
             fileInput.accept = 'image/*';
             fileInput.multiple = false;
             
-            fileInput.onchange = function() {
+            fileInput.onchange = async function() {
                 if (!fileInput.files || fileInput.files.length === 0) {
                     return;
                 }
                 
                 const imageFile = fileInput.files[0];
                 
-                // 파일 크기 검사 (10MB 제한)
-                if (imageFile.size > 10 * 1024 * 1024) {
+                // 파일 크기 검사 (100MB 제한)
+                if (imageFile.size > 100 * 1024 * 1024) {
                     alert('파일 크기가 너무 큽니다. 10MB 이하의 파일을 선택해주세요.');
                     return;
                 }
                 
-                // FormData 생성
-                const formData = new FormData();
-                formData.append('image', imageFile);
-                
-                // 업로드 API 호출
-                fetch(`/contents/file/${fileId}/upload-image`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`이미지 업로드에 실패했습니다: ${response.status}`);
+                try {
+                    // 1단계: 백엔드에서 직접 업로드 URL 요청
+                    console.log('직접 업로드 URL 요청 중...');
+                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            filename: imageFile.name,
+                            content_type: imageFile.type,
+                            file_size: imageFile.size
+                        })
+                    });
+                    
+                    if (!urlResponse.ok) {
+                        throw new Error(`직접 업로드 URL 생성 실패: ${urlResponse.status}`);
                     }
-                    return response.json();
-                })
-                .then(data => {
+                    
+                    const urlData = await urlResponse.json();
+                    console.log('직접 업로드 URL 받음:', urlData.upload_url);
+                    
+                    // 2단계: Cloudflare에 직접 업로드
+                    console.log('Cloudflare에 직접 업로드 중...');
+                    const formData = new FormData();
+                    formData.append('file', imageFile);
+                    
+                    const uploadResponse = await fetch(urlData.upload_url, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!uploadResponse.ok) {
+                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status}`);
+                    }
+                    
+                    const uploadResult = await uploadResponse.json();
+                    console.log('Cloudflare 업로드 완료:', uploadResult);
+                    
+                    if (!uploadResult.success) {
+                        throw new Error('Cloudflare 업로드가 성공하지 못했습니다.');
+                    }
+                    
+                    // 3단계: 백엔드에 업로드 완료 확인
+                    console.log('업로드 완료 확인 중...');
+                    const confirmResponse = await fetch(`/contents/file/${fileId}/confirm-upload`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            upload_id: urlData.upload_id,
+                            cloudflare_id: uploadResult.result.id
+                        })
+                    });
+                    
+                    if (!confirmResponse.ok) {
+                        throw new Error(`업로드 확인 실패: ${confirmResponse.status}`);
+                    }
+                    
+                    const confirmData = await confirmResponse.json();
+                    console.log('업로드 확인 완료:', confirmData);
+                    
                     alert('이미지가 성공적으로 업로드되었습니다.');
                     
                     // 파일 목록 새로고침
@@ -1172,17 +1220,17 @@
                         };
                         fetchChannelHierarchy(currentSelectedChannel, filters);
                     }
-                })
-                .catch(error => {
+                    
+                } catch (error) {
                     console.error('이미지 업로드 중 오류가 발생했습니다:', error);
-                    alert('이미지 업로드 중 오류가 발생했습니다.');
-                });
+                    alert(`이미지 업로드 중 오류가 발생했습니다: ${error.message}`);
+                }
             };
             
             fileInput.click();
         }
         
-        // 이미지 수정
+        // 이미지 수정 (최적화된 직접 업로드 방식)
         function modifyImage(fileId) {
             console.log(`이미지 수정: ${fileId}`);
             
@@ -1203,36 +1251,85 @@
             fileInput.accept = 'image/*';
             fileInput.multiple = false;
             
-            fileInput.onchange = function() {
+            fileInput.onchange = async function() {
                 if (!fileInput.files || fileInput.files.length === 0) {
                     return;
                 }
                 
                 const imageFile = fileInput.files[0];
                 
-                // 파일 크기 검사 (10MB 제한)
-                if (imageFile.size > 10 * 1024 * 1024) {
+                // 파일 크기 검사 (100MB 제한)
+                if (imageFile.size > 100 * 1024 * 1024) {
                     alert('파일 크기가 너무 큽니다. 10MB 이하의 파일을 선택해주세요.');
                     return;
                 }
                 
-                // FormData 생성
-                const formData = new FormData();
-                formData.append('image', imageFile);
-                
-                // 수정 API 호출
-                fetch(`/contents/file/${fileId}/modify-image`, {
-                    method: 'PUT',
-                    credentials: 'include',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`이미지 수정에 실패했습니다: ${response.status}`);
+                try {
+                    // 1단계: 백엔드에서 직접 업로드 URL 요청 (수정용)
+                    console.log('수정용 직접 업로드 URL 요청 중...');
+                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            filename: imageFile.name,
+                            content_type: imageFile.type,
+                            file_size: imageFile.size,
+                            is_modify: true  // 수정 모드임을 표시
+                        })
+                    });
+                    
+                    if (!urlResponse.ok) {
+                        throw new Error(`직접 업로드 URL 생성 실패: ${urlResponse.status}`);
                     }
-                    return response.json();
-                })
-                .then(data => {
+                    
+                    const urlData = await urlResponse.json();
+                    console.log('직접 업로드 URL 받음:', urlData.upload_url);
+                    
+                    // 2단계: Cloudflare에 직접 업로드
+                    console.log('Cloudflare에 직접 업로드 중...');
+                    const formData = new FormData();
+                    formData.append('file', imageFile);
+                    
+                    const uploadResponse = await fetch(urlData.upload_url, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!uploadResponse.ok) {
+                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status}`);
+                    }
+                    
+                    const uploadResult = await uploadResponse.json();
+                    console.log('Cloudflare 업로드 완료:', uploadResult);
+                    
+                    if (!uploadResult.success) {
+                        throw new Error('Cloudflare 업로드가 성공하지 못했습니다.');
+                    }
+                    
+                    // 3단계: 기존 modify-image API를 사용하여 데이터베이스 업데이트
+                    console.log('이미지 수정 확인 중...');
+                    const confirmResponse = await fetch(`/contents/file/${fileId}/modify-image`, {
+                        method: 'PUT',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            cloudflare_id: uploadResult.result.id,
+                            filename: imageFile.name
+                        })
+                    });
+                    
+                    if (!confirmResponse.ok) {
+                        throw new Error(`이미지 수정 확인 실패: ${confirmResponse.status}`);
+                    }
+                    
+                    const confirmData = await confirmResponse.json();
+                    console.log('이미지 수정 완료:', confirmData);
+                    
                     alert('이미지가 성공적으로 수정되었습니다.');
                     
                     // 파일 목록 새로고침
@@ -1246,11 +1343,11 @@
                         };
                         fetchChannelHierarchy(currentSelectedChannel, filters);
                     }
-                })
-                .catch(error => {
+                    
+                } catch (error) {
                     console.error('이미지 수정 중 오류가 발생했습니다:', error);
-                    alert('이미지 수정 중 오류가 발생했습니다.');
-                });
+                    alert(`이미지 수정 중 오류가 발생했습니다: ${error.message}`);
+                }
             };
             
             fileInput.click();
