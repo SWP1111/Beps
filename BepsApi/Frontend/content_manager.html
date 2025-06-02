@@ -574,6 +574,28 @@
                     console.error('🧪 Contents endpoint test failed:', testError);
                 }
                 
+                const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
+                const jwtToken = userInfo.token;
+                console.log('🧪 JWT in localStorage:', jwtToken ? `Found (${jwtToken.length} chars)` : 'Not found');
+                
+                // 🔍 Try to decode JWT token (just the payload, not verify signature)
+                if (jwtToken) {
+                    try {
+                        const parts = jwtToken.split('.');
+                        if (parts.length === 3) {
+                            const payload = JSON.parse(atob(parts[1]));
+                            console.log('🧪 JWT payload:', {
+                                sub: payload.sub,
+                                exp: payload.exp,
+                                iat: payload.iat,
+                                expiry: new Date(payload.exp * 1000).toLocaleString()
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('🧪 Could not decode JWT:', e);
+                    }
+                }
+                
                 return true;
                 
             } catch (error) {
@@ -586,11 +608,22 @@
         async function authenticatedFetch(url, options = {}) {
             console.log('🌐 Making authenticated request to:', url);
             
-            // Ensure credentials are included
+            // 🔑 Get JWT token from localStorage
+            const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
+            const jwtToken = userInfo.token;
+            
+            if (jwtToken) {
+                console.log('🔑 JWT token found in localStorage (length):', jwtToken.length);
+            } else {
+                console.warn('⚠️ No JWT token found in localStorage!');
+            }
+            
+            // Ensure credentials are included and add Authorization header
             const defaultOptions = {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(jwtToken ? { 'Authorization': `Bearer ${jwtToken}` } : {}),
                     ...options.headers
                 }
             };
@@ -602,6 +635,7 @@
                 method: finalOptions.method || 'GET',
                 credentials: finalOptions.credentials,
                 hasBody: !!finalOptions.body,
+                hasAuthHeader: !!finalOptions.headers.Authorization,
                 headers: finalOptions.headers
             });
             
@@ -1611,19 +1645,58 @@
             console.log('🧪 === AUTHENTICATION TEST START ===');
             
             try {
+                // 🔍 Check localStorage token
+                const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
+                const jwtToken = userInfo.token;
+                console.log('🧪 JWT in localStorage:', jwtToken ? `Found (${jwtToken.length} chars)` : 'Not found');
+                
+                // 🔍 Try to decode JWT token (just the payload, not verify signature)
+                if (jwtToken) {
+                    try {
+                        const parts = jwtToken.split('.');
+                        if (parts.length === 3) {
+                            const payload = JSON.parse(atob(parts[1]));
+                            console.log('🧪 JWT payload:', {
+                                sub: payload.sub,
+                                exp: payload.exp,
+                                iat: payload.iat,
+                                expiry: new Date(payload.exp * 1000).toLocaleString()
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('🧪 Could not decode JWT:', e);
+                    }
+                }
+                
                 // Test 1: Basic authentication check
-                console.log('🧪 Test 1: Basic token check');
+                console.log('🧪 Test 1: Basic token check (cookies only)');
                 const tokenCheck = await checkAuthenticationStatus();
                 console.log('🧪 Token check result:', tokenCheck);
                 
                 // Test 2: Test a simple GET request to contents API
-                console.log('🧪 Test 2: Simple contents GET request');
+                console.log('🧪 Test 2: Simple contents GET request (with auth header)');
                 const simpleResponse = await authenticatedFetch('/contents/hierarchy');
                 console.log('🧪 Simple GET response:', simpleResponse.status);
                 
-                // Test 3: Test the specific problematic endpoint with minimal payload
-                console.log('🧪 Test 3: Direct upload URL endpoint test');
-                const testFileId = 7; // Use a known file ID from the error logs
+                // Test 3: Manual test with Authorization header
+                console.log('🧪 Test 3: Manual Authorization header test');
+                if (jwtToken) {
+                    const manualResponse = await fetch('/contents/hierarchy', {
+                        method: 'GET',
+                        credentials: 'include',
+                        headers: {
+                            'Authorization': `Bearer ${jwtToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('🧪 Manual auth header response:', manualResponse.status);
+                } else {
+                    console.log('🧪 Skipping manual test - no JWT token');
+                }
+                
+                // Test 4: Test the specific problematic endpoint with minimal payload
+                console.log('🧪 Test 4: Direct upload URL endpoint test (with auth header)');
+                const testFileId = 12; // Use a known file ID from the error logs
                 const directUploadResponse = await authenticatedFetch(`/contents/file/${testFileId}/direct-upload-url`, {
                     method: 'POST',
                     body: JSON.stringify({
