@@ -1430,8 +1430,7 @@ def get_direct_upload_url(file_id):
         # Request direct upload URL from Cloudflare
         url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v2/direct_upload"
         headers = {
-            'Authorization': f'Bearer {api_token}',
-            'Content-Type': 'application/json'
+            'Authorization': f'Bearer {api_token}'
         }
         
         # Prepare metadata for the upload
@@ -1448,15 +1447,15 @@ def get_direct_upload_url(file_id):
             metadata['replaced_image_id'] = page.object_id
             metadata['modify_time'] = datetime.datetime.now().isoformat()
         
-        # Request payload
-        payload = {
-            'metadata': metadata,
-            'requireSignedURLs': True,  # Enable signed URLs for security
-            'expiry': (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat()  # 1 hour expiry
+        # Use form data format as required by Cloudflare API (like the official docs)
+        form_data = {
+            'metadata': json.dumps(metadata),  # Metadata must be JSON string in form data
+            'requireSignedURLs': True,
+            'expiry': (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat() + 'Z'  # Add 'Z' for UTC
         }
         
-        # Get direct upload URL from Cloudflare
-        response = requests.post(url, headers=headers, json=payload)
+        # Get direct upload URL from Cloudflare using form data
+        response = requests.post(url, headers=headers, data=form_data)
         
         if response.status_code == 200:
             result = response.json()

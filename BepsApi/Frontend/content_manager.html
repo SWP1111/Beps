@@ -459,8 +459,6 @@
                     <div>
                         <button class="add-btn" id="add-file">+</button>
                         <button class="remove-btn" id="remove-file">-</button>
-                        <!-- 🔧 Debug button for testing authentication -->
-                        <button id="test-auth" style="margin-left: 10px; padding: 5px 10px; background: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer;">Test Auth</button>
                     </div>
                 </div>
             </div>
@@ -487,14 +485,6 @@
             window.userRoleId = roleId;
             window.userId = userId;
             
-            // 🔍 Debug user information
-            console.log('👤 User Info from localStorage:', userInfo);
-            console.log('🔑 User Role ID:', roleId);
-            console.log('🆔 User ID:', userId);
-            
-            // Check if user is properly authenticated
-            checkAuthenticationStatus();
-            
             // For completely restricted areas (development only)
             if (document.getElementById('filter-all') && roleId !== 999) {
                 document.body.innerHTML = `
@@ -512,165 +502,6 @@
             setupFilterHandlers();
             setupTreeViewEventHandlers();
         });
-        
-        // 🔹 Authentication status check function
-        async function checkAuthenticationStatus() {
-            try {
-                console.log('🔍 Checking authentication status...');
-                
-                // 🍪 Check cookies
-                console.log('🍪 All cookies:', document.cookie);
-                const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-                    const [key, value] = cookie.split('=').map(s => s.trim());
-                    acc[key] = value;
-                    return acc;
-                }, {});
-                console.log('🍪 Parsed cookies:', cookies);
-                
-                // Check if JWT cookie exists
-                if (cookies.access_token_cookie) {
-                    console.log('🔑 JWT token cookie found (length):', cookies.access_token_cookie.length);
-                } else {
-                    console.warn('⚠️ No JWT token cookie found!');
-                }
-                
-                // Test authentication by making a simple authenticated request
-                const response = await fetch('/user/token_check', {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                console.log('🔍 Authentication check response:', response.status, response.statusText);
-                
-                if (!response.ok) {
-                    console.warn('⚠️ Authentication check failed:', response.status);
-                    if (response.status === 401) {
-                        // Token expired or invalid, redirect to login
-                        console.error('❌ Session expired - redirecting to login');
-                        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-                        window.location.href = 'login.html';
-                        return false;
-                    }
-                }
-                
-                const data = await response.json();
-                console.log('✅ Authentication status confirmed:', data);
-                
-                // 🔍 Additional check: test the specific endpoint that's failing
-                console.log('🧪 Testing direct upload URL endpoint with a safe request...');
-                try {
-                    const testResponse = await fetch('/contents/hierarchy', {
-                        method: 'GET',
-                        credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    console.log('🧪 Contents hierarchy test:', testResponse.status, testResponse.statusText);
-                } catch (testError) {
-                    console.error('🧪 Contents endpoint test failed:', testError);
-                }
-                
-                const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
-                const jwtToken = userInfo.token;
-                console.log('🧪 JWT in localStorage:', jwtToken ? `Found (${jwtToken.length} chars)` : 'Not found');
-                
-                // 🔍 Try to decode JWT token (just the payload, not verify signature)
-                if (jwtToken) {
-                    try {
-                        const parts = jwtToken.split('.');
-                        if (parts.length === 3) {
-                            const payload = JSON.parse(atob(parts[1]));
-                            console.log('🧪 JWT payload:', {
-                                sub: payload.sub,
-                                exp: payload.exp,
-                                iat: payload.iat,
-                                expiry: new Date(payload.exp * 1000).toLocaleString()
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('🧪 Could not decode JWT:', e);
-                    }
-                }
-                
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Authentication check error:', error);
-                return false;
-            }
-        }
-        
-        // 🔹 Enhanced fetch function with authentication retry
-        async function authenticatedFetch(url, options = {}) {
-            console.log('🌐 Making authenticated request to:', url);
-            
-            // 🔑 Get JWT token from localStorage
-            const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
-            const jwtToken = userInfo.token;
-            
-            if (jwtToken) {
-                console.log('🔑 JWT token found in localStorage (length):', jwtToken.length);
-            } else {
-                console.warn('⚠️ No JWT token found in localStorage!');
-            }
-            
-            // Ensure credentials are included and add Authorization header
-            const defaultOptions = {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(jwtToken ? { 'Authorization': `Bearer ${jwtToken}` } : {}),
-                    ...options.headers
-                }
-            };
-            
-            const finalOptions = { ...defaultOptions, ...options };
-            
-            // Log request details (but not sensitive data)
-            console.log('📤 Request options:', {
-                method: finalOptions.method || 'GET',
-                credentials: finalOptions.credentials,
-                hasBody: !!finalOptions.body,
-                hasAuthHeader: !!finalOptions.headers.Authorization,
-                headers: finalOptions.headers
-            });
-            
-            try {
-                const response = await fetch(url, finalOptions);
-                
-                console.log('📥 Response status:', response.status, response.statusText);
-                
-                // If we get a 401, try to refresh authentication
-                if (response.status === 401) {
-                    console.warn('⚠️ Received 401, checking authentication...');
-                    
-                    const authCheck = await checkAuthenticationStatus();
-                    if (!authCheck) {
-                        throw new Error('Authentication failed. Please log in again.');
-                    }
-                    
-                    console.log('🔄 Retrying original request...');
-                    // Retry the original request once
-                    const retryResponse = await fetch(url, finalOptions);
-                    console.log('🔄 Retry response status:', retryResponse.status, retryResponse.statusText);
-                    
-                    if (retryResponse.status === 401) {
-                        throw new Error('Authentication failed after retry. Please log in again.');
-                    }
-                    return retryResponse;
-                }
-                
-                return response;
-                
-            } catch (error) {
-                console.error('❌ Authenticated fetch error:', error);
-                throw error;
-            }
-        }
         
         // 상태 관리
         let currentSelectedChannel = null;
@@ -745,7 +576,7 @@
         async function getContentHierarchy() {
             try {
                 // API 엔드포인트 호출
-                const response = await authenticatedFetch('/contents/hierarchy');
+                const response = await fetch('/contents/hierarchy');
                 if (!response.ok) {
                     throw new Error(`계층 구조를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -761,7 +592,7 @@
         async function getUserAccessibleContent() {
             try {
                 // API 엔드포인트 호출
-                const response = await authenticatedFetch(`/contents/user-accessible?user_id=${window.userId}`);
+                const response = await fetch(`/contents/user-accessible?user_id=${window.userId}`);
                 if (!response.ok) {
                     throw new Error(`접근 가능한 콘텐츠를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -914,7 +745,7 @@
                 const filtersParam = encodeURIComponent(JSON.stringify(filters));
                 
                 // API 엔드포인트 호출
-                const response = await authenticatedFetch(`/contents/hierarchy/channel/${channelId}?filters=${filtersParam}`);
+                const response = await fetch(`/contents/hierarchy/channel/${channelId}?filters=${filtersParam}`);
                 if (!response.ok) {
                     throw new Error(`채널 계층 구조를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -1286,18 +1117,11 @@
         function uploadImage(fileId) {
             console.log(`이미지 업로드: ${fileId}`);
             
-            // 🔍 Debug current user information
-            console.log('🔍 Current user role ID:', window.userRoleId);
-            console.log('🔍 Current user ID:', window.userId);
-            
             // 권한 검사
             if (window.userRoleId !== 999 && window.userRoleId !== 1 && window.userRoleId !== 2) {
-                console.error('❌ Permission denied. Required role: 1, 2, or 999. Current role:', window.userRoleId);
                 alert('이미지 업로드 권한이 없습니다.');
                 return;
             }
-            
-            console.log('✅ Permission check passed for role:', window.userRoleId);
             
             // 파일 선택 다이얼로그 생성
             const fileInput = document.createElement('input');
@@ -1319,24 +1143,14 @@
                 }
                 
                 try {
-                    // 🔍 Pre-upload checks
-                    console.log('📁 File details:', {
-                        name: imageFile.name,
-                        type: imageFile.type,
-                        size: imageFile.size
-                    });
-                    
-                    // 🔍 Check authentication right before the critical request
-                    console.log('🔐 Re-checking authentication before upload...');
-                    const authCheck = await checkAuthenticationStatus();
-                    if (!authCheck) {
-                        throw new Error('Pre-upload authentication check failed');
-                    }
-                    
                     // 1단계: 백엔드에서 직접 업로드 URL 요청
                     console.log('직접 업로드 URL 요청 중...');
-                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1374,8 +1188,12 @@
                     
                     // 3단계: 백엔드에 업로드 완료 확인
                     console.log('업로드 완료 확인 중...');
-                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/confirm-upload`, {
+                    const confirmResponse = await fetch(`/contents/file/${fileId}/confirm-upload`, {
                         method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             upload_id: urlData.upload_id,
                             cloudflare_id: uploadResult.result.id
@@ -1449,8 +1267,12 @@
                 try {
                     // 1단계: 백엔드에서 직접 업로드 URL 요청 (수정용)
                     console.log('수정용 직접 업로드 URL 요청 중...');
-                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1489,8 +1311,12 @@
                     
                     // 3단계: 기존 modify-image API를 사용하여 데이터베이스 업데이트
                     console.log('이미지 수정 확인 중...');
-                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/modify-image`, {
+                    const confirmResponse = await fetch(`/contents/file/${fileId}/modify-image`, {
                         method: 'PUT',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             cloudflare_id: uploadResult.result.id,
                             filename: imageFile.name
@@ -1532,8 +1358,9 @@
             console.log(`이미지 보기: ${fileId}`);
             
             // 이미지 URL 가져오기
-            authenticatedFetch(`/contents/file/${fileId}/image-url`, {
+            fetch(`/contents/file/${fileId}/image-url`, {
                 method: 'GET',
+                credentials: 'include',
                 headers: {
                     'Accept': 'application/json'
                 }
@@ -1605,10 +1432,10 @@
                 formData.append('file', contentFile);
                 
                 // 업로드 API 호출
-                authenticatedFetch(`/contents/page-detail/${detailId}/upload-content`, {
+                fetch(`/contents/page-detail/${detailId}/upload-content`, {
                     method: 'POST',
-                    body: formData,
-                    headers: {} // Remove Content-Type header to let browser set it for FormData
+                    credentials: 'include',
+                    body: formData
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -1616,7 +1443,7 @@
                     }
                     return response.json();
                 })
-                .then(() => {
+                .then(data => {
                     alert('파일이 성공적으로 업로드되었습니다.');
                     
                     // 파일 목록 새로고침
@@ -1638,88 +1465,6 @@
             };
             
             fileInput.click();
-        }
-        
-        // 🔧 Test authentication function
-        async function testAuthentication() {
-            console.log('🧪 === AUTHENTICATION TEST START ===');
-            
-            try {
-                // 🔍 Check localStorage token
-                const userInfo = JSON.parse(localStorage.getItem("loggedInUser") || "{}");
-                const jwtToken = userInfo.token;
-                console.log('🧪 JWT in localStorage:', jwtToken ? `Found (${jwtToken.length} chars)` : 'Not found');
-                
-                // 🔍 Try to decode JWT token (just the payload, not verify signature)
-                if (jwtToken) {
-                    try {
-                        const parts = jwtToken.split('.');
-                        if (parts.length === 3) {
-                            const payload = JSON.parse(atob(parts[1]));
-                            console.log('🧪 JWT payload:', {
-                                sub: payload.sub,
-                                exp: payload.exp,
-                                iat: payload.iat,
-                                expiry: new Date(payload.exp * 1000).toLocaleString()
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('🧪 Could not decode JWT:', e);
-                    }
-                }
-                
-                // Test 1: Basic authentication check
-                console.log('🧪 Test 1: Basic token check (cookies only)');
-                const tokenCheck = await checkAuthenticationStatus();
-                console.log('🧪 Token check result:', tokenCheck);
-                
-                // Test 2: Test a simple GET request to contents API
-                console.log('🧪 Test 2: Simple contents GET request (with auth header)');
-                const simpleResponse = await authenticatedFetch('/contents/hierarchy');
-                console.log('🧪 Simple GET response:', simpleResponse.status);
-                
-                // Test 3: Manual test with Authorization header
-                console.log('🧪 Test 3: Manual Authorization header test');
-                if (jwtToken) {
-                    const manualResponse = await fetch('/contents/hierarchy', {
-                        method: 'GET',
-                        credentials: 'include',
-                        headers: {
-                            'Authorization': `Bearer ${jwtToken}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    console.log('🧪 Manual auth header response:', manualResponse.status);
-                } else {
-                    console.log('🧪 Skipping manual test - no JWT token');
-                }
-                
-                // Test 4: Test the specific problematic endpoint with minimal payload
-                console.log('🧪 Test 4: Direct upload URL endpoint test (with auth header)');
-                const testFileId = 12; // Use a known file ID from the error logs
-                const directUploadResponse = await authenticatedFetch(`/contents/file/${testFileId}/direct-upload-url`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        filename: 'test.jpg',
-                        content_type: 'image/jpeg',
-                        file_size: 1024
-                    })
-                });
-                console.log('🧪 Direct upload URL response:', directUploadResponse.status);
-                
-                if (directUploadResponse.ok) {
-                    const data = await directUploadResponse.json();
-                    console.log('🧪 Direct upload URL data:', data);
-                } else {
-                    const errorData = await directUploadResponse.text();
-                    console.error('🧪 Direct upload URL error:', errorData);
-                }
-                
-            } catch (error) {
-                console.error('🧪 Authentication test failed:', error);
-            }
-            
-            console.log('🧪 === AUTHENTICATION TEST END ===');
         }
         
         // 이미지 모달 닫기 이벤트 설정
@@ -1745,12 +1490,6 @@
                     modal.style.display = 'none';
                 }
             });
-            
-            // 🔧 Test auth button event listener
-            const testAuthBtn = document.getElementById('test-auth');
-            if (testAuthBtn) {
-                testAuthBtn.addEventListener('click', testAuthentication);
-            }
         });
         
         // 콘텐츠 추가 버튼 이벤트
@@ -1768,8 +1507,11 @@
             if (!channelName) return;
             
             // 채널 추가 API 엔드포인트 호출
-            authenticatedFetch('/contents/channel', {
+            fetch('/contents/channel', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({ name: channelName })
             })
             .then(response => {
@@ -1807,7 +1549,7 @@
             }
             
             // 채널 삭제 API 엔드포인트 호출
-            authenticatedFetch(`/contents/channel/${currentSelectedChannel}`, {
+            fetch(`/contents/channel/${currentSelectedChannel}`, {
                 method: 'DELETE'
             })
             .then(response => {
@@ -1856,10 +1598,9 @@
                 formData.append('channelId', currentSelectedChannel);
                 
                 // 파일 업로드 API 엔드포인트 호출
-                authenticatedFetch('/contents/file', {
+                fetch('/contents/file', {
                     method: 'POST',
-                    body: formData,
-                    headers: {} // Remove Content-Type to let browser set it for FormData
+                    body: formData
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -1924,8 +1665,11 @@
             const allIds = [...fileIds, ...detailIds];
             
             // 파일 삭제 API 엔드포인트 호출
-            authenticatedFetch('/contents/files', {
+            fetch('/contents/files', {
                 method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({ fileIds: allIds })
             })
             .then(response => {
