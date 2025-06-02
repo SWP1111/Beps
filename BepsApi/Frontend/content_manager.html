@@ -485,6 +485,9 @@
             window.userRoleId = roleId;
             window.userId = userId;
             
+            // Check if user is properly authenticated
+            checkAuthenticationStatus();
+            
             // For completely restricted areas (development only)
             if (document.getElementById('filter-all') && roleId !== 999) {
                 document.body.innerHTML = `
@@ -502,6 +505,99 @@
             setupFilterHandlers();
             setupTreeViewEventHandlers();
         });
+        
+        // 🔹 Authentication status check function
+        async function checkAuthenticationStatus() {
+            try {
+                console.log('🔍 Checking authentication status...');
+                
+                // Test authentication by making a simple authenticated request
+                const response = await fetch('/user/token_check', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('🔍 Authentication check response:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    console.warn('⚠️ Authentication check failed:', response.status);
+                    if (response.status === 401) {
+                        // Token expired or invalid, redirect to login
+                        console.error('❌ Session expired - redirecting to login');
+                        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+                        window.location.href = 'login.html';
+                        return false;
+                    }
+                }
+                
+                const data = await response.json();
+                console.log('✅ Authentication status confirmed:', data);
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Authentication check error:', error);
+                return false;
+            }
+        }
+        
+        // 🔹 Enhanced fetch function with authentication retry
+        async function authenticatedFetch(url, options = {}) {
+            console.log('🌐 Making authenticated request to:', url);
+            
+            // Ensure credentials are included
+            const defaultOptions = {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            };
+            
+            const finalOptions = { ...defaultOptions, ...options };
+            
+            // Log request details (but not sensitive data)
+            console.log('📤 Request options:', {
+                method: finalOptions.method || 'GET',
+                credentials: finalOptions.credentials,
+                hasBody: !!finalOptions.body,
+                headers: finalOptions.headers
+            });
+            
+            try {
+                const response = await fetch(url, finalOptions);
+                
+                console.log('📥 Response status:', response.status, response.statusText);
+                
+                // If we get a 401, try to refresh authentication
+                if (response.status === 401) {
+                    console.warn('⚠️ Received 401, checking authentication...');
+                    
+                    const authCheck = await checkAuthenticationStatus();
+                    if (!authCheck) {
+                        throw new Error('Authentication failed. Please log in again.');
+                    }
+                    
+                    console.log('🔄 Retrying original request...');
+                    // Retry the original request once
+                    const retryResponse = await fetch(url, finalOptions);
+                    console.log('🔄 Retry response status:', retryResponse.status, retryResponse.statusText);
+                    
+                    if (retryResponse.status === 401) {
+                        throw new Error('Authentication failed after retry. Please log in again.');
+                    }
+                    return retryResponse;
+                }
+                
+                return response;
+                
+            } catch (error) {
+                console.error('❌ Authenticated fetch error:', error);
+                throw error;
+            }
+        }
         
         // 상태 관리
         let currentSelectedChannel = null;
@@ -576,7 +672,7 @@
         async function getContentHierarchy() {
             try {
                 // API 엔드포인트 호출
-                const response = await fetch('/contents/hierarchy');
+                const response = await authenticatedFetch('/contents/hierarchy');
                 if (!response.ok) {
                     throw new Error(`계층 구조를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -592,7 +688,7 @@
         async function getUserAccessibleContent() {
             try {
                 // API 엔드포인트 호출
-                const response = await fetch(`/contents/user-accessible?user_id=${window.userId}`);
+                const response = await authenticatedFetch(`/contents/user-accessible?user_id=${window.userId}`);
                 if (!response.ok) {
                     throw new Error(`접근 가능한 콘텐츠를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -745,7 +841,7 @@
                 const filtersParam = encodeURIComponent(JSON.stringify(filters));
                 
                 // API 엔드포인트 호출
-                const response = await fetch(`/contents/hierarchy/channel/${channelId}?filters=${filtersParam}`);
+                const response = await authenticatedFetch(`/contents/hierarchy/channel/${channelId}?filters=${filtersParam}`);
                 if (!response.ok) {
                     throw new Error(`채널 계층 구조를 가져오는데 실패했습니다: ${response.status}`);
                 }
@@ -1145,12 +1241,8 @@
                 try {
                     // 1단계: 백엔드에서 직접 업로드 URL 요청
                     console.log('직접 업로드 URL 요청 중...');
-                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1188,12 +1280,8 @@
                     
                     // 3단계: 백엔드에 업로드 완료 확인
                     console.log('업로드 완료 확인 중...');
-                    const confirmResponse = await fetch(`/contents/file/${fileId}/confirm-upload`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/confirm-upload`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             upload_id: urlData.upload_id,
                             cloudflare_id: uploadResult.result.id
@@ -1267,12 +1355,8 @@
                 try {
                     // 1단계: 백엔드에서 직접 업로드 URL 요청 (수정용)
                     console.log('수정용 직접 업로드 URL 요청 중...');
-                    const urlResponse = await fetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             filename: imageFile.name,
                             content_type: imageFile.type,
@@ -1311,12 +1395,8 @@
                     
                     // 3단계: 기존 modify-image API를 사용하여 데이터베이스 업데이트
                     console.log('이미지 수정 확인 중...');
-                    const confirmResponse = await fetch(`/contents/file/${fileId}/modify-image`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/modify-image`, {
                         method: 'PUT',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({
                             cloudflare_id: uploadResult.result.id,
                             filename: imageFile.name
@@ -1358,9 +1438,8 @@
             console.log(`이미지 보기: ${fileId}`);
             
             // 이미지 URL 가져오기
-            fetch(`/contents/file/${fileId}/image-url`, {
+            authenticatedFetch(`/contents/file/${fileId}/image-url`, {
                 method: 'GET',
-                credentials: 'include',
                 headers: {
                     'Accept': 'application/json'
                 }
@@ -1432,10 +1511,10 @@
                 formData.append('file', contentFile);
                 
                 // 업로드 API 호출
-                fetch(`/contents/page-detail/${detailId}/upload-content`, {
+                authenticatedFetch(`/contents/page-detail/${detailId}/upload-content`, {
                     method: 'POST',
-                    credentials: 'include',
-                    body: formData
+                    body: formData,
+                    headers: {} // Remove Content-Type header to let browser set it for FormData
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -1443,7 +1522,7 @@
                     }
                     return response.json();
                 })
-                .then(data => {
+                .then(() => {
                     alert('파일이 성공적으로 업로드되었습니다.');
                     
                     // 파일 목록 새로고침
@@ -1507,11 +1586,8 @@
             if (!channelName) return;
             
             // 채널 추가 API 엔드포인트 호출
-            fetch('/contents/channel', {
+            authenticatedFetch('/contents/channel', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({ name: channelName })
             })
             .then(response => {
@@ -1549,7 +1625,7 @@
             }
             
             // 채널 삭제 API 엔드포인트 호출
-            fetch(`/contents/channel/${currentSelectedChannel}`, {
+            authenticatedFetch(`/contents/channel/${currentSelectedChannel}`, {
                 method: 'DELETE'
             })
             .then(response => {
@@ -1598,9 +1674,10 @@
                 formData.append('channelId', currentSelectedChannel);
                 
                 // 파일 업로드 API 엔드포인트 호출
-                fetch('/contents/file', {
+                authenticatedFetch('/contents/file', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {} // Remove Content-Type to let browser set it for FormData
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -1665,11 +1742,8 @@
             const allIds = [...fileIds, ...detailIds];
             
             // 파일 삭제 API 엔드포인트 호출
-            fetch('/contents/files', {
+            authenticatedFetch('/contents/files', {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({ fileIds: allIds })
             })
             .then(response => {
