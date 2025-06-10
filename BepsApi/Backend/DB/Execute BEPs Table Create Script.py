@@ -573,6 +573,18 @@ try:
         """
     ]
     #endregion 
+    
+    #region ip_prefixes 테이블 (IP 접두사 테이블)
+    
+    ip_ranges_queries = """
+        CREATE TABLE ip_ranges (
+            id SERIAL PRIMARY KEY,
+            start_ip TEXT NOT NULL,
+            end_ip TEXT NOT NULL,
+            label TEXT
+        );
+    """
+    #endregion
    
     #region stay_duration(content_viewing_history) 업데이트 트리거
     stay_duration_update_queries = [
@@ -677,7 +689,8 @@ try:
         content_point_record_queries,
         content_manager_queries,
         push_messages_queries,
-        learning_completion_history_queries
+        learning_completion_history_queries,
+        ip_ranges_queries
         ]
 
     for query in queries:

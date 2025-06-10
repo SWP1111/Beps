@@ -123,14 +123,14 @@
 
                 <div class="login-history-area">
                     <div class="login-time-area">
-                        <div class="login-chart-area-header">
+                        <div class="login-chart-area-header" style="margin-top: 9px;">
                             <span>접속 시간</span>
                             <span class="login-total-value" id="login-total-times"></span>
                         </div>
                         <div class="login-chart" id="login-time-chart"></div>
                     </div>
                     <div class="login-count-area">
-                        <div class="login-chart-area-header">
+                        <div class="login-chart-area-header" style="margin-top: 9px;">
                             <span>접속 위치</span>
                             <span class="login-total-value" id="login-total-count"></span>
                         </div>
@@ -139,7 +139,7 @@
                 </div>
 
                 <div class="learning-rate-area">
-                    <div class="learning-rate-area-header">
+                    <div class="learning-rate-area-header" style="margin-top: 9px;">
                         <span>학습 지표</span>
                     </div>
 
@@ -222,7 +222,7 @@
                 </div>
                             
                 <div class="top-last-area">
-                    <div class="login-rank-area">
+                    <div class="frame-area">
                         <div class="login-rank-area-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; gap: 10px; margin-left: 40px; margin-right: 40px; padding-bottom: 3px;">
                             <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px; margin-top: 0px; ">접속 순위</span>
                             <button class="top-bottom-selector active" data-group="login-rank" data-value="top">
@@ -286,10 +286,10 @@
                             <button class="ellipse-button" data-group="login-type" data-value="company"></button>
                         </div>
                     </div>
-                    <div class="login-rank-area">
-                        <div class="login-rank-area-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; gap: 10px; margin-left: 40px; margin-right: 40px; padding-bottom: 3px;">
+                    <div class="frame-area">
+                        <div class="updated-page-rank-area-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; gap: 10px; margin-left: 40px; margin-right: 40px; padding-bottom: 3px;">
                             <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px; margin-top: 0px; ">페이지 업데이트</span>
-                            <button class="top-bottom-selector active" data-group="updated-type" data-value="new">
+                            <button class="top-bottom-selector active" id="top-updated">
                                 <span style="font-family: NotosansKR; font-weight: 700; font-size: 15px; margin-top: 3px;" >최신순</span>
                                 <svg width="32" height="32" viewBox="0 0 65 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clip-path="url(#clip0_1_345)">
@@ -303,7 +303,7 @@
                                     </defs>
                                 </svg>
                             </button>
-                            <button class="top-bottom-selector" data-group="updated-type" data-value="old">
+                            <button class="top-bottom-selector" id="bottom-updated">
                                 <span style="font-family: NotosansKR; font-weight: 700; font-size: 15px; margin-top: 6px;" >오래된순</span>
                                 <svg width="32" height="32" viewBox="0 0 65 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clip-path="url(#clip0_1_351)">
@@ -318,6 +318,38 @@
                                 </svg>
                             </button>
                         </div>
+                        <div class="updated-page-rank-main" style="display: flex; flex-direction:column; justify-content: space-between; align-items: center; margin-left: 40px; margin-right: 40px; ">
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%;">
+                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 2;">Page</div>
+                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 1.2;">일시</div>
+                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 1;">담당자</div>
+                            </div>
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; margin-top: 10px;">
+                                <div data-group="updated-page-first" data-index="0" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">1. 국내의 BIM/DX 실태</div>
+                                <div data-group="updated-page-first" data-index="0" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center; ">2025-03-13</div>
+                                <div data-group="updated-page-first" data-index="0" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center; ">김신지</div>
+                            </div>   
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
+                                <div data-group="updated-page-second" data-index="1" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">2. 건설산업의 혁신</div>
+                                <div data-group="updated-page-second" data-index="1" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;" >2025-03-10</div>
+                                <div data-group="updated-page-second" data-index="1" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            </div>   
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
+                                <div data-group="updated-page-third" data-index="2" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">3. 전면BIM설계 도입의 한계</div>
+                                <div data-group="updated-page-third" data-index="2" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-09</div>
+                                <div data-group="updated-page-third" data-index="2" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            </div>   
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
+                                <div data-group="updated-page-fourth" data-index="3" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">4. 개요</div>
+                                <div data-group="updated-page-fourth" data-index="3" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-09</div>
+                                <div data-group="updated-page-fourth" data-index="3" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            </div>   
+                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
+                                <div data-group="updated-page-fifth" data-index="4" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">5. S/W적 요소</div>
+                                <div data-group="updated-page-fifth" data-index="4" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-03</div>
+                                <div data-group="updated-page-fifth" data-index="4" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            </div>                         
+                        </div>
                     </div>                    
                 </div>               
             </div>
@@ -331,13 +363,92 @@
                     </div>
                     <div class="category-chart" id="category-chart"></div>
                 </div>
-                <div class="top_viewed_pages" id="top_viewed_pages"></div>
-                <div class="top_viewed_memos" id="memo_rank"></div>
+                <div class="frame-area" style="display:flex; flex-direction: row; margin-top: 20px; margin-left: 40px; padding: 10px; gap: 20px; width: 1030px;">
+                    <div class="top_viewed_pages">
+                        <div class="top_viewed_pages_header" style="display: flex; justify-content: space-between; border-bottom: 1px solid black; gap: 10px; padding-bottom: 3px; width: 490px;">
+                            <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px;">가장 많이 본 페이지</span>
+                        </div>
+                        <div class="top_viewed_pages_main" style="display: flex; flex-direction: column; gap: 20px; margin-top: 80px;">
+                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="0"
+                                    style="position: relative; display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 1. 국내의 BIM/DX 실태 </span>
+                                <div style="position:absolute; background-color: rgba(76,70,85,1); width: 296px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; left: 5px; top: 22%;"></span>
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; right: 10px; top: 22%;">120회</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="1" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 2. S/W 구분 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 240px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; left: 5px; top: 22%;"></span>
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">80회</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="2" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 3. 개요 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 130px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; left: 5px; top: 22%;"></span>
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">35회</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="3" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 4. H/W적 요소 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 84px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; left: 5px; top: 22%;"></span>
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">28회</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="4" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 5. 건설산업의 혁신 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 61px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; left: 5px; top: 22%;"></span>
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">22회</span>
+                                </div>
+                            </div>
+                        </div>  
+                    </div>
+                    <div class="top_viewed_memos" id="memo_rank">
+                          <div class="top_viewed_memos_header" style="display: flex; justify-content: space-between; border-bottom: 1px solid black; gap: 10px; padding-bottom: 3px; width: 490px;">
+                            <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px;">의견서 많이 쓴 페이지</span>
+                        </div>
+                        <div class="top_viewed_pages_main" style="display: flex; flex-direction: column; gap: 20px; margin-top: 80px;">
+                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="0"
+                                    style="position: relative; display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 1. 건설산업의 혁신 </span>
+                                <div style="position:absolute; background-color: rgba(76,70,85,1); width: 296px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; right: 10px; top: 22%;">154개</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="1" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 2. 국내의 BIM/DX 실태 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 240px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">137개</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="2" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 3. 전면BIM설계 도입의 한계 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 130px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">86개</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="3" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 4. 개요 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 84px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">74개</span>
+                                </div>
+                            </div>
+                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="4" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                                <span> 5. S/W적 요소 </span>
+                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 61px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
+                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">53개</span>
+                                </div>
+                            </div>
+                        </div>  
+                    </div>
+                </div>
             </div>
 
         </div>
-
-        
 
     </body>
 

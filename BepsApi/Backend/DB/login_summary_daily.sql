@@ -49,8 +49,8 @@ BEGIN
 
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
         COALESCE(SUM(calculate_work_duration(
-            login_time,
-            COALESCE(logout_time, login_time + INTERVAL '5 minutes'),
+            lh.login_time,
+            COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
             v_work_start_utc,
             v_work_end_utc,
             v_is_weekday
@@ -58,20 +58,21 @@ BEGIN
         
         -- 근무 외 시간: 전체 세션 - 근무 시간
         COALESCE(SUM(
-            (COALESCE(logout_time, login_time + INTERVAL '5 minutes') - login_time) - 
+            (COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes') - lh.login_time) -
             calculate_work_duration(
-                login_time,
-                COALESCE(logout_time, login_time + INTERVAL '5 minutes'),
+                lh.login_time,
+                COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
                 v_work_start_utc,
                 v_work_end_utc,
                 v_is_weekday
             )), '0'::INTERVAL),
 
-        COUNT(DISTINCT CASE WHEN ip_address LIKE '61.%' OR ip_address LIKE '172.%' THEN id END),
-        COUNT(DISTINCT CASE WHEN NOT (ip_address LIKE '61.%' OR ip_address LIKE '172.%') THEN id END)
+        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
+        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
 
-    FROM login_history
-    WHERE login_time >= p_start_utc AND login_time < p_start_utc + INTERVAL '1 day' AND logout_time IS NOT NULL
+    FROM login_history lh
+    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
+    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     HAVING COALESCE(SUM(session_duration), '0'::INTERVAL) > '0'::INTERVAL
     ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
     DO UPDATE SET
@@ -113,9 +114,11 @@ BEGIN
                 v_is_weekday
             )), '0'::INTERVAL),
 
-        COUNT(DISTINCT CASE WHEN lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%' THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
+        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
+        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
+
     FROM login_history lh
+    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
     JOIN users u ON lh.user_id = u.id
     WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company
@@ -160,9 +163,11 @@ BEGIN
                 v_is_weekday
             )), '0'::INTERVAL),
 
-        COUNT(DISTINCT CASE WHEN lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%' THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
+        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
+        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
+
     FROM login_history lh
+    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
     JOIN users u ON lh.user_id = u.id
     WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company, u.department
@@ -206,9 +211,10 @@ BEGIN
                 v_is_weekday
             )), '0'::INTERVAL),
 
-        COUNT(DISTINCT CASE WHEN lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%' THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN NOT (lh.ip_address LIKE '61.%' OR lh.ip_address LIKE '172.%') THEN lh.id END)
+        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
+        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
     FROM login_history lh
+    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
     JOIN users u ON lh.user_id = u.id
     WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company, u.department, u.id, u.name

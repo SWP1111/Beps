@@ -456,6 +456,21 @@ class PushMessages(db.Model):
             'created_at': self.created_at.isoformat()
         }
         
+class IpRange(db.Model):
+    __tablename__ = 'ip_ranges'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    start_ip = db.Column(db.Text, nullable=False)
+    end_ip = db.Column(db.Text, nullable=False)
+    label = db.Column(db.Text)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'start_ip': self.start_ip,
+            'end_ip': self.end_ip,
+            'label': self.label
+        }          
 
 class MemoData(db.Model):
     __tablename__ = 'memos'

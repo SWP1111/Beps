@@ -220,13 +220,15 @@ def memo_rank():
         utc_end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)                  
         
         base_query = """
-            SELECT m.file_id AS item, COUNT(*) AS cnt, f.name AS path
+            SELECT m.file_id AS item, COUNT(*) AS cnt, f.name AS name, d.name AS folder_name, ch.name AS channel_name, MAX(m.modified_at) AS modified_at
             FROM memos m
             JOIN users u ON m.user_id = u.id
             JOIN content_rel_pages f ON m.file_id = f.id
+            JOIN content_rel_folders d ON f.folder_id = d.id
+            JOIN content_rel_channels ch ON d.channel_id = ch.id
             WHERE m.modified_at BETWEEN :start_date AND :end_date AND m.file_id IS NOT NULL AND {filter_clause}
-            GROUP BY m.file_id, f.name
-            ORDER BY cnt DESC
+            GROUP BY m.file_id, f.name, d.name, ch.name
+            ORDER BY cnt DESC, file_id ASC
             LIMIT 5
             """
         
@@ -260,3 +262,4 @@ def memo_rank():
     except Exception as e:
         logger.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[memo_rank] error': str(e)}), 500
+

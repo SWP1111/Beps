@@ -403,7 +403,7 @@ background-color: #f0f0f0;
     margin-left: 0px;
 }
 
-.login-rank-area {
+.frame-area {
     display: flex;
     flex-direction: column;
     background-color: #FFFFFF;
@@ -474,20 +474,6 @@ background-color: #f0f0f0;
     flex-direction: column;
     gap: 3px;
     margin-top: 20px;
-}
-.top_viewed_pages{
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-top: 20px;
-    margin-left: 160px;   
-}
-.top_viewed_memos{
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-top: 20px;
-    margin-left: 150px;   
 }
 
 .category-area {

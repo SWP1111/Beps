@@ -1,10 +1,13 @@
+import ipaddress
 import logging
 import log_config
 import datetime
 from extensions import db
-from models import LoginHistory, loginSummaryDay, loginSummaryAgg, Users
+from models import LoginHistory, loginSummaryDay, loginSummaryAgg, Users, IpRange
 from collections import defaultdict
 from sqlalchemy import func
+import config
+from services.ip_range_cache import ip_range_list
 
 def get_quarter_period_value(year):
     """주어진 연도에 대한 분기 기간을 반환합니다."""
@@ -517,8 +520,8 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
             off += data.offhour_duration or datetime.timedelta(0)
             internal += data.internal_count or 0
             external += data.external_count or 0
-            
-    if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
+    
+    if end_date >= (datetime.date.today() - datetime.timedelta(days=1)):
         local_tz = datetime.datetime.now().astimezone().tzinfo
         utc_start_dt = datetime.datetime.combine(max(start_date, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
         utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)       
@@ -549,7 +552,7 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
         
         datas = query.filter(*filters).all()
         if datas:
-            has_data = True
+            has_data = True            
             for record in datas:
                 if record.login_time is None or record.logout_time is None:
                     continue
@@ -563,9 +566,9 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
                     work += duration
                 else:
                     off += duration
-                
-                if record.ip_address.startswith('61.') or record.ip_address.startswith('172.'):
-                    internal += 1 
+
+                if is_internal_ip(record.ip_address):
+                    internal += 1
                 else:
                     external += 1
 
@@ -577,6 +580,13 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
         'internal_count': internal,
         'external_count': external
     }
+
+def is_internal_ip(ip_str):
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return any(start <= ip <= end for start, end in ip_range_list)
+    except ValueError:
+        return False
     
 def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):    
     total = datetime.timedelta(0)

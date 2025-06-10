@@ -1,4 +1,5 @@
 import atexit
+import time
 import logging
 import log_config
 from flask_jwt_extended import JWTManager
@@ -52,18 +53,24 @@ def create_app():
     # 스케줄러 초기화
     scheduler = init_scheduler(app)
     
+    from services.ip_range_cache import initialize_ip_ranges
+    with app.app_context():
+        initialize_ip_ranges()
+    
     # 🔹 Flask 요청/응답 로깅 추가 (선택 사항)
     @app.before_request
     def log_request():
+        request._start_time = time.time()
         logging.info(f"요청: {request.method} {request.url} - 데이터: {request.get_json(silent=True)}")
 
     @app.after_request
     def log_response(response):
+        duration = time.time() - getattr(request, '_start_time', time.time())
         data = response.get_json(silent=True)
         data_str = str(data) if data else ''
         if len(data_str) > 1000:
             data_str = data_str[:1000] + '...(truncated)'
-        logging.info(f"응답: [{request.path}] {response.status_code} - 데이터: {data_str}")
+        logging.info(f"응답: [{request.path}] {response.status_code} - {duration:.3f}s - 데이터: {data_str}")
         return response
 
     @app.errorhandler(Exception)
