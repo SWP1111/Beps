@@ -27,15 +27,13 @@
                         <th>번호</th>
                         <th>회사</th>
                         <th>부서</th>
-                        <th>팀</th>
                         <th>작성자</th>
                         <th>제목</th>
                         <th>등록일</th>
                         <th>처리상태</th>
                         <th>작업</th>
-                        <th>경로</th>
+                        <th>페이지</th>
                         <th>파일 ID</th>
-                        <th>폴더 ID</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -43,7 +41,6 @@
                         <td>{{ memo.id }}</td>
                         <td>{{ memo.user ? memo.user.company : '' }}</td>
                         <td>{{ memo.user ? memo.user.department : '' }}</td>
-                        <td></td>
                         <td>{{ memo.user ? memo.user.name + " " + memo.user.position : '' }}</td>
                         <td>{{ memo.title }}</td>
                         <td>{{ formatDate(memo.modified_at) }}</td>
@@ -62,7 +59,6 @@
                         </td>
                         <td>{{ memo.path }}</td>
                         <td>{{ memo.file_id }}</td>
-                        <td>{{ memo.folder_id }}</td>
                     </tr>
                 </tbody>
             </table>

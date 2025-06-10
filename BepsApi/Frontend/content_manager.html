@@ -486,11 +486,11 @@
             window.userId = userId;
             
             // For completely restricted areas (development only)
-            if (document.getElementById('filter-all') && roleId !== 999) {
+            if (document.getElementById('filter-all') && roleId !== 1 && roleId !== 999) {
                 document.body.innerHTML = `
                     <div style="text-align: center; margin-top: 50px; color: #f44336;">
                         <h1>접근 권한이 없습니다</h1>
-                        <p style="font-size: 1.5rem;">이 페이지는 개발자 권한이 필요합니다.</p>
+                        <p style="font-size: 1.5rem;">이 페이지는 관리자 권한이 필요합니다.</p>
                         <p>현재 당신의 권한은 ${roleId || "없음"}입니다.</p>
                     </div>
                 `;
@@ -1141,7 +1141,7 @@
             window.location.href = `/contents/file/${fileId}/download`;
         }
         
-        // 이미지 업로드 (최적화된 직접 업로드 방식)
+        // 이미지 업로드 (R2 기반)
         function uploadImage(fileId) {
             console.log(`이미지 업로드: ${fileId}`);
             
@@ -1166,14 +1166,14 @@
                 
                 // 파일 크기 검사 (100MB 제한)
                 if (imageFile.size > 100 * 1024 * 1024) {
-                    alert('파일 크기가 너무 큽니다. 10MB 이하의 파일을 선택해주세요.');
+                    alert('파일 크기가 너무 큽니다. 100MB 이하의 파일을 선택해주세요.');
                     return;
                 }
                 
                 try {
-                    // 1단계: 백엔드에서 직접 업로드 URL 요청
-                    console.log('직접 업로드 URL 요청 중...');
-                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    // 1단계: 백엔드에서 R2 업로드 URL 요청
+                    console.log('R2 업로드 URL 요청 중...');
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/r2-upload-url`, {
                         method: 'POST',
                         body: JSON.stringify({
                             filename: imageFile.name,
@@ -1183,48 +1183,42 @@
                     });
                     
                     if (!urlResponse.ok) {
-                        throw new Error(`직접 업로드 URL 생성 실패: ${urlResponse.status}`);
+                        throw new Error(`R2 업로드 URL 생성 실패: ${urlResponse.status}`);
                     }
                     
                     const urlData = await urlResponse.json();
-                    console.log('직접 업로드 URL 받음:', urlData.upload_url);
+                    console.log('R2 업로드 URL 받음:', urlData.upload_url);
                     
-                    // 2단계: Cloudflare에 직접 업로드
-                    console.log('Cloudflare에 직접 업로드 중...');
-                    const formData = new FormData();
-                    formData.append('file', imageFile);
-                    
+                    // 2단계: R2에 직접 업로드
+                    console.log('R2에 직접 업로드 중...');
                     const uploadResponse = await fetch(urlData.upload_url, {
-                        method: 'POST',
-                        body: formData
+                        method: 'PUT',
+                        body: imageFile,
+                        headers: {
+                            'Content-Type': imageFile.type
+                        }
                     });
                     
                     if (!uploadResponse.ok) {
-                        // Get the error response body for debugging
                         const errorText = await uploadResponse.text();
-                        console.error('❌ Cloudflare upload failed:', {
+                        console.error('❌ R2 upload failed:', {
                             status: uploadResponse.status,
                             statusText: uploadResponse.statusText,
                             headers: Object.fromEntries(uploadResponse.headers.entries()),
                             body: errorText
                         });
-                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status} - ${errorText}`);
+                        throw new Error(`R2 업로드 실패: ${uploadResponse.status} - ${errorText}`);
                     }
                     
-                    const uploadResult = await uploadResponse.json();
-                    console.log('Cloudflare 업로드 완료:', uploadResult);
-                    
-                    if (!uploadResult.success) {
-                        throw new Error('Cloudflare 업로드가 성공하지 못했습니다.');
-                    }
+                    console.log('R2 업로드 완료');
                     
                     // 3단계: 백엔드에 업로드 완료 확인
                     console.log('업로드 완료 확인 중...');
-                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/confirm-upload`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/confirm-r2-upload`, {
                         method: 'POST',
                         body: JSON.stringify({
-                            upload_id: urlData.upload_id,
-                            cloudflare_id: uploadResult.result.id
+                            object_key: urlData.object_key,
+                            filename: imageFile.name
                         })
                     });
                     
@@ -1258,7 +1252,7 @@
             fileInput.click();
         }
         
-        // 이미지 수정 (최적화된 직접 업로드 방식)
+        // 이미지 수정 (R2 기반)
         function modifyImage(fileId) {
             console.log(`이미지 수정: ${fileId}`);
             
@@ -1288,14 +1282,14 @@
                 
                 // 파일 크기 검사 (100MB 제한)
                 if (imageFile.size > 100 * 1024 * 1024) {
-                    alert('파일 크기가 너무 큽니다. 10MB 이하의 파일을 선택해주세요.');
+                    alert('파일 크기가 너무 큽니다. 100MB 이하의 파일을 선택해주세요.');
                     return;
                 }
                 
                 try {
-                    // 1단계: 백엔드에서 직접 업로드 URL 요청 (수정용)
-                    console.log('수정용 직접 업로드 URL 요청 중...');
-                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/direct-upload-url`, {
+                    // 1단계: 백엔드에서 R2 업로드 URL 요청 (수정용)
+                    console.log('수정용 R2 업로드 URL 요청 중...');
+                    const urlResponse = await authenticatedFetch(`/contents/file/${fileId}/r2-upload-url`, {
                         method: 'POST',
                         body: JSON.stringify({
                             filename: imageFile.name,
@@ -1306,47 +1300,41 @@
                     });
                     
                     if (!urlResponse.ok) {
-                        throw new Error(`직접 업로드 URL 생성 실패: ${urlResponse.status}`);
+                        throw new Error(`R2 업로드 URL 생성 실패: ${urlResponse.status}`);
                     }
                     
                     const urlData = await urlResponse.json();
-                    console.log('직접 업로드 URL 받음:', urlData.upload_url);
+                    console.log('R2 업로드 URL 받음:', urlData.upload_url);
                     
-                    // 2단계: Cloudflare에 직접 업로드
-                    console.log('Cloudflare에 직접 업로드 중...');
-                    const formData = new FormData();
-                    formData.append('file', imageFile);
-                    
+                    // 2단계: R2에 직접 업로드
+                    console.log('R2에 직접 업로드 중...');
                     const uploadResponse = await fetch(urlData.upload_url, {
-                        method: 'POST',
-                        body: formData
+                        method: 'PUT',
+                        body: imageFile,
+                        headers: {
+                            'Content-Type': imageFile.type
+                        }
                     });
                     
                     if (!uploadResponse.ok) {
-                        // Get the error response body for debugging
                         const errorText = await uploadResponse.text();
-                        console.error('❌ Cloudflare upload failed:', {
+                        console.error('❌ R2 upload failed:', {
                             status: uploadResponse.status,
                             statusText: uploadResponse.statusText,
                             headers: Object.fromEntries(uploadResponse.headers.entries()),
                             body: errorText
                         });
-                        throw new Error(`Cloudflare 업로드 실패: ${uploadResponse.status} - ${errorText}`);
+                        throw new Error(`R2 업로드 실패: ${uploadResponse.status} - ${errorText}`);
                     }
                     
-                    const uploadResult = await uploadResponse.json();
-                    console.log('Cloudflare 업로드 완료:', uploadResult);
+                    console.log('R2 업로드 완료');
                     
-                    if (!uploadResult.success) {
-                        throw new Error('Cloudflare 업로드가 성공하지 못했습니다.');
-                    }
-                    
-                    // 3단계: 기존 modify-image API를 사용하여 데이터베이스 업데이트
+                    // 3단계: 백엔드에 이미지 수정 확인
                     console.log('이미지 수정 확인 중...');
-                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/modify-image`, {
+                    const confirmResponse = await authenticatedFetch(`/contents/file/${fileId}/modify-r2-image`, {
                         method: 'PUT',
                         body: JSON.stringify({
-                            cloudflare_id: uploadResult.result.id,
+                            object_key: urlData.object_key,
                             filename: imageFile.name
                         })
                     });
@@ -1381,12 +1369,12 @@
             fileInput.click();
         }
         
-        // 이미지 모달 표시
+        // 이미지 모달 표시 (R2 기반)
         function showImageModal(fileId, fileName) {
             console.log(`이미지 보기: ${fileId}`);
             
-            // 이미지 URL 가져오기
-            fetch(`/contents/file/${fileId}/image-url`, {
+            // R2 이미지 URL 가져오기
+            fetch(`/contents/file/${fileId}/r2-image-url`, {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
@@ -1395,7 +1383,7 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`이미지 URL을 가져오는데 실패했습니다: ${response.status}`);
+                    throw new Error(`R2 이미지 URL을 가져오는데 실패했습니다: ${response.status}`);
                 }
                 return response.json();
             })

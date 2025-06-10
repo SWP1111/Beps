@@ -22,7 +22,16 @@ class Config:
     LEARNING_COMPLETED_MINUTES = 1
     PUSH_MESSAGE_LIMIT = 5  # 🔹 푸시 메시지 최대 개수
 
-    # Cloudflare Images 설정
+    # R2 (Cloudflare S3-compatible storage) 설정
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")  # R2 액세스 키 ID
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # R2 시크릿 액세스 키
+    R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")  # R2 계정 ID
+    R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")  # R2 버킷 이름
+    R2_ENDPOINT_URL = os.getenv("R2_ENDPOINT_URL")  # R2 엔드포인트 URL
+    R2_ACCOUNT_CODE = os.getenv("R2_ACCOUNT_CODE")  # R2 계정 코드
+    R2_ACCOUNT_HASH = os.getenv("R2_ACCOUNT_HASH")  # R2 계정 해시
+
+    # Legacy Cloudflare Images 설정 (deprecated)
     CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")  # Cloudflare 계정 ID
     CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")  # Cloudflare API 토큰
     CLOUDFLARE_ACCOUNT_HASH = os.getenv("CLOUDFLARE_ACCOUNT_HASH")  # Cloudflare Images 계정 해시

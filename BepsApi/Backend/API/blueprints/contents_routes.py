@@ -21,6 +21,9 @@ import hashlib
 import time
 import requests
 import json
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError, NoCredentialsError
 
 api_contents_bp = Blueprint('contents', __name__) # ?�� 블루?�린???�성
 
@@ -909,6 +912,685 @@ def update_content_manager(manager_id):
         db.session.rollback()
         logger.error(f"Error updating content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# ======== R2 STORAGE HELPER FUNCTIONS ========
+
+def get_r2_client():
+    """
+    Create and return a configured R2 (S3-compatible) client
+    """
+    try:
+        aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
+        aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
+        r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
+        
+        if not aws_access_key_id or not aws_secret_access_key:
+            raise ValueError("R2 credentials not found in configuration")
+        
+        client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint_url,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name='auto',  # R2 uses 'auto' region
+            config=Config(signature_version='s3v4')
+        )
+        
+        return client
+    except Exception as e:
+        logger.error(f"Failed to create R2 client: {str(e)}")
+        raise
+
+def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
+    """
+    Generate a pre-signed URL for R2 object
+    
+    Args:
+        object_key: The R2 object key (file path)
+        expires_in: URL expiration time in seconds (default: 1 hour)
+        method: HTTP method ('GET' for download, 'PUT' for upload)
+        
+    Returns:
+        Pre-signed URL string
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        if not bucket_name:
+            raise ValueError("R2 bucket name not found in configuration")
+        
+        if method == 'GET':
+            # Generate signed URL for download
+            signed_url = r2_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': bucket_name, 'Key': object_key},
+                ExpiresIn=expires_in
+            )
+        elif method == 'PUT':
+            # Generate signed URL for upload
+            signed_url = r2_client.generate_presigned_url(
+                'put_object',
+                Params={'Bucket': bucket_name, 'Key': object_key},
+                ExpiresIn=expires_in
+            )
+        else:
+            raise ValueError(f"Unsupported method: {method}")
+        
+        return signed_url
+    except Exception as e:
+        logger.error(f"Failed to generate R2 signed URL: {str(e)}")
+        raise
+
+def check_r2_object_exists(object_key):
+    """
+    Check if an object exists in R2
+    
+    Args:
+        object_key: The R2 object key to check
+        
+    Returns:
+        Boolean indicating if object exists
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        r2_client.head_object(Bucket=bucket_name, Key=object_key)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            return False
+        else:
+            logger.error(f"Error checking R2 object existence: {str(e)}")
+            raise
+    except Exception as e:
+        logger.error(f"Failed to check R2 object existence: {str(e)}")
+        raise
+
+def delete_r2_object(object_key):
+    """
+    Delete an object from R2
+    
+    Args:
+        object_key: The R2 object key to delete
+        
+    Returns:
+        Boolean indicating success
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        r2_client.delete_object(Bucket=bucket_name, Key=object_key)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete R2 object: {str(e)}")
+        return False
+
+def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_name=None):
+    """
+    Generate an object key for R2 storage based on content hierarchy
+    
+    Args:
+        file_id: The file ID from database (page ID for regular files, page_detail ID for details)
+        filename: Original filename
+        is_page_detail: Whether this is a page detail file
+        page_detail_name: Name of the page detail (if applicable)
+        
+    Returns:
+        Object key string following the pattern:
+        - For pages: channel/folder1/folder2/file.ext
+        - For page details: channel/folder1/folder2/file/detail.ext
+    """
+    try:
+        # Build the detailed path using existing logic
+        if is_page_detail:
+            # For page details, get the path components
+            detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
+            if not detail:
+                raise ValueError(f"Page detail with ID {file_id} not found")
+            
+            # Get parent page
+            parent_page = ContentRelPages.query.filter_by(id=detail.page_id, is_deleted=False).first()
+            if not parent_page:
+                raise ValueError(f"Parent page for detail {file_id} not found")
+            
+            # Build path components starting from page
+            path_components = []
+            folder_id = parent_page.folder_id
+            
+            # Traverse folder hierarchy
+            while folder_id is not None:
+                folder = ContentRelFolders.query.filter_by(id=folder_id, is_deleted=False).first()
+                if not folder:
+                    break
+                
+                path_components.append(folder.name)
+                
+                if folder.parent_id is None:
+                    # Top-level folder, get the channel
+                    channel = ContentRelChannels.query.filter_by(id=folder.channel_id, is_deleted=False).first()
+                    if channel:
+                        path_components.append(channel.name)
+                    break
+                
+                folder_id = folder.parent_id
+            
+            # Reverse to get channel -> folder order
+            path_components.reverse()
+            
+            # Add page name and detail name
+            path_components.append(parent_page.name)
+            detail_name = page_detail_name or detail.name or "detail"
+            
+            # Extract file extension and apply to detail name
+            _, ext = os.path.splitext(filename)
+            if not detail_name.endswith(ext):
+                detail_name += ext
+                
+            path_components.append(detail_name)
+            
+        else:
+            # For regular pages
+            page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+            if not page:
+                raise ValueError(f"Page with ID {file_id} not found")
+            
+            # Build path components
+            path_components = []
+            folder_id = page.folder_id
+            
+            # Traverse folder hierarchy
+            while folder_id is not None:
+                folder = ContentRelFolders.query.filter_by(id=folder_id, is_deleted=False).first()
+                if not folder:
+                    break
+                
+                path_components.append(folder.name)
+                
+                if folder.parent_id is None:
+                    # Top-level folder, get the channel
+                    channel = ContentRelChannels.query.filter_by(id=folder.channel_id, is_deleted=False).first()
+                    if channel:
+                        path_components.append(channel.name)
+                    break
+                
+                folder_id = folder.parent_id
+            
+            # Reverse to get channel -> folder order
+            path_components.reverse()
+            
+            # Add page name with proper extension
+            page_name = page.name or "file"
+            _, ext = os.path.splitext(filename)
+            if not page_name.endswith(ext):
+                page_name += ext
+                
+            path_components.append(page_name)
+        
+        # Join components with forward slash for R2 object key
+        object_key = '/'.join(path_components)
+        
+        # Replace any invalid characters for object keys
+        object_key = re.sub(r'[^\w\-_./]', '_', object_key)
+        
+        return object_key
+        
+    except Exception as e:
+        logger.error(f"Error generating R2 object key: {str(e)}")
+        # Fallback to simple structure if path building fails
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_id = str(uuid.uuid4())[:8]
+        _, ext = os.path.splitext(filename)
+        fallback_key = f"fallback/{file_id}/{timestamp}_{unique_id}{ext}"
+        return fallback_key
+
+# ======== R2 API ENDPOINTS ========
+
+@api_contents_bp.route('/file/<int:file_id>/r2-upload-url', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def get_r2_upload_url(file_id):
+    """
+    Generate a pre-signed URL for direct upload to R2
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Request body:
+    - filename: Name of the image file
+    - content_type: MIME type of the image (e.g., image/jpeg)
+    - file_size: Size of the file in bytes
+    - is_modify: (Optional) Boolean flag indicating if this is a modification of existing image
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Get request data
+        request_data = request.json
+        if not request_data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        filename = request_data.get('filename', '')
+        content_type = request_data.get('content_type', '')
+        file_size = request_data.get('file_size', 0)
+        is_modify = request_data.get('is_modify', False)
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Check if file already has an image (only for new uploads, not modifications)
+        if not is_modify and page.object_id and page.object_id.strip() != '':
+            return jsonify({'error': 'File already has an image. Use modify endpoint to change it.'}), 409
+        
+        # For modifications, check if file has an image to modify
+        if is_modify and (not page.object_id or page.object_id.strip() == ''):
+            return jsonify({'error': 'No image associated with this file. Use upload endpoint instead.'}), 404
+        
+        # Validate file type
+        allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'}
+        file_ext = os.path.splitext(filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'Invalid file type {file_ext}. Allowed types: {", ".join(allowed_extensions)}'}), 400
+        
+        # Validate file size (100MB limit)
+        if file_size > 100 * 1024 * 1024:  # 100MB
+            return jsonify({'error': 'File size too large. Maximum 100MB allowed.'}), 400
+        
+        # Generate object key based on content hierarchy
+        object_key = generate_r2_object_key(file_id, filename, is_page_detail=False)
+        
+        # Generate pre-signed URL for upload
+        upload_url = generate_r2_signed_url(object_key, expires_in=1800, method='PUT')  # 30 minutes
+        
+        return jsonify({
+            'upload_url': upload_url,
+            'object_key': object_key,
+            'file_id': file_id,
+            'is_modify': is_modify,
+            'old_object_id': page.object_id if is_modify else None,
+            'expires_in': 1800,
+            'message': 'R2 upload URL generated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating R2 upload URL: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/confirm-r2-upload', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def confirm_r2_upload(file_id):
+    """
+    Confirm that a direct upload to R2 was successful and update the database
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Request body:
+    - object_key: The R2 object key where the file was uploaded
+    - filename: Name of the uploaded file
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Get request data
+        request_data = request.json
+        if not request_data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        object_key = request_data.get('object_key', '')
+        filename = request_data.get('filename', '')
+        
+        if not object_key:
+            return jsonify({'error': 'object_key is required'}), 400
+        
+        # Verify the object exists in R2
+        if not check_r2_object_exists(object_key):
+            return jsonify({'error': 'Object not found in R2 storage'}), 404
+        
+        # Update the page with the new object_id (storing the R2 object key)
+        page.object_id = object_key
+        page.updated_at = datetime.datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'R2 upload confirmed and database updated successfully',
+            'object_key': object_key,
+            'file_id': file_id,
+            'filename': filename
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error confirming R2 upload: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/modify-r2-image', methods=['PUT'])
+@jwt_required(locations=['headers','cookies'])
+def modify_r2_image(file_id):
+    """
+    Update the R2 object key for an existing file (after successful upload)
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Request body:
+    - object_key: The new R2 object key
+    - filename: Name of the uploaded file
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file has an image to modify
+        if not page.object_id or page.object_id.strip() == '':
+            return jsonify({'error': 'No image associated with this file. Use upload endpoint instead.'}), 404
+        
+        # Get request data
+        request_data = request.json
+        if not request_data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        new_object_key = request_data.get('object_key', '')
+        filename = request_data.get('filename', '')
+        
+        if not new_object_key:
+            return jsonify({'error': 'object_key is required'}), 400
+        
+        # Verify the new object exists in R2
+        if not check_r2_object_exists(new_object_key):
+            return jsonify({'error': 'New object not found in R2 storage'}), 404
+        
+        old_object_key = page.object_id
+        
+        # Update the page with the new object_key
+        page.object_id = new_object_key
+        page.updated_at = datetime.datetime.now()
+        db.session.commit()
+        
+        # Delete old object from R2 (best effort)
+        if old_object_key and old_object_key != new_object_key:
+            delete_success = delete_r2_object(old_object_key)
+            if not delete_success:
+                logger.warning(f"Failed to delete old R2 object: {old_object_key}")
+        
+        return jsonify({
+            'message': 'R2 image modified successfully',
+            'old_object_key': old_object_key,
+            'new_object_key': new_object_key,
+            'file_id': file_id,
+            'filename': filename
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error modifying R2 image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/r2-image-url', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_r2_image_url(file_id):
+    """
+    Get a pre-signed URL for viewing a file's image from R2
+    
+    Path parameter:
+    - file_id: ID of the file
+    
+    Query parameters:
+    - expires: Expiration time in seconds (optional, default: 3600)
+    """
+    try:
+        # Check if user has access to this file
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Check if file has an image (object_id is not null/empty)
+        if not page.object_id or page.object_id.strip() == '':
+            return jsonify({'error': 'No image associated with this file'}), 404
+        
+        # Check user permissions (admin, developer, or has specific access)
+        if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer
+            # Check if user has specific access to this file
+            service = ContentHierarchyService()
+            folder_ids, file_ids = service.get_user_accessible_content(int(user_id))
+            
+            if file_id not in file_ids:
+                return jsonify({'error': 'Access denied'}), 403
+        
+        # Get expires parameter
+        expires = int(request.args.get('expires', 3600))
+        
+        # Generate pre-signed URL for download
+        signed_url = generate_r2_signed_url(page.object_id, expires_in=expires, method='GET')
+        
+        return jsonify({
+            'signed_url': signed_url,
+            'expires_in': expires,
+            'object_key': page.object_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating R2 image URL: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>/upload-content', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def upload_page_detail_content(detail_id):
+    """
+    Upload content file for a page detail (traditional upload to R2)
+    
+    Path parameter:
+    - detail_id: ID of the page detail
+    
+    Form data:
+    - file: The content file to upload
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user or user.role_id not in [1, 2, 999]:  # Admin, reviewer, or developer only
+            return jsonify({'error': 'Permission denied. Admin or reviewer role required.'}), 403
+        
+        # Get the page detail
+        detail = ContentRelPageDetails.query.filter_by(id=detail_id, is_deleted=False).first()
+        if not detail:
+            return jsonify({'error': 'Page detail not found'}), 404
+        
+        # Check if file is provided
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'Invalid file type {file_ext}. Allowed types: {", ".join(allowed_extensions)}'}), 400
+        
+        # Validate file size (100MB limit)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 100 * 1024 * 1024:  # 100MB
+            return jsonify({'error': 'File size too large. Maximum 100MB allowed.'}), 400
+        
+        # Generate object key based on content hierarchy for page detail
+        object_key = generate_r2_object_key(detail_id, file.filename, is_page_detail=True)
+        
+        # Upload directly to R2
+        try:
+            r2_client = get_r2_client()
+            bucket_name = current_app.config.get('R2_BUCKET_NAME')
+            
+            # Upload file to R2
+            r2_client.upload_fileobj(
+                file,
+                bucket_name,
+                object_key,
+                ExtraArgs={'ContentType': file.content_type or 'application/octet-stream'}
+            )
+            
+            # Update the page detail with the object key
+            detail.object_id = object_key
+            detail.has_content = True
+            detail.updated_at = datetime.datetime.now()
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'File uploaded successfully to page detail',
+                'object_key': object_key,
+                'detail_id': detail_id,
+                'filename': file.filename
+            })
+            
+        except Exception as upload_error:
+            logger.error(f"R2 upload failed: {str(upload_error)}")
+            return jsonify({'error': f'Upload failed: {str(upload_error)}'}), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error uploading page detail content: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/page-detail/<int:detail_id>/download', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def download_page_detail(detail_id):
+    """
+    Generate a signed URL for downloading page detail content from R2
+    
+    Path parameter:
+    - detail_id: ID of the page detail
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get the page detail
+        detail = ContentRelPageDetails.query.filter_by(id=detail_id, is_deleted=False).first()
+        if not detail:
+            return jsonify({'error': 'Page detail not found'}), 404
+        
+        # Check if detail has content
+        if not detail.object_id or detail.object_id.strip() == '' or not detail.has_content:
+            return jsonify({'error': 'No content associated with this page detail'}), 404
+        
+        # Check user permissions (admin, developer, or has specific access)
+        if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer
+            # Check if user has specific access to the parent page
+            parent_page = ContentRelPages.query.filter_by(id=detail.page_id, is_deleted=False).first()
+            if parent_page:
+                service = ContentHierarchyService()
+                folder_ids, file_ids = service.get_user_accessible_content(int(user_id))
+                
+                if parent_page.id not in file_ids:
+                    return jsonify({'error': 'Access denied'}), 403
+            else:
+                return jsonify({'error': 'Parent page not found'}), 404
+        
+        # Generate pre-signed URL for download
+        try:
+            signed_url = generate_r2_signed_url(detail.object_id, expires_in=3600, method='GET')
+            
+            # For direct download, redirect to the signed URL
+            from flask import redirect
+            return redirect(signed_url)
+            
+        except Exception as e:
+            logger.error(f"Failed to generate download URL: {str(e)}")
+            return jsonify({'error': 'Failed to generate download URL'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error downloading page detail: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/file/<int:file_id>/r2-object-key', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def get_r2_object_key_preview(file_id):
+    """
+    Get the R2 object key that would be used for a file (for debugging/preview)
+    
+    Path parameter:
+    - file_id: ID of the file (page or page detail)
+    
+    Query parameters:
+    - filename: Filename to use for key generation
+    - is_page_detail: Whether this is a page detail (default: false)
+    """
+    try:
+        # Check user permissions (basic check)
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get query parameters
+        filename = request.args.get('filename', 'example.pdf')
+        is_page_detail = request.args.get('is_page_detail', 'false').lower() == 'true'
+        
+        # Generate the object key
+        object_key = generate_r2_object_key(file_id, filename, is_page_detail=is_page_detail)
+        
+        return jsonify({
+            'file_id': file_id,
+            'filename': filename,
+            'is_page_detail': is_page_detail,
+            'object_key': object_key,
+            'message': 'This is the R2 object key that would be used for this file'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting R2 object key preview: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ======== LEGACY CLOUDFLARE IMAGES (DEPRECATED) ========
 
 # Image handling endpoints
 
