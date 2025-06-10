@@ -22,9 +22,9 @@ import time
 import requests
 import json
 
-api_contents_bp = Blueprint('contents', __name__) # ?�� 블루?�린???�성
+api_contents_bp = Blueprint('contents', __name__) # ?�� 블루?�린???�성
 
-# ?�� 콘텐�??�용 로거 초기??logger = get_content_logger()
+# ?�� 콘텐�??�용 로거 초기??logger = get_content_logger()
 
 
 @api_contents_bp.route('/file/get_detailed_path', methods=['GET'])
@@ -187,7 +187,7 @@ def get_file_path(file_id):
         logger.error(f"Error getting file path: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# ?�로??API ?�드?�인??추�?
+# ?�로??API ?�드?�인??추�?
 
 @api_contents_bp.route('/channels', methods=['GET'])
 def get_channels():

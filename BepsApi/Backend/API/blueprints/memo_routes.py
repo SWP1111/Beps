@@ -11,7 +11,7 @@ from datetime import datetime, timezone, time
 
 api_memo_bp = Blueprint('memo', __name__)
 
-# ?�� 메모 ?�용 로거 초기??
+# ?�� 메모 ?�용 로거 초기??
 logger = get_memo_logger()
 
 @api_memo_bp.route('/', methods=['POST'])
@@ -200,9 +200,9 @@ def delete_memo(id):
     return '', 204 
 
 
-# ?�� GET /leaning/memo_rank API 메모 ??�� 조회    
+# ?�� GET /leaning/memo_rank API 메모 ??�� 조회    
 @api_memo_bp.route('/memo_rank', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # ?�� JWT 검증을 먼�? ?�행
+@jwt_required(locations=['headers','cookies'])  # ?�� JWT 검증을 먼�? ?�행
 def memo_rank():
     from services.user_summary_service import get_period_value
     try:
