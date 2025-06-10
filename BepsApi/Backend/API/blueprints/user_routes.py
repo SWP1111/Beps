@@ -169,19 +169,27 @@ def verify_user():
         if user_id is None:
             return jsonify({'error': 'Please provide id'}), 400
         
-        # Convert to lowercase for case-insensitive search
-        user_id_lower = user_id.lower()
-        user = Users.query.filter_by(id=user_id_lower).first()
+        # Find the user - use case-insensitive search and check is_deleted
+        user = Users.query.filter(Users.id.ilike(user_id), Users.is_deleted == False).first()
         
         if user is None:
             return jsonify({'exists': False}), 200
         else:
             # Return user data without password
-            user_data = user.to_dict()
-            user_data.pop('password', None)
             return jsonify({
                 'exists': True, 
-                'user': user_data
+                'user': {
+                    'id': user.id,
+                    'name': user.name,
+                    'company': user.company,
+                    'department': user.department,
+                    'position': user.position,
+                    'access_group_id': user.access_group_id,
+                    'role_id': user.role_id,
+                    'time_stamp': user.time_stamp,
+                    'logout_time': user.logout_time,
+                    'login_time': user.login_time
+                }
             }), 200
         
     except OperationalError as e:
@@ -727,8 +735,8 @@ def get_search():
     except Exception as e:
         logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
-    
-    @api_user_bp.route('/companies', methods=['GET'])
+
+@api_user_bp.route('/companies', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
 def get_companies():
     """
@@ -837,34 +845,3 @@ def get_names():
         logging.error(f"Error fetching user names: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@api_user_bp.route('/verify', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])
-def verify_user():
-    """
-    Verify if a user ID exists and return user details
-    """
-    try:
-        user_id = request.args.get('id')
-        if not user_id:
-            return jsonify({'error': 'User ID parameter is required'}), 400
-            
-        # Find the user - use case-insensitive search
-        user = Users.query.filter(Users.id.ilike(user_id), Users.is_deleted == False).first()
-        
-        if not user:
-            return jsonify({'exists': False}), 404
-            
-        # Return user details
-        return jsonify({
-            'exists': True,
-            'user': {
-                'id': user.id,
-                'name': user.name,
-                'company': user.company,
-                'department': user.department,
-                'position': user.position
-            }
-        })
-    except Exception as e:
-        logging.error(f"Error verifying user: {str(e)}")
-        return jsonify({'error': str(e)}), 500
