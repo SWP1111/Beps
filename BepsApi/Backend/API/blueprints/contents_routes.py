@@ -1,6 +1,7 @@
 import os
 import logging
 import log_config
+from log_config import get_content_logger
 from flask import Blueprint, jsonify, request, send_file, current_app
 import datetime
 from datetime import timezone
@@ -21,7 +22,9 @@ import time
 import requests
 import json
 
-api_contents_bp = Blueprint('contents', __name__) # 🔹 블루프린트 생성
+api_contents_bp = Blueprint('contents', __name__) # ?�� 블루?�린???�성
+
+# ?�� 콘텐�??�용 로거 초기??logger = get_content_logger()
 
 
 @api_contents_bp.route('/file/get_detailed_path', methods=['GET'])
@@ -107,7 +110,7 @@ def get_channel_child():
             'count': len(folder_ids)
         })
     except Exception as e:
-        logging.error(f"Error in get_channel_child: {str(e)}")
+        logger.error(f"Error in get_channel_child: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/folder/children', methods=['GET'])
@@ -140,7 +143,7 @@ def get_folder_child():
         
         return jsonify(response_data)
     except Exception as e:
-        logging.error(f"Error in get_folder_child: {str(e)}")
+        logger.error(f"Error in get_folder_child: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/hierarchy', methods=['GET'])
@@ -162,7 +165,7 @@ def get_content_hierarchy():
         
         return jsonify(hierarchy)
     except Exception as e:
-        logging.error(f"Error getting content hierarchy: {str(e)}")
+        logger.error(f"Error getting content hierarchy: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/path', methods=['GET'])
@@ -181,10 +184,10 @@ def get_file_path(file_id):
             
         return jsonify(path_info)
     except Exception as e:
-        logging.error(f"Error getting file path: {str(e)}")
+        logger.error(f"Error getting file path: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# 새로운 API 엔드포인트 추가
+# ?�로??API ?�드?�인??추�?
 
 @api_contents_bp.route('/channels', methods=['GET'])
 def get_channels():
@@ -201,7 +204,7 @@ def get_channels():
             'channels': channels
         })
     except Exception as e:
-        logging.error(f"Error getting channels: {str(e)}")
+        logger.error(f"Error getting channels: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/hierarchy/channel/<int:channel_id>', methods=['GET'])
@@ -228,7 +231,7 @@ def get_channel_hierarchy(channel_id):
         
         return jsonify(hierarchy)
     except Exception as e:
-        logging.error(f"Error getting channel hierarchy: {str(e)}")
+        logger.error(f"Error getting channel hierarchy: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/user-accessible', methods=['GET'])
@@ -254,7 +257,7 @@ def get_user_accessible_content():
             'fileIds': file_ids
         })
     except Exception as e:
-        logging.error(f"Error getting user accessible content: {str(e)}")
+        logger.error(f"Error getting user accessible content: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/channel/<int:channel_id>/check-accessibility', methods=['GET'])
@@ -279,7 +282,7 @@ def check_channel_accessibility(channel_id):
             'has_accessible_content': has_accessible_content
         })
     except Exception as e:
-        logging.error(f"Error checking channel accessibility: {str(e)}")
+        logger.error(f"Error checking channel accessibility: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/download', methods=['GET'])
@@ -302,7 +305,7 @@ def download_file(file_id):
             download_name=filename
         )
     except Exception as e:
-        logging.error(f"Error downloading file: {str(e)}")
+        logger.error(f"Error downloading file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/channel', methods=['POST'])
@@ -341,7 +344,7 @@ def create_channel():
             'channel_id': channel_id
         })
     except Exception as e:
-        logging.error(f"Error creating channel: {str(e)}")
+        logger.error(f"Error creating channel: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/channel/<int:channel_id>', methods=['DELETE'])
@@ -374,7 +377,7 @@ def delete_channel(channel_id):
             'message': 'Channel deleted successfully'
         })
     except Exception as e:
-        logging.error(f"Error deleting channel: {str(e)}")
+        logger.error(f"Error deleting channel: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file', methods=['POST'])
@@ -446,7 +449,7 @@ def upload_file():
             'file_id': file_id
         })
     except Exception as e:
-        logging.error(f"Error uploading file: {str(e)}")
+        logger.error(f"Error uploading file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/files', methods=['DELETE'])
@@ -492,7 +495,7 @@ def delete_files():
             'count': len(success)
         })
     except Exception as e:
-        logging.error(f"Error deleting files: {str(e)}")
+        logger.error(f"Error deleting files: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/folder', methods=['POST'])
@@ -546,7 +549,7 @@ def create_folder():
             'folder_id': folder_id
         })
     except Exception as e:
-        logging.error(f"Error creating folder: {str(e)}")
+        logger.error(f"Error creating folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/folder/<int:folder_id>', methods=['DELETE'])
@@ -579,7 +582,7 @@ def delete_folder(folder_id):
             'message': 'Folder deleted successfully'
         })
     except Exception as e:
-        logging.error(f"Error deleting folder: {str(e)}")
+        logger.error(f"Error deleting folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/content_manager', methods=['GET'])
@@ -593,7 +596,7 @@ def get_content_managers():
         managers = ContentManager.query.all()
         return jsonify([manager.to_dict() for manager in managers])
     except Exception as e:
-        logging.error(f"Error getting content managers: {str(e)}")
+        logger.error(f"Error getting content managers: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/content_manager', methods=['POST'])
@@ -714,7 +717,7 @@ def add_content_manager():
     
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error adding content manager: {str(e)}")
+        logger.error(f"Error adding content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/content_manager/<int:manager_id>', methods=['DELETE'])
@@ -738,7 +741,7 @@ def delete_content_manager(manager_id):
     
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error deleting content manager: {str(e)}")
+        logger.error(f"Error deleting content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/content_manager/<int:manager_id>', methods=['PUT'])
@@ -904,7 +907,7 @@ def update_content_manager(manager_id):
     
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error updating content manager: {str(e)}")
+        logger.error(f"Error updating content manager: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Image handling endpoints
@@ -994,10 +997,10 @@ def get_file_image_url(file_id):
         })
         
     except ValueError as e:
-        logging.error(f"Configuration error: {str(e)}")
+        logger.error(f"Configuration error: {str(e)}")
         return jsonify({'error': 'Server configuration error'}), 500
     except Exception as e:
-        logging.error(f"Error generating image URL: {str(e)}")
+        logger.error(f"Error generating image URL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/upload-image', methods=['POST'])
@@ -1105,7 +1108,7 @@ def upload_file_image(file_id):
         
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error uploading image: {str(e)}")
+        logger.error(f"Error uploading image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/remove-image', methods=['DELETE'])
@@ -1148,7 +1151,7 @@ def remove_file_image(file_id):
             response = requests.delete(url, headers=headers)
             
             if response.status_code != 200:
-                logging.warning(f"Failed to delete image from Cloudflare: {response.status_code} - {response.text}")
+                logger.warning(f"Failed to delete image from Cloudflare: {response.status_code} - {response.text}")
                 # Continue anyway to clean up database
         
         # Clear the object_id from database
@@ -1163,7 +1166,7 @@ def remove_file_image(file_id):
         
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error removing image: {str(e)}")
+        logger.error(f"Error removing image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/modify-image', methods=['PUT'])
@@ -1249,7 +1252,7 @@ def modify_file_image(file_id):
                 delete_response = requests.delete(delete_url, headers=headers)
                 
                 if delete_response.status_code != 200:
-                    logging.warning(f"Failed to delete old image from Cloudflare: {delete_response.status_code} - {delete_response.text}")
+                    logger.warning(f"Failed to delete old image from Cloudflare: {delete_response.status_code} - {delete_response.text}")
                     # Continue anyway since new image is uploaded and DB is updated
             
             return jsonify({
@@ -1334,7 +1337,7 @@ def modify_file_image(file_id):
                         delete_response = requests.delete(delete_url, headers=headers)
                         
                         if delete_response.status_code != 200:
-                            logging.warning(f"Failed to delete old image from Cloudflare: {delete_response.status_code} - {delete_response.text}")
+                            logger.warning(f"Failed to delete old image from Cloudflare: {delete_response.status_code} - {delete_response.text}")
                             # Continue anyway since new image is uploaded and DB is updated
                     
                     return jsonify({
@@ -1351,7 +1354,7 @@ def modify_file_image(file_id):
         
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error modifying image: {str(e)}")
+        logger.error(f"Error modifying image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ====== OPTIMIZED DIRECT UPLOAD ENDPOINTS (Add to contents_routes.py) ======
@@ -1478,7 +1481,7 @@ def get_direct_upload_url(file_id):
             return jsonify({'error': f'Cloudflare API error: {response.status_code}', 'details': response.text}), 500
         
     except Exception as e:
-        logging.error(f"Error generating direct upload URL: {str(e)}")
+        logger.error(f"Error generating direct upload URL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/file/<int:file_id>/confirm-upload', methods=['POST'])
@@ -1555,7 +1558,7 @@ def confirm_direct_upload(file_id):
         
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error confirming direct upload: {str(e)}")
+        logger.error(f"Error confirming direct upload: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/debug/cloudflare', methods=['GET'])
@@ -1667,7 +1670,7 @@ def debug_cloudflare():
         return jsonify(debug_info)
         
     except Exception as e:
-        logging.error(f"Error in debug cloudflare: {str(e)}")
+        logger.error(f"Error in debug cloudflare: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 #endregion

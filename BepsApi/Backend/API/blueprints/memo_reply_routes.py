@@ -3,15 +3,20 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import MemoReply, MemoData, Users
 import logging
+import log_config
+from log_config import get_memo_logger
 from datetime import datetime, timezone
 
 api_memo_reply_bp = Blueprint('memo_reply', __name__)
+
+# ?�� 메모 ?�용 로거 초기??
+logger = get_memo_logger()
 
 @api_memo_reply_bp.route('/', methods=['POST'])
 def create_memo_reply():
     try:
         data = request.json
-        logging.info(f"Received POST request to /memo/reply with data: {data}")
+        logger.info(f"Received POST request to /memo/reply with data: {data}")
         
         # Validate required fields
         if not all(key in data for key in ['memo_id', 'user_id', 'content']):
@@ -32,10 +37,10 @@ def create_memo_reply():
         db.session.add(reply)
         db.session.commit()
         
-        logging.info(f"Successfully created memo reply with id: {reply.id}")
+        logger.info(f"Successfully created memo reply with id: {reply.id}")
         return jsonify(reply.to_dict()), 201
     except Exception as e:
-        logging.error(f"Error creating memo reply: {str(e)}")
+        logger.error(f"Error creating memo reply: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -53,7 +58,7 @@ def get_replies_by_memo(memo_id):
             
         return jsonify(result), 200
     except Exception as e:
-        logging.error(f"Error retrieving memo replies: {str(e)}")
+        logger.error(f"Error retrieving memo replies: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @api_memo_reply_bp.route('/<int:id>', methods=['PUT'])
@@ -70,10 +75,10 @@ def update_reply(id):
         reply.modified_at = datetime.now(timezone.utc)
         
         db.session.commit()
-        logging.info(f"Successfully updated memo reply with id: {reply.id}")
+        logger.info(f"Successfully updated memo reply with id: {reply.id}")
         return jsonify(reply.to_dict()), 200
     except Exception as e:
-        logging.error(f"Error updating memo reply: {str(e)}")
+        logger.error(f"Error updating memo reply: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -86,9 +91,9 @@ def delete_reply(id):
         reply.is_deleted = True
         db.session.commit()
         
-        logging.info(f"Successfully deleted memo reply with id: {reply.id}")
+        logger.info(f"Successfully deleted memo reply with id: {reply.id}")
         return '', 204
     except Exception as e:
-        logging.error(f"Error deleting memo reply: {str(e)}")
+        logger.error(f"Error deleting memo reply: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500 
