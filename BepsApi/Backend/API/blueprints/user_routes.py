@@ -728,7 +728,7 @@ def get_search():
         logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
     
-    @api_user_bp.route('/companies', methods=['GET'])
+@api_user_bp.route('/companies', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
 def get_companies():
     """
