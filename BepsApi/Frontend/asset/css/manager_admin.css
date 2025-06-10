@@ -112,6 +112,12 @@ button:hover {
     display: none !important;
 }
 
+/* Hide folder2 and folder3 columns */
+.folder2-col,
+.folder3-col {
+    display: none !important;
+}
+
 /* Ensure manager column is always visible */
 .manager-col {
     display: table-cell !important;
