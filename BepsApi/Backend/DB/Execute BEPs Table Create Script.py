@@ -639,7 +639,6 @@ try:
     memos_queries = """
         CREATE TABLE public.memos (
             id text NOT NULL PRIMARY KEY,
-            serial_number integer,
             user_id text,
             title text,
             content text,

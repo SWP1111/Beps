@@ -40,7 +40,7 @@
                 </thead>
                 <tbody>
                     <tr v-for="memo in memoList" :key="memo.id">
-                        <td>{{ memo.serial_number }}</td>
+                        <td>{{ memo.id }}</td>
                         <td>{{ memo.user ? memo.user.company : '' }}</td>
                         <td>{{ memo.user ? memo.user.department : '' }}</td>
                         <td></td>

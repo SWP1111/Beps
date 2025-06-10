@@ -209,8 +209,8 @@ createApp({
 
                 // Add serial numbers if not present
                 paginatedData.forEach((memo, index) => {
-                    if (!memo.serial_number) {
-                        memo.serial_number = start + index + 1;
+                    if (!memo.id) {
+                        memo.id = start + index + 1;
                     }
                 });
 
