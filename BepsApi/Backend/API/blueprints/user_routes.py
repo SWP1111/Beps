@@ -78,35 +78,14 @@ def get_user():
         logging.info(f"POST /user: {data}")
         
         user_id = data.get('id').lower()
-        password = data.get('password')
-        is_encrypted = data.get('is_encrypted', True)
         id_address = data.get('ip_address')
                 
-        if not user_id or not password:
-            return jsonify({'error': 'Please provide id and password'}), 400 # 400: Bad Request
+        if not user_id:
+            return jsonify({'error': 'Please provide id'}), 400 # 400: Bad Request
         
         user = Users.query.filter_by(id=user_id).first()
         
-        if user:               
-            if is_encrypted: 
-                logging.debug(f"Encrypted data from client length: {len(password)} bytes")
-            else:
-                logging.debug(f"No Encrypted data from client length: {len(password)} bytes")
-                
-            logging.debug(f"Encrypted data from db length: {len(user.password)} bytes")
-            
-            decrypted_password_from_client = password
-            if is_encrypted:
-                logging.debug(f"password from client: {password}")
-                decrypted_password_from_client = decryption.decrypt(password, 'BEPS')            
-            decryption_password_from_db = decryption.decrypt(user.password, 'BEPS')
-            
-            logging.debug(f"decrypted_password_from_client: {decrypted_password_from_client}")
-            logging.debug(f"decryption_password_from_db: {decryption_password_from_db}")
-            
-            if decrypted_password_from_client != decryption_password_from_db:
-                return jsonify({'error': 'Password is incorrect'}), 401 # 401: Unauthorized
-                              
+        if user:                                               
             user_data = user.to_dict()
             user_data.pop('password', None) # password 필드는 제외
                         

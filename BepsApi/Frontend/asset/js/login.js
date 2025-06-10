@@ -98,22 +98,22 @@ async function Login(username, password) {
         if(response.success)
         {
            console.log("ERPLogin response: ", response);
-           let responseUserInfo = await GetUserInfo(username, password);
+           let responseUserInfo = await GetUserInfo(username);
            console.log("responseUserInfo: ", responseUserInfo);
         
             //사용자 추가 또는 업데이트
-            console.log("사용자 추가 Id:", username, " Password: ", password, " Company: ", response.data.company, " Department: ", response.data.department, " Position: ", response.position, " Name: ", response.data.username);
-            const insertReponse = await InsertUser(username,password,response.data.company,response.data.department,response.data.position,response.data.username);
+            console.log("사용자 추가 Id:", username, " Company: ", response.data.company, " Department: ", response.data.department, " Position: ", response.position, " Name: ", response.data.username);
+            const insertReponse = await InsertUser(response.data.company,response.data.department,response.data.position,response.data.username);
             console.log("insertReponse: ", insertReponse);
             if(insertReponse.success)
             {
-                responseUserInfo = await GetUserInfo(username, password);
+                responseUserInfo = await GetUserInfo(username);
                 if(responseUserInfo.success)
                 {            
                         localStorage.setItem("isLoggedIn", "true");
                         localStorage.setItem("username", username);
 
-                        const {password, ...userInfo} = responseUserInfo.data;
+                        const userInfo = responseUserInfo.data;
                         localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
 
                         window.location.href = "main.html";
@@ -185,7 +185,7 @@ async function sendERPLoginRequest(url, params) {
 }
 
 // 서버에서 사용자 조회
-async function GetUserInfo(username, password) {
+async function GetUserInfo(username) {
     try{
         url = `${baseUrl}user/user`;
         const response = await fetch(url, {
@@ -194,9 +194,7 @@ async function GetUserInfo(username, password) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                id: username,
-                password: password,
-                is_encrypted: false
+                id: username
             })
         });
 
@@ -217,11 +215,9 @@ async function GetUserInfo(username, password) {
     }
 }
 
-async function InsertUser(id, password, company, department, position, name)
+async function InsertUser(id, company, department, position, name)
 {
     try{
- 
-        const encryptedPassword = await encryptAES(password, "BEPS");
 
         url = `${baseUrl}user/update_user`;
         const response = await fetch(url, {
@@ -231,7 +227,6 @@ async function InsertUser(id, password, company, department, position, name)
             },
             body: JSON.stringify({
                 id: id,
-                password: encryptedPassword,
                 company : company,
                 department : department,
                 position : position,

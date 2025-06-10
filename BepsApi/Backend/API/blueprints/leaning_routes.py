@@ -6,7 +6,8 @@ from datetime import timezone
 from datetime import timedelta
 from extensions import db
 from flask_jwt_extended import jwt_required
-from models import Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, ContentRelPageDetails, LearningCompletionHistory
+from models import (Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, LearningCompletionHistory
+                    , ContentManager, ContentRelFolders, ContentRelChannels)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 from config import Config
@@ -16,6 +17,7 @@ import os
 import pickle
 from flask import session
 from sqlalchemy import distinct, func, tuple_
+from sqlalchemy.orm import aliased
 import traceback
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
@@ -464,16 +466,25 @@ def get_top_viewd_pages():
         query = db.session.query(
             ContentViewingHistory.file_id,
             func.coalesce(ContentRelPages.name, '[삭제된 파일]').label('file_name'),
+            func.coalesce(ContentRelFolders.name, '[삭제된 폴더]').label('folder_name'),
+            func.coalesce(ContentRelChannels.name, '[삭제된 채널]').label('channel_name'),
+            ContentRelPages.updated_at,
             func.count().label('view_count')
         )
         
         if filter_type in ('company','department','user'):
             query = query.join(Users, ContentViewingHistory.user_id == Users.id)
             
-        query = query.outerjoin(ContentRelPages, ContentViewingHistory.file_id == ContentRelPages.id).filter(
-            ContentViewingHistory.start_time >= start_dt,
-            ContentViewingHistory.start_time < end_dt
-        )     
+        query = query.outerjoin(
+            ContentRelPages, ContentViewingHistory.file_id == ContentRelPages.id
+            ).outerjoin(
+                ContentRelFolders, ContentRelPages.folder_id == ContentRelFolders.id
+            ).outerjoin(
+                ContentRelChannels, ContentRelFolders.channel_id == ContentRelChannels.id
+            ).filter(
+                ContentViewingHistory.start_time >= start_dt,
+                ContentViewingHistory.start_time < end_dt
+            )     
         
         if filter_type == 'company' and filter_value:
             query = query.filter(Users.company == filter_value)
@@ -486,7 +497,7 @@ def get_top_viewd_pages():
         elif filter_type == 'user' and filter_value:
             query = query.filter(Users.id == filter_value)
 
-        query = query.group_by(ContentViewingHistory.file_id, ContentRelPages.name).order_by(func.count().desc())
+        query = query.group_by(ContentViewingHistory.file_id, ContentRelPages.name, ContentRelFolders.name, ContentRelChannels.name, ContentRelPages.updated_at).order_by(func.count().desc())
         query = query.limit(5)  # 🔹 상위 5개 조회
         
         rows = query.all()
@@ -496,7 +507,10 @@ def get_top_viewd_pages():
                 {
                     'file_id': row.file_id,
                     'file_name': row.file_name,
-                    'view_count': row.view_count
+                    'folder_name': row.folder_name,
+                    'channel_name': row.channel_name,
+                    'view_count': row.view_count,
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
                 } for row in rows
             ]
         }), 200  # 200: OK
@@ -575,11 +589,20 @@ def get_completion_rate():
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def rank_update_contents():
     try:
+
+        cm = aliased(ContentManager)
+        u = aliased(Users)
         
         top_rows = db.session.query(
                 ContentRelPages.id,
                 ContentRelPages.name,
-                ContentRelPages.updated_at
+                ContentRelPages.updated_at,
+                cm.user_id.label('manager_id'),
+                u.name.label('manager_name')
+            ).outerjoin(
+                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
+            ).outerjoin(
+                u, u.id == cm.user_id
             ).filter(
                 ContentRelPages.is_deleted == False
             ).order_by(
@@ -589,7 +612,13 @@ def rank_update_contents():
         bottom_rows = db.session.query(
                 ContentRelPages.id,
                 ContentRelPages.name,
-                ContentRelPages.updated_at
+                ContentRelPages.updated_at,
+                cm.user_id.label('manager_id'),
+                u.name.label('manager_name')
+            ).outerjoin(
+                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
+            ).outerjoin(
+                u, u.id == cm.user_id
             ).filter(
                 ContentRelPages.is_deleted == False
             ).order_by(
@@ -601,14 +630,18 @@ def rank_update_contents():
                 {
                     'id': row.id,
                     'name': row.name,
-                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None,
+                    'manager_id': row.manager_id,
+                    'manager_name': row.manager_name
                 } for row in top_rows
             ],
             'bottom': [
                 {
                     'id': row.id,
                     'name': row.name,
-                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None,
+                    'manager_id': row.manager_id,
+                    'manager_name': row.manager_name    
                 } for row in bottom_rows
             ]
         }), 200  # 200: OK

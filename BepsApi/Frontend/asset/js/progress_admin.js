@@ -43,6 +43,25 @@ document.addEventListener('DOMContentLoaded', async() => {
   // 트래픽 게이지 차트 Init
   initTrafficGaugeChart(0);
   
+  const topUpdated = document.getElementById("top-updated");
+  if(topUpdated) {
+    topUpdated.addEventListener("click", () => {
+      getUpdatedContentsRank();
+      topUpdated.classList.add("active");
+      bottomUpdated.classList.remove("active");
+    });
+  }
+  const bottomUpdated = document.getElementById("bottom-updated");
+  if(bottomUpdated) {
+    bottomUpdated.addEventListener("click", () => {
+      getUpdatedContentsRank(false);
+      bottomUpdated.classList.add("active");
+      topUpdated.classList.remove("active");
+    });
+  }
+
+  getUpdatedContentsRank();
+
   let loginUserRank;
   let loginDepartmentRank;
   let loginCompanyRank;
@@ -388,7 +407,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       const myChart = echarts.init(categorArea);
       const chartData = getCategory.progress.map((item, index) => {      
         const prefix = String.fromCharCode(65 + index); // A, B, C, ...
-        const isSamll = item.percentage < 10;
+        const isSamll = item.percentage < 5;
 
         return {
           name: `${prefix}_${item.channel_name.replace(/^\d+_/, '')}`,
@@ -448,13 +467,6 @@ document.addEventListener('DOMContentLoaded', async() => {
   }
 
   async function getTopViewdPages() {
-    const topViewdPages = document.getElementById("top_viewed_pages");
-    topViewdPages.innerHTML = ""; // Clear previous content
-
-    const element = document.createElement("span");
-    element.className = "category-item";
-    element.textContent = `많이 본 페이지 순위`;
-    topViewdPages.appendChild(element);
 
     let url= `${window.baseUrl}leaning/top_viewed_pages?period_value=${period_value}`;
     if(period_type != null)
@@ -466,27 +478,39 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     const response = await fetch(url);
     const getTopViewdPages = await response.json();
-    if(response.ok)
-    {
-      for(let i = 0; i < getTopViewdPages.top_viewd_pages.length; i++)
-      {
-        const element = document.createElement("span");
-        element.className = "category-item";
-        element.textContent = `${i+1}위: ${getTopViewdPages.top_viewd_pages[i].file_name.replace(/^\d+_/, '')} (${getTopViewdPages.top_viewd_pages[i].view_count}회)`;
-        topViewdPages.appendChild(element);
-      }
-    }
+
+    document.querySelectorAll(`[data-group="top-viewed-page"]`).forEach((element) => {
+      const index = parseInt(element.dataset.index || "0");
+
+      const span = element.querySelector("span");
+      const div = element.querySelector("div");
+      const [dateSpan, countSpan] = div.querySelectorAll("span");
+
+      span.textContent = `${index + 1}. `;
+      countSpan.textContent = "0회";
+      dateSpan.style.display = "none";
+
+      if(response.ok === false) return;
+      const data = getTopViewdPages.top_viewd_pages;
+      if(index >= data.length) return;
+
+      const page = data[index];
+      span.textContent = `${index + 1}. ${page.file_name.replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      countSpan.textContent = `${page.view_count}회`;
+      element.title = `${page.channel_name.replace(/^\d+_/, '')} _ ${page.folder_name.replace(/^\d+_/, '')} _ ${page.file_name.replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+
+      div.addEventListener("mouseover", () => {
+        dateSpan.style.display = "inline";
+        dateSpan.textContent = `${formatUTCtoLocal(page.updated_at)}`;
+      });
+
+      div.addEventListener("mouseleave", () => {
+        dateSpan.style.display = "none";
+      });
+    });
   }
 
   async function getMemoRank() {
-    const memoRank = document.getElementById("memo_rank");
-    memoRank.innerHTML = ""; // Clear previous content
-
-    const element = document.createElement("span");
-    element.className = "category-item";
-    element.textContent = `의견서 순위`;
-    memoRank.appendChild(element);
-
     let url = `${window.baseUrl}memo/memo_rank?period_value=${period_value}`;
     if(period_type != null)
       url += `&period_type=${period_type}`;
@@ -496,19 +520,109 @@ document.addEventListener('DOMContentLoaded', async() => {
       url += `&filter_value=${encodeURIComponent(filter_value)}`;
 
     const response = await fetch(url);
-    const getMemoRank = await response.json();
+    const getMemoRank = await response.json();    
+
+    document.querySelectorAll('[data-group="top-viewed-memo"]').forEach((element) => {
+      const index = parseInt(element.dataset.index || "0");
+
+      const span = element.querySelector("span");
+      const div = element.querySelector("div");
+      const countSpan = div.querySelector("span");
+
+      span.textContent = `${index + 1}. `;
+      countSpan.textContent = "0개";
+
+      if(response.ok === false) return;
+
+      const data = getMemoRank.data;
+      if(index >= data.length) return;
+
+      const memo = data[index];
+      span.textContent = `${index + 1}. ${memo.name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      countSpan.textContent = `${memo.cnt}개`;
+      element.title = `${memo.channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${memo.folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${memo.name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      div.title = `최종 열람: ${formatUTCtoLocal(memo.modified_at)}`;
+
+      // if(index == 0)
+      // {
+      //   if(data.length === 0) return;
+
+      //   span.textContent = `1. ${data[0].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      //   countSpan.textContent = `${data[0].cnt}개`;
+      //   element.title = `${data[0].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[0].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[0].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      // }
+      // else if(index == 1)
+      // {
+      //   if(data.length < 2) return;
+
+      //   span.textContent = `2. ${data[1].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      //   countSpan.textContent = `${data[1].cnt}개`;
+      //   element.title = `${data[1].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[1].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[1].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      // }
+      // else if(index == 2)
+      // {
+      //   if(data.length < 3) return;
+
+      //   span.textContent = `3. ${data[2].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      //   countSpan.textContent = `${data[2].cnt}개`;
+      //   element.title = `${data[2].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[2].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[2].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      // }
+      // else if(index == 3)
+      // {
+      //   if(data.length < 4) return;
+
+      //   span.textContent = `4. ${data[3].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      //   countSpan.textContent = `${data[3].cnt}개`;
+      //   element.title = `${data[3].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[3].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[3].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      // }
+      // else if(index == 4)
+      // {
+      //   if(data.length < 5) return;
+
+      //   span.textContent = `5. ${data[4].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      //   countSpan.textContent = `${data[4].cnt}개`;
+      //   element.title = `${data[4].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[4].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[4].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+
+      // }
+
+    });
+  }
+
+  async function getUpdatedContentsRank(isTop = true) {
+    let url = `${window.baseUrl}leaning/rank-update-contents`;
+    const response = await fetch(url);
+    const getUpdatedContentsRank = await response.json();
+
     if(response.ok)
     {
-      const data = getMemoRank.data;
+       document.querySelectorAll('[data-group^="updated-page"]').forEach((element) => {
+        const value = element.dataset.value;
+        const index = parseInt(element.dataset.index || "0");
 
-      for(let i = 0; i < data.length; i++)
-      {
-        const element = document.createElement("span");
-        element.className = "category-item";
-        const path = data[i].path.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, ''); // 마지막 파일명 추출. 숫자 제거. 확장자 제거거
-        element.textContent = `${i+1}위: ${path} (${data[i].cnt}회)`;
-        memoRank.appendChild(element);
-      }
+        let content;
+        if(isTop)
+          content = getUpdatedContentsRank.top[index];
+        else
+          content = getUpdatedContentsRank.bottom[index];
+
+        if(!content) return;
+
+        console.log(`content: ${JSON.stringify(content)}`);
+
+        if(value === "name")
+        {
+          element.textContent = `${index+1}. ${content.name.replace(/^\d+_/, '').replace(/\.[^/.]+$/, '')}`
+          element.title = content.name.replace(/^\d+_/, '').replace(/\.[^/.]+$/, '');
+        }
+        else if(value === "updated-at")
+        {
+          element.textContent = content.updated_at.split("T")[0];
+        }
+        else if(value === "manager")
+        {
+          element.textContent = content.manager_name;
+        }
+      });
     }
   }
 
@@ -674,6 +788,18 @@ document.addEventListener('DOMContentLoaded', async() => {
         }   
       });
   }
+
+  function formatUTCtoLocal(utcString) {
+  const date = new Date(utcString + "Z"); // ISO 8601을 파싱함
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
 });
 
