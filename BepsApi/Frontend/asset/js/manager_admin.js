@@ -672,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Verify user exists
     function verifyUser(userId) {
-        return fetch(`${baseApiUrl}/user/verify?id=${userId}`, {
+        return fetch(`${baseApiUrl}/user/user_info?id=${userId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -693,7 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch user details
     function fetchUserDetails(userId) {
-        return fetch(`${baseApiUrl}/user/verify?id=${userId}`, {
+        return fetch(`${baseApiUrl}/user/user_info?id=${userId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -706,6 +706,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return { exists: false };
             }
             return response.json();
+        })
+        .then(userData => {
+            // Transform the response to match expected format
+            if (userData) {
+                return {
+                    exists: true,
+                    user: userData
+                };
+            } else {
+                return { exists: false };
+            }
         })
         .catch(() => {
             return { exists: false };
@@ -885,7 +896,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch user name
     function fetchUserName(userId) {
-        return fetch(`${baseApiUrl}/users/${userId}`, {
+        return fetch(`${baseApiUrl}/user/user_info?id=${userId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {

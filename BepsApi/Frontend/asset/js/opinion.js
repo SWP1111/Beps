@@ -328,25 +328,58 @@ createApp({
                             }
                             
                             // Fetch from API if not in cache or current user
-                            const userResponse = await fetch(`${url}user/${memo.user_id}`, {
-                                method: "GET",
-                                credentials: "include",
-                                headers: {
-                                    "Accept": "application/json"
+                            try {
+                                const userResponse = await fetch(`${url}user/user_info?id=${memo.user_id}`, {
+                                    method: "GET",
+                                    credentials: "include",
+                                    headers: {
+                                        "Accept": "application/json"
+                                    }
+                                });
+                                
+                                if (userResponse.ok) {
+                                    const userData = await userResponse.json();
+                                    userCache[memo.user_id] = {
+                                        company: userData.company || '-',
+                                        department: userData.department || '-',
+                                        name: userData.name || '-',
+                                        position: userData.position || ''
+                                    };
+                                    memo.user = userCache[memo.user_id];
+                                } else {
+                                    console.warn(`Failed to fetch user ${memo.user_id}: ${userResponse.status} ${userResponse.statusText}`);
+                                    // If API call fails, use placeholder
+                                    userCache[memo.user_id] = {
+                                        company: '-',
+                                        department: '-',
+                                        name: `사용자 ${memo.user_id}`,
+                                        position: ''
+                                    };
+                                    memo.user = userCache[memo.user_id];
                                 }
-                            });
-                            
-                            if (userResponse.ok) {
-                                const userData = await userResponse.json();
+                            } catch (fetchError) {
+                                console.warn(`Error fetching user ${memo.user_id}:`, fetchError.message);
+                                // Use placeholder data if fetch completely fails
                                 userCache[memo.user_id] = {
-                                    company: userData.company || '-',
-                                    department: userData.department || '-',
-                                    name: userData.name || '-',
-                                    position: userData.position || ''
+                                    company: '-',
+                                    department: '-',
+                                    name: `사용자 ${memo.user_id}`,
+                                    position: ''
+                                };
+                                memo.user = userCache[memo.user_id];
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching user data for memo ID ${memo.id}:`, error);
+                            // Cache the failed user to avoid repeated API calls
+                            if (memo.user_id) {
+                                userCache[memo.user_id] = {
+                                    company: '-',
+                                    department: '-',
+                                    name: `사용자 ${memo.user_id}`,
+                                    position: ''
                                 };
                                 memo.user = userCache[memo.user_id];
                             } else {
-                                // If API call fails, use placeholder
                                 memo.user = {
                                     company: '-',
                                     department: '-',
@@ -354,14 +387,6 @@ createApp({
                                     position: ''
                                 };
                             }
-                        } catch (error) {
-                            console.error(`Error fetching user data for memo ID ${memo.id}:`, error);
-                            memo.user = {
-                                company: '-',
-                                department: '-',
-                                name: '-',
-                                position: ''
-                            };
                         }
                     }
                     
