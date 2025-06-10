@@ -160,6 +160,33 @@ def get_user_auth_time():
     except OperationalError as e:
         return jsonify({'error': str(e)}), 500
 
+# GET /user/verify API 사용자 존재 여부 확인 (인증된 사용자용)
+@api_user_bp.route('/verify', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def verify_user():
+    try:
+        user_id = request.args.get('id')
+        if user_id is None:
+            return jsonify({'error': 'Please provide id'}), 400
+        
+        # Convert to lowercase for case-insensitive search
+        user_id_lower = user_id.lower()
+        user = Users.query.filter_by(id=user_id_lower).first()
+        
+        if user is None:
+            return jsonify({'exists': False}), 200
+        else:
+            # Return user data without password
+            user_data = user.to_dict()
+            user_data.pop('password', None)
+            return jsonify({
+                'exists': True, 
+                'user': user_data
+            }), 200
+        
+    except OperationalError as e:
+        return jsonify({'error': str(e)}), 500
+
      
 # POST /user/update_user API Users 테이블 Row Insert/Update API
 @api_user_bp.route('/update_user', methods=['POST'])

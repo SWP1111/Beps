@@ -1111,14 +1111,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                if (response.status === 404) {
-                    validationMessage.textContent = 'ID를 찾을 수 없습니다';
-                    validationMessage.className = 'validation-message error';
-                } else {
-                    validationMessage.textContent = 'ID 검증에 실패했습니다';
-                    validationMessage.className = 'validation-message error';
-                }
-                return null;
+                validationMessage.textContent = 'ID 검증에 실패했습니다';
+                validationMessage.className = 'validation-message error';
+                throw new Error(`HTTP ${response.status}`);
             }
             return response.json();
         })
@@ -1130,8 +1125,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     managerInput.value !== user.id) {
                     managerInput.value = user.id;
                 }
-                validationMessage.textContent = `${user.company} ${user.department} ${user.name} ${user.position}\n올바른 ID입니다.`;
+                validationMessage.textContent = `${user.company || '-'} ${user.department || '-'} ${user.name || '-'} ${user.position || '-'}\n올바른 ID입니다.`;
                 validationMessage.className = 'validation-message success';
+            } else {
+                validationMessage.textContent = 'ID를 찾을 수 없습니다';
+                validationMessage.className = 'validation-message error';
             }
         })
         .catch(error => {
