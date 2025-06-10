@@ -156,34 +156,34 @@ document.addEventListener('DOMContentLoaded', async() => {
     });
   });
 
-  getTopUserConnectionDuration(period_type, period_value)
+  getTopUserConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
   .then(data => {
       loginUserRank = data;
       displayRankbyType(loginRankTitile.textContent, true);
   });
-  
-  getTopDepartmentConnectionDuration(period_type, period_value)
+
+  getTopDepartmentConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
   .then(data => {
     loginDepartmentRank = data;
   });
 
-  getTopCompanyConnectionDuration(period_type, period_value)
+  getTopCompanyConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
   .then(data => {
     loginCompanyRank = data;
   });
   
   setInterval(() => {
-    getTopUserConnectionDuration(period_type, period_value)
+    getTopUserConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
     .then(data => {
       loginUserRank = data;
     });
 
-    getTopDepartmentConnectionDuration(period_type, period_value)
+    getTopDepartmentConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
     .then(data => {
       loginDepartmentRank = data;
     });
 
-    getTopCompanyConnectionDuration(period_type, period_value)
+    getTopCompanyConnectionDuration(period_type='day', period_value=`2025-01-01~${today}`)
     .then(data => {
       loginCompanyRank = data;
     });
@@ -295,10 +295,10 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     setLoginData(period_type, period_value, filter_type, filter_value);
 
-    getTopUserConnectionDuration(period_type, period_value)
-    .then(data => {
-      loginUserRank = data;
-    });
+    // getTopUserConnectionDuration(period_type, period_value)
+    // .then(data => {
+    //   loginUserRank = data;
+    // });
 
     getTopDepartmentConnectionDuration(period_type, period_value)
     .then(data => {
@@ -781,8 +781,8 @@ document.addEventListener('DOMContentLoaded', async() => {
   function setActiveLoginRankBottomButton(type){
     document.querySelectorAll('[data-group="login-type"]').forEach((element) => {
         const group = element.dataset.group;      
-        loginRankType = element.dataset.value;
-        if(loginRankType === type) {
+        const bottomType = element.dataset.value;
+        if(bottomType === type) {
             document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
             element.classList.add('active');
         }   

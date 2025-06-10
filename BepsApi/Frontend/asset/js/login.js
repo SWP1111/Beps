@@ -103,7 +103,7 @@ async function Login(username, password) {
         
             //사용자 추가 또는 업데이트
             console.log("사용자 추가 Id:", username, " Company: ", response.data.company, " Department: ", response.data.department, " Position: ", response.position, " Name: ", response.data.username);
-            const insertReponse = await InsertUser(response.data.company,response.data.department,response.data.position,response.data.username);
+            const insertReponse = await InsertUser(username,response.data.company,response.data.department,response.data.position,response.data.username);
             console.log("insertReponse: ", insertReponse);
             if(insertReponse.success)
             {
