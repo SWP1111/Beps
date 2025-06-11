@@ -871,7 +871,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="name-col">${name || '-'}</td>
                     <td class="id-col">${permission.user_id || '-'}</td>
                     <td class="action-col">
-                        <button class="edit-btn" data-id="${permission.id}">수정</button>
                         <button class="delete-btn" data-id="${permission.id}">삭제</button>
                     </td>
                 `;
@@ -882,11 +881,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Add event listener to delete button
                 row.querySelector('.delete-btn').addEventListener('click', function() {
                     deletePermission(this.dataset.id, row);
-                });
-                
-                // Add event listener to edit button
-                row.querySelector('.edit-btn').addEventListener('click', function() {
-                    editPermission(permission);
                 });
             })
             .catch(error => {
@@ -1253,18 +1247,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Event listener for add button
     addBtn.addEventListener('click', function() {
-        if (this.dataset.mode === 'edit') {
-            // In edit mode, call updatePermission instead of addPermission
-            updatePermission(this.dataset.id);
-            
-            // Reset button to normal add mode
-            this.textContent = '추가';
-            delete this.dataset.mode;
-            delete this.dataset.id;
-        } else {
-            // Normal add mode
-            addPermission();
-        }
+        // Normal add mode only (edit functionality disabled)
+        addPermission();
     });
 
     // Event listener for refresh button
