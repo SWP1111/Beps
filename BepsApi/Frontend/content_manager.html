@@ -158,7 +158,7 @@
         
         .tree-file {
             display: grid;
-            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: minmax(200px, 2fr) 80px 1fr 1fr 1fr 1fr 1fr;
             align-items: center;
             padding: 5px 0;
             border-bottom: 1px solid #eee;
@@ -187,12 +187,23 @@
         .file-name-content {
             display: flex;
             align-items: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
+        
+        .file-name-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
         }
         
         /* Page detail styles */
         .page-detail {
             display: grid;
-            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: minmax(200px, 2fr) 80px 1fr 1fr 1fr 1fr 1fr;
             align-items: center;
             padding: 3px 0;
             border-bottom: 1px solid #f0f0f0;
@@ -240,13 +251,27 @@
         .detail-download-icon {
             cursor: pointer;
             color: #555;
-            font-size: 12px;
+            font-size: 16px;
+            padding: 3px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .detail-download-icon:hover {
+            background-color: #f5f5f5;
         }
 
         .detail-upload-icon {
             cursor: pointer;
             color: #4caf50;
-            font-size: 12px;
+            font-size: 16px;
+            padding: 3px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .detail-upload-icon:hover {
+            background-color: #e8f5e8;
         }
         
         .new-badge {
@@ -267,20 +292,37 @@
         }
         
         .upload-icon {
-            margin-left: auto;
             cursor: pointer;
             color: #4caf50;
+            font-size: 18px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .upload-icon:hover {
+            background-color: #e8f5e8;
         }
         
         .modify-icon {
-            margin-left: 5px;
             cursor: pointer;
             color: #ff9800;
-            font-size: 14px;
+            font-size: 18px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
         }
         
         .modify-icon:hover {
+            background-color: #fff3e0;
             color: #f57c00;
+        }
+        
+        .actions-column {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
         }
         
         .file-name-clickable {
@@ -393,7 +435,7 @@
             font-weight: bold;
             border-bottom: 1px solid #ddd;
             display: grid;
-            grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: minmax(200px, 2fr) 80px 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
         }
     </style>
@@ -444,6 +486,7 @@
             <div class="right-tab">
                 <div class="file-header">
                     <div>파일명</div>
+                    <div>작업</div>
                     <div>버전</div>
                     <div>작성자</div>
                     <div>검토자</div>
@@ -508,6 +551,7 @@
         let hierarchyData = null;
         let userAccessibleFolders = []; // For restricted users
         let userAccessibleFiles = []; // For restricted users
+        let r2FileExistenceCache = {}; // Cache for R2 file existence checks
         
         // DOM 요소
         const contentListElement = document.getElementById('content-list');
@@ -843,6 +887,215 @@
             });
             
             fileTreeViewElement.appendChild(treeRoot);
+            
+            // 모든 파일 ID 수집하고 R2 존재 여부 일괄 확인
+            const allFileIds = collectAllFileIds(data);
+            if (allFileIds.length > 0) {
+                batchCheckR2Existence(allFileIds);
+            }
+        }
+        
+        // 데이터에서 모든 파일 ID 수집 (재귀 함수)
+        function collectAllFileIds(data) {
+            let fileIds = [];
+            
+            function collectFromFolders(folders) {
+                folders.forEach(folder => {
+                    // 이 폴더의 페이지들
+                    if (folder.pages && folder.pages.length > 0) {
+                        folder.pages.forEach(page => {
+                            fileIds.push(page.id);
+                        });
+                    }
+                    
+                    // 하위 폴더들 재귀 처리
+                    if (folder.subfolders && folder.subfolders.length > 0) {
+                        collectFromFolders(folder.subfolders);
+                    }
+                });
+            }
+            
+            if (data.folders) {
+                collectFromFolders(data.folders);
+            }
+            
+            return fileIds;
+        }
+        
+        // R2 파일 존재 여부 일괄 확인
+        async function batchCheckR2Existence(fileIds) {
+            try {
+                console.log(`🔍 Checking R2 existence for ${fileIds.length} files...`);
+                
+                const response = await authenticatedFetch('/contents/files/r2-batch-check', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        file_ids: fileIds
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`R2 일괄 확인 실패: ${response.status}`);
+                }
+                
+                const results = await response.json();
+                
+                // 캐시에 결과 저장
+                Object.assign(r2FileExistenceCache, results);
+                
+                console.log(`✅ R2 existence check complete. Found ${Object.keys(results).filter(id => results[id].r2_exists).length} files with R2 images.`);
+                
+                // UI 업데이트
+                updateFileNodesWithR2Status();
+                
+            } catch (error) {
+                console.error('R2 일괄 확인 중 오류:', error);
+                // 오류 발생 시 개별 확인으로 폴백하지 않고 기존 방식 사용
+            }
+        }
+        
+        // R2 상태에 따라 파일 노드 UI 업데이트
+        function updateFileNodesWithR2Status() {
+            // 모든 파일 노드 찾기
+            const fileNodes = document.querySelectorAll('.tree-file');
+            
+            fileNodes.forEach(fileNode => {
+                const fileId = fileNode.closest('.tree-node').dataset.id;
+                const r2Status = r2FileExistenceCache[fileId];
+                
+                if (!r2Status) return;
+                
+                // 파일명 요소 및 액션 컬럼 찾기
+                const fileNameText = fileNode.querySelector('.file-name-content .file-name-text');
+                const actionsColumn = fileNode.parentNode.querySelector('.actions-column');
+                
+                if (!fileNameText || !actionsColumn) return;
+                
+                // 기존 아이콘들 제거
+                actionsColumn.innerHTML = '';
+                
+                if (r2Status.r2_exists) {
+                    // R2에 파일이 존재 - 클릭 가능하게 만들고 수정 아이콘 추가
+                    fileNameText.className = 'file-name-clickable file-name-text';
+                    fileNameText.style.cursor = 'pointer';
+                    fileNameText.style.color = '#1976d2';
+                    fileNameText.style.textDecoration = 'underline';
+                    
+                    // 클릭 이벤트 제거 후 재추가
+                    const newFileNameText = fileNameText.cloneNode(true);
+                    fileNameText.parentNode.replaceChild(newFileNameText, fileNameText);
+                    
+                    newFileNameText.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showImageModal(fileId, newFileNameText.textContent);
+                    });
+                    
+                    // 수정 아이콘 추가
+                    const newModifyIcon = document.createElement('span');
+                    newModifyIcon.className = 'modify-icon';
+                    newModifyIcon.innerHTML = '&#9998;'; // Edit/pencil icon
+                    newModifyIcon.title = '이미지 수정';
+                    newModifyIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        modifyImage(fileId);
+                    });
+                    
+                    actionsColumn.appendChild(newModifyIcon);
+                    
+                } else {
+                    // R2에 파일이 없음 - 일반 텍스트로 만들고 업로드 아이콘 추가
+                    fileNameText.className = 'file-name-normal file-name-text';
+                    fileNameText.style.cursor = 'default';
+                    fileNameText.style.color = 'inherit';
+                    fileNameText.style.textDecoration = 'none';
+                    
+                    // 클릭 이벤트 제거
+                    const newFileNameText = fileNameText.cloneNode(true);
+                    fileNameText.parentNode.replaceChild(newFileNameText, fileNameText);
+                    
+                    // 업로드 아이콘 추가
+                    const newUploadIcon = document.createElement('span');
+                    newUploadIcon.className = 'upload-icon';
+                    newUploadIcon.innerHTML = '&#8593;'; // Upload arrow
+                    newUploadIcon.title = '이미지 업로드';
+                    newUploadIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        uploadImage(fileId);
+                    });
+                    
+                    actionsColumn.appendChild(newUploadIcon);
+                }
+            });
+        }
+        
+        // 단일 파일 노드의 R2 상태 업데이트
+        function updateSingleFileNodeR2Status(fileId) {
+            const fileNode = document.querySelector(`.tree-node[data-id="${fileId}"] .tree-file`);
+            if (!fileNode) return;
+            
+            const r2Status = r2FileExistenceCache[fileId];
+            if (!r2Status) return;
+            
+            // 파일명 요소 및 액션 컬럼 찾기
+            const fileNameText = fileNode.querySelector('.file-name-content .file-name-text');
+            const actionsColumn = fileNode.parentNode.querySelector('.actions-column');
+            
+            if (!fileNameText || !actionsColumn) return;
+            
+            // 기존 아이콘들 제거
+            actionsColumn.innerHTML = '';
+            
+            if (r2Status.r2_exists) {
+                // R2에 파일이 존재 - 클릭 가능하게 만들고 수정 아이콘 추가
+                fileNameText.className = 'file-name-clickable file-name-text';
+                fileNameText.style.cursor = 'pointer';
+                fileNameText.style.color = '#1976d2';
+                fileNameText.style.textDecoration = 'underline';
+                
+                // 클릭 이벤트 제거 후 재추가
+                const newFileNameText = fileNameText.cloneNode(true);
+                fileNameText.parentNode.replaceChild(newFileNameText, fileNameText);
+                
+                newFileNameText.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showImageModal(fileId, newFileNameText.textContent);
+                });
+                
+                // 수정 아이콘 추가
+                const newModifyIcon = document.createElement('span');
+                newModifyIcon.className = 'modify-icon';
+                newModifyIcon.innerHTML = '&#9998;'; // Edit/pencil icon
+                newModifyIcon.title = '이미지 수정';
+                newModifyIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    modifyImage(fileId);
+                });
+                
+                actionsColumn.appendChild(newModifyIcon);
+                
+            } else {
+                // R2에 파일이 없음 - 일반 텍스트로 만들고 업로드 아이콘 추가
+                fileNameText.className = 'file-name-normal file-name-text';
+                fileNameText.style.cursor = 'default';
+                fileNameText.style.color = 'inherit';
+                fileNameText.style.textDecoration = 'none';
+                
+                // 클릭 이벤트 제거
+                const newFileNameText = fileNameText.cloneNode(true);
+                fileNameText.parentNode.replaceChild(newFileNameText, fileNameText);
+                
+                // 업로드 아이콘 추가
+                const newUploadIcon = document.createElement('span');
+                newUploadIcon.className = 'upload-icon';
+                newUploadIcon.innerHTML = '&#8593;'; // Upload arrow
+                newUploadIcon.title = '이미지 업로드';
+                newUploadIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    uploadImage(fileId);
+                });
+                
+                actionsColumn.appendChild(newUploadIcon);
+            }
         }
         
         // 폴더 노드 생성 (재귀 함수)
@@ -941,24 +1194,11 @@
                     
                     fileNameContent.appendChild(fileIcon);
                     
-                    // Check if file has an image (object_id is not null/empty)
-                    const hasImage = page.object_id && page.object_id.trim() !== '';
-                    
-                    // Create filename text element
+                    // Create filename text element (initially without checking)
+                    // R2 existence will be checked in batch after tree is rendered
                     const fileNameText = document.createElement('span');
                     fileNameText.textContent = page.name || '제목 없음';
-                    
-                    if (hasImage) {
-                        // State 2: File has image - make filename clickable
-                        fileNameText.className = 'file-name-clickable';
-                        fileNameText.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            showImageModal(page.id, page.name);
-                        });
-                    } else {
-                        // State 1: File has no image - normal text
-                        fileNameText.className = 'file-name-normal';
-                    }
+                    fileNameText.className = 'file-name-normal file-name-text'; // Default state with text truncation
                     
                     fileNameContent.appendChild(fileNameText);
                     
@@ -970,35 +1210,24 @@
                     }
                     
                     fileNameDiv.appendChild(fileNameContent);
-                    
-                    // Add appropriate icon based on state
-                    if (hasImage) {
-                        // State 2: Show modify button for files with images
-                        const modifyIcon = document.createElement('span');
-                        modifyIcon.className = 'modify-icon';
-                        modifyIcon.innerHTML = '&#9998;'; // Edit/pencil icon
-                        modifyIcon.title = '이미지 수정';
-                        modifyIcon.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            modifyImage(page.id);
-                        });
-                        
-                        fileNameDiv.appendChild(modifyIcon);
-                    } else {
-                        // State 1: Show upload icon
-                        const uploadIcon = document.createElement('span');
-                        uploadIcon.className = 'upload-icon';
-                        uploadIcon.innerHTML = '&#8593;'; // Upload arrow
-                        uploadIcon.title = '이미지 업로드';
-                        uploadIcon.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            uploadImage(page.id);
-                        });
-                        
-                        fileNameDiv.appendChild(uploadIcon);
-                    }
-                    
                     fileDiv.appendChild(fileNameDiv);
+                    
+                    // Actions column (새로운 작업 열)
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'actions-column';
+                    
+                    // Initially add upload icon (will be updated after R2 check)
+                    const uploadIcon = document.createElement('span');
+                    uploadIcon.className = 'upload-icon';
+                    uploadIcon.innerHTML = '&#8593;'; // Upload arrow
+                    uploadIcon.title = '이미지 업로드';
+                    uploadIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        uploadImage(page.id);
+                    });
+                    
+                    actionsDiv.appendChild(uploadIcon);
+                    fileDiv.appendChild(actionsDiv);
                     
                     // 버전 열
                     const versionDiv = document.createElement('div');
@@ -1065,25 +1294,27 @@
                             // Create detail name text element
                             const detailNameText = document.createElement('span');
                             detailNameText.textContent = detail.name || '상세 정보';
+                            detailNameText.className = 'file-name-text'; // Apply text truncation
                             
                             if (hasContent) {
                                 // Detail has content - make it clickable for download
-                                detailNameText.className = 'page-detail-name-clickable';
+                                detailNameText.classList.add('page-detail-name-clickable');
                                 detailNameText.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     downloadPageDetail(detail.id, detail.name);
                                 });
                             } else {
                                 // Detail has no content - normal text
-                                detailNameText.className = 'page-detail-name-normal';
+                                detailNameText.classList.add('page-detail-name-normal');
                             }
                             
                             detailNameContent.appendChild(detailNameText);
                             detailNameDiv.appendChild(detailNameContent);
+                            detailDiv.appendChild(detailNameDiv);
                             
-                            // Add appropriate icons based on content state
-                            const iconContainer = document.createElement('div');
-                            iconContainer.className = 'page-detail-icon-container';
+                            // Actions column for page details
+                            const detailActionsDiv = document.createElement('div');
+                            detailActionsDiv.className = 'actions-column';
                             
                             if (hasContent) {
                                 // Show download icon for details with content
@@ -1095,7 +1326,7 @@
                                     e.stopPropagation();
                                     downloadPageDetail(detail.id, detail.name);
                                 });
-                                iconContainer.appendChild(downloadIcon);
+                                detailActionsDiv.appendChild(downloadIcon);
                             } else {
                                 // Show upload icon for details without content
                                 const uploadIcon = document.createElement('span');
@@ -1106,11 +1337,10 @@
                                     e.stopPropagation();
                                     uploadPageDetailContent(detail.id);
                                 });
-                                iconContainer.appendChild(uploadIcon);
+                                detailActionsDiv.appendChild(uploadIcon);
                             }
                             
-                            detailNameDiv.appendChild(iconContainer);
-                            detailDiv.appendChild(detailNameDiv);
+                            detailDiv.appendChild(detailActionsDiv);
                             
                             // Empty columns for page details (they don't have version, author, etc.)
                             for (let i = 0; i < 5; i++) {
@@ -1231,17 +1461,16 @@
                     
                     alert('이미지가 성공적으로 업로드되었습니다.');
                     
-                    // 파일 목록 새로고침
-                    if (currentSelectedChannel) {
-                        const filters = {
-                            all: document.getElementById('filter-all').checked,
-                            reviewing: document.getElementById('filter-reviewing').checked,
-                            rejected: document.getElementById('filter-rejected').checked,
-                            approved: document.getElementById('filter-approved').checked,
-                            updated: document.getElementById('filter-updated').checked
-                        };
-                        fetchChannelHierarchy(currentSelectedChannel, filters);
-                    }
+                    // R2 캐시 업데이트
+                    r2FileExistenceCache[fileId] = {
+                        r2_exists: true,
+                        object_key: urlData.object_key
+                    };
+                    
+                    // 해당 파일 노드만 업데이트
+                    updateSingleFileNodeR2Status(fileId);
+                    
+                    // 전체 목록을 새로고침하지 않고 캐시된 정보만 업데이트
                     
                 } catch (error) {
                     console.error('이미지 업로드 중 오류가 발생했습니다:', error);
@@ -1348,17 +1577,14 @@
                     
                     alert('이미지가 성공적으로 수정되었습니다.');
                     
-                    // 파일 목록 새로고침
-                    if (currentSelectedChannel) {
-                        const filters = {
-                            all: document.getElementById('filter-all').checked,
-                            reviewing: document.getElementById('filter-reviewing').checked,
-                            rejected: document.getElementById('filter-rejected').checked,
-                            approved: document.getElementById('filter-approved').checked,
-                            updated: document.getElementById('filter-updated').checked
-                        };
-                        fetchChannelHierarchy(currentSelectedChannel, filters);
-                    }
+                    // R2 캐시 업데이트
+                    r2FileExistenceCache[fileId] = {
+                        r2_exists: true,
+                        object_key: urlData.object_key
+                    };
+                    
+                    // 해당 파일 노드만 업데이트
+                    updateSingleFileNodeR2Status(fileId);
                     
                 } catch (error) {
                     console.error('이미지 수정 중 오류가 발생했습니다:', error);

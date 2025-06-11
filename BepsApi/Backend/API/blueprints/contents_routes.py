@@ -1426,9 +1426,23 @@ def get_r2_image_url(file_id):
         if not page:
             return jsonify({'error': 'File not found'}), 404
         
-        # Check if file has an image (object_id is not null/empty)
-        if not page.object_id or page.object_id.strip() == '':
-            return jsonify({'error': 'No image associated with this file'}), 404
+        # Check if R2 file exists (using the new approach)
+        # First try to find the R2 object using standard extensions
+        page_name = page.name or f"file_{file_id}"
+        image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+        
+        r2_object_key = None
+        
+        for ext in image_extensions:
+            test_filename = f"{page_name}{ext}"
+            test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+            
+            if check_r2_object_exists(test_object_key):
+                r2_object_key = test_object_key
+                break
+        
+        if not r2_object_key:
+            return jsonify({'error': 'No R2 image associated with this file'}), 404
         
         # Check user permissions (admin, developer, or has specific access)
         if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer
@@ -1442,13 +1456,14 @@ def get_r2_image_url(file_id):
         # Get expires parameter
         expires = int(request.args.get('expires', 3600))
         
-        # Generate pre-signed URL for download
-        signed_url = generate_r2_signed_url(page.object_id, expires_in=expires, method='GET')
+        # Generate pre-signed URL for download using the found R2 object key
+        signed_url = generate_r2_signed_url(r2_object_key, expires_in=expires, method='GET')
         
         return jsonify({
             'signed_url': signed_url,
             'expires_in': expires,
-            'object_key': page.object_id
+            'object_key': r2_object_key,
+            'legacy_object_id': page.object_id  # Keep for backward compatibility
         })
         
     except Exception as e:
@@ -2288,6 +2303,131 @@ def confirm_direct_upload(file_id):
         logger.error(f"Error confirming direct upload: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@api_contents_bp.route('/file/<int:file_id>/r2-exists', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def check_r2_file_exists(file_id):
+    """
+    Quick check if R2 file exists for a given file_id
+    Used by frontend to determine UI state (clickable vs upload)
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get the file
+        page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+        if not page:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Generate the expected R2 object key for this file
+        # We'll check common image extensions
+        image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+        
+        r2_exists = False
+        existing_object_key = None
+        
+        # Check if there's a pattern we can use from the page name
+        page_name = page.name or f"file_{file_id}"
+        
+        for ext in image_extensions:
+            # Generate object key with this extension
+            test_filename = f"{page_name}{ext}"
+            test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+            
+            # Check if this object exists
+            if check_r2_object_exists(test_object_key):
+                r2_exists = True
+                existing_object_key = test_object_key
+                break
+        
+        return jsonify({
+            'file_id': file_id,
+            'r2_exists': r2_exists,
+            'object_key': existing_object_key,
+            'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking R2 file existence: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_contents_bp.route('/files/r2-batch-check', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def batch_check_r2_files():
+    """
+    Batch check R2 file existence for multiple files
+    More efficient for frontend to check many files at once
+    
+    Request body:
+    - file_ids: Array of file IDs to check
+    """
+    try:
+        # Check user permissions
+        user_id = get_jwt_identity()
+        user = Users.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get request data
+        request_data = request.json
+        if not request_data or 'file_ids' not in request_data:
+            return jsonify({'error': 'file_ids array is required'}), 400
+        
+        file_ids = request_data['file_ids']
+        if not isinstance(file_ids, list):
+            return jsonify({'error': 'file_ids must be an array'}), 400
+        
+        results = {}
+        
+        for file_id in file_ids:
+            try:
+                # Get the file
+                page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
+                if not page:
+                    results[str(file_id)] = {
+                        'r2_exists': False,
+                        'error': 'File not found'
+                    }
+                    continue
+                
+                # Check R2 existence
+                page_name = page.name or f"file_{file_id}"
+                image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+                
+                r2_exists = False
+                existing_object_key = None
+                
+                for ext in image_extensions:
+                    test_filename = f"{page_name}{ext}"
+                    test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                    
+                    if check_r2_object_exists(test_object_key):
+                        r2_exists = True
+                        existing_object_key = test_object_key
+                        break
+                
+                results[str(file_id)] = {
+                    'r2_exists': r2_exists,
+                    'object_key': existing_object_key,
+                    'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
+                }
+                
+            except Exception as e:
+                results[str(file_id)] = {
+                    'r2_exists': False,
+                    'error': str(e)
+                }
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        logger.error(f"Error in batch R2 check: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @api_contents_bp.route('/debug/cloudflare', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
