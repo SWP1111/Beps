@@ -25,9 +25,10 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
-api_contents_bp = Blueprint('contents', __name__) # ?�� 블루?�린???�성
+api_contents_bp = Blueprint('contents', __name__) # 콘텐츠 블루프린트 생성
 
-# ?�� 콘텐�??�용 로거 초기??logger = get_content_logger()
+# 콘텐츠용 로거 초기화
+logger = get_content_logger()
 
 
 @api_contents_bp.route('/file/get_detailed_path', methods=['GET'])
