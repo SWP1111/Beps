@@ -928,13 +928,22 @@ def get_r2_client():
         if not aws_access_key_id or not aws_secret_access_key:
             raise ValueError("R2 credentials not found in configuration")
         
+        # Configure the client with specific settings for R2
+        config = Config(
+            signature_version='s3v4',
+            retries={'max_attempts': 3},
+            s3={
+                'addressing_style': 'virtual'  # Use virtual hosted-style requests
+            }
+        )
+        
         client = boto3.client(
             's3',
             endpoint_url=r2_endpoint_url,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name='auto',  # R2 uses 'auto' region
-            config=Config(signature_version='s3v4')
+            config=config
         )
         
         return client
@@ -1133,8 +1142,21 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
         # Join components with forward slash for R2 object key
         object_key = '/'.join(path_components)
         
-        # Replace any invalid characters for object keys
-        object_key = re.sub(r'[^\w\-_./]', '_', object_key)
+        # Replace any characters that are problematic for object keys
+        # Keep more Unicode characters but replace truly problematic ones
+        # Replace multiple consecutive spaces/underscores with single underscore
+        object_key = re.sub(r'\s+', ' ', object_key)  # Normalize spaces first
+        
+        # Replace characters that are definitely problematic for S3/R2 object keys
+        # But preserve Unicode characters like Korean text and fraction slash
+        problematic_chars = r'[<>:"|?*\x00-\x1f\x7f]'  # Control chars and filesystem reserved chars
+        object_key = re.sub(problematic_chars, '_', object_key)
+        
+        # Replace backslashes with forward slashes (Windows path separators)
+        object_key = object_key.replace('\\', '/')
+        
+        # Clean up multiple consecutive slashes
+        object_key = re.sub(r'/+', '/', object_key)
         
         return object_key
         
@@ -1370,6 +1392,28 @@ def get_r2_image_url(file_id):
     - expires: Expiration time in seconds (optional, default: 3600)
     """
     try:
+        # Check R2 configuration first
+        aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
+        aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
+        r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
+        r2_bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        if not aws_access_key_id:
+            logger.error("AWS_ACCESS_KEY_ID is not configured")
+            return jsonify({'error': 'R2 configuration error: AWS_ACCESS_KEY_ID missing'}), 500
+        
+        if not aws_secret_access_key:
+            logger.error("AWS_SECRET_ACCESS_KEY is not configured")
+            return jsonify({'error': 'R2 configuration error: AWS_SECRET_ACCESS_KEY missing'}), 500
+        
+        if not r2_endpoint_url:
+            logger.error("R2_ENDPOINT_URL is not configured")
+            return jsonify({'error': 'R2 configuration error: R2_ENDPOINT_URL missing'}), 500
+        
+        if not r2_bucket_name:
+            logger.error("R2_BUCKET_NAME is not configured")
+            return jsonify({'error': 'R2 configuration error: R2_BUCKET_NAME missing'}), 500
+        
         # Check if user has access to this file
         user_id = get_jwt_identity()
         user = Users.query.get(user_id)
@@ -2243,6 +2287,7 @@ def confirm_direct_upload(file_id):
         db.session.rollback()
         logger.error(f"Error confirming direct upload: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 
 @api_contents_bp.route('/debug/cloudflare', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
