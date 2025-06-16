@@ -89,14 +89,20 @@ def register_r2_routes(api_contents_bp):
                             r2_exists = False
                             existing_object_key = None
                             
-                            for ext in image_extensions:
-                                test_filename = f"{page_name}{ext}"
-                                test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
-                                
-                                if check_r2_object_exists(test_object_key):
-                                    r2_exists = True
-                                    existing_object_key = test_object_key
-                                    break
+                            try:
+                                for ext in image_extensions:
+                                    test_filename = f"{page_name}{ext}"
+                                    test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                                    
+                                    if check_r2_object_exists(test_object_key):
+                                        r2_exists = True
+                                        existing_object_key = test_object_key
+                                        break
+                            except Exception as r2_error:
+                                # R2 check failed (credentials issue, network, etc.) - fall back to object_id
+                                logger.debug(f"R2 check failed for file {file_id}, falling back to object_id: {str(r2_error)}")
+                                r2_exists = bool(page.object_id and page.object_id.strip())
+                                existing_object_key = page.object_id if r2_exists else None
                             
                             object_key = existing_object_key
                         else:

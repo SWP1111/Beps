@@ -33,7 +33,7 @@ def get_r2_client():
         
         if not aws_access_key_id or not aws_secret_access_key:
             error_msg = "R2 credentials not found in Flask app configuration"
-            logger.error(error_msg)
+            logger.warning(error_msg)  # Changed from error to warning
             raise ValueError(error_msg)
         
         # Configure the client with specific settings for R2 (matching original)
@@ -56,7 +56,7 @@ def get_r2_client():
         
         return client
     except Exception as e:
-        logger.error(f"Failed to create R2 client: {str(e)}")
+        logger.warning(f"Failed to create R2 client: {str(e)}")  # Changed from error to warning
         raise
 
 
@@ -97,7 +97,7 @@ def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
         
         return signed_url
     except Exception as e:
-        logger.error(f"Failed to generate signed URL for {object_key}: {str(e)}")
+        logger.warning(f"Failed to generate signed URL for {object_key}: {str(e)}")  # Changed from error to warning
         raise
 
 
@@ -130,10 +130,14 @@ def check_r2_object_exists(object_key):
             return False
         else:
             # Other errors (permissions, etc.) - log and return False
-            logger.error(f"❌ Error checking R2 object '{object_key}': {str(e)}")
+            logger.warning(f"❌ Error checking R2 object '{object_key}': {str(e)}")  # Changed from error to warning
             return False
+    except ValueError as ve:
+        # R2 credentials not available - this is expected in development
+        logger.debug(f"❌ R2 credentials not available for checking '{object_key}': {str(ve)}")
+        return False
     except Exception as e:
-        logger.error(f"❌ Unexpected error checking R2 object '{object_key}': {str(e)}", exc_info=True)
+        logger.warning(f"❌ Unexpected error checking R2 object '{object_key}': {str(e)}", exc_info=True)  # Changed from error to warning
         return False
 
 
