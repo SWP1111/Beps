@@ -288,6 +288,7 @@ class ContentHierarchyService:
                 'name': page.name,
                 'type': 'page',
                 'object_id': page.object_id,
+                'has_content': self._safe_check_content_exists(page),
                 'details': [
                     {
                         'id': detail.id,
@@ -295,7 +296,7 @@ class ContentHierarchyService:
                         'type': 'page_detail',
                         'object_id': detail.object_id,
                         'page_id': detail.page_id,
-                        'has_content': detail.check_r2_content_exists() if hasattr(detail, 'check_r2_content_exists') else (detail.object_id is not None and detail.object_id.strip() != '')
+                        'has_content': self._safe_check_content_exists(detail)
                     }
                     for detail in page_details
                 ]
@@ -304,6 +305,21 @@ class ContentHierarchyService:
             folder_node['pages'].append(page_node)
         
         return folder_node
+
+    def _safe_check_content_exists(self, item) -> bool:
+        """
+        Safely check for R2 content, handling any potential exceptions.
+        """
+        try:
+            # Check if the method exists and call it
+            if hasattr(item, 'check_r2_content_exists'):
+                return item.check_r2_content_exists(use_cache=False) # Force re-check
+            # Fallback for objects without the method
+            return item.object_id is not None and item.object_id.strip() != ''
+        except Exception as e:
+            # If any error occurs (e.g., path generation fails), log it and assume no content
+            logging.warning(f"Could not check R2 content for item {getattr(item, 'id', 'N/A')}: {str(e)}")
+            return False
 
     #
     # New methods to support CRUD operations for channels, folders, and files
