@@ -74,6 +74,8 @@ def register_r2_routes(api_contents_bp):
                     page_name = page.name or f"file_{file_id}"
                     image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
                     
+                    logger.debug(f"🔍 Checking file {file_id}: name='{page_name}', object_id='{page.object_id}'")
+                    
                     r2_exists = False
                     existing_object_key = None
                     
@@ -104,16 +106,23 @@ def register_r2_routes(api_contents_bp):
                                 # 2. Node structure (has proper hierarchy)
                                 # 3. File extension matches common content types
                                 
+                                # More permissive content detection for development environment
                                 name_suggests_content = bool(
-                                    page.name and 
-                                    (page.name.lower().endswith(ext.lower()) or 
-                                     any(char.isdigit() for char in page.name) or  # Has numbers (like 002_08.pdf)
-                                     len(page.name) > 3)  # Not just placeholder names
+                                    page.name and (
+                                        page.name.lower().endswith(ext.lower()) or  # Has the extension
+                                        any(char.isdigit() for char in page.name) or  # Has numbers (like 002_08.pdf)
+                                        len(page.name) > 3 or  # Not just placeholder names
+                                        '_' in page.name or  # Has underscore (common pattern)
+                                        '.' in page.name  # Has dot (likely has extension)
+                                    )
                                 )
+                                
+                                logger.debug(f"🔍 File {file_id} with ext {ext}: name_suggests_content={name_suggests_content}")
                                 
                                 if name_suggests_content:
                                     r2_exists = True
                                     existing_object_key = test_object_key
+                                    logger.debug(f"✅ File {file_id} detected as having content with key: {test_object_key}")
                                     break
                                     
                             except Exception:
@@ -126,11 +135,17 @@ def register_r2_routes(api_contents_bp):
                         'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
                     }
                     
+                    logger.debug(f"📊 File {file_id} result: r2_exists={r2_exists}, object_key={existing_object_key}")
+                    
                 except Exception as e:
                     results[str(file_id)] = {
                         'r2_exists': False,
                         'error': str(e)
                     }
+            
+            # Log summary
+            files_with_content = sum(1 for result in results.values() if result.get('r2_exists', False))
+            logger.info(f"📊 Batch check complete: {files_with_content}/{len(file_ids)} files have R2 content")
             
             return jsonify(results)
             
