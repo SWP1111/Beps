@@ -11,3 +11,10 @@ BepsApi/Backend/API/services/__pycache__
 .cursor
 BepsApi/beps/lib
 venv/
+
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.cpython-*.pyc
+*.pyo
