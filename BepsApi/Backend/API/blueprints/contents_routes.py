@@ -33,12 +33,14 @@ def register_all_routes():
         from .contents.channel_folder_routes import register_channel_folder_routes
         from .contents.file_routes import register_file_routes
         from .contents.page_detail_routes import register_page_detail_routes
+        from .contents.r2_routes import register_r2_routes
         
         # Register route modules
         register_hierarchy_routes(api_contents_bp)
         register_channel_folder_routes(api_contents_bp)
         register_file_routes(api_contents_bp)
         register_page_detail_routes(api_contents_bp)
+        register_r2_routes(api_contents_bp)
         
         logger.info("Successfully registered all contents routes")
         
