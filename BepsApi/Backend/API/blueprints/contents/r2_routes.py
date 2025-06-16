@@ -79,8 +79,9 @@ def register_r2_routes(api_contents_bp):
                     r2_exists = False
                     existing_object_key = None
                     
+                    # Try R2 check first, fall back to intelligent detection if R2 unavailable
                     try:
-                        # Try R2 existence check (original logic)
+                        # Original simple logic - direct R2 check only
                         for ext in image_extensions:
                             test_filename = f"{page_name}{ext}"
                             test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
@@ -88,25 +89,19 @@ def register_r2_routes(api_contents_bp):
                             if check_r2_object_exists(test_object_key):
                                 r2_exists = True
                                 existing_object_key = test_object_key
+                                logger.debug(f"✅ File {file_id} found in R2 with key: {test_object_key}")
                                 break
-                    except Exception:
-                        # R2 credentials not available - simulate R2 path-based checking
-                        # Generate the expected R2 object keys and make intelligent guesses
-                        r2_exists = False
-                        existing_object_key = None
+                    except Exception as e:
+                        # R2 credentials not available or other R2 error - fall back to intelligent detection
+                        logger.warning(f"R2 check failed for file {file_id}, using fallback detection: {str(e)}")
                         
-                        # Try to generate object keys for each extension (same as R2 logic)
+                        # Use intelligent content detection for development environment
                         for ext in image_extensions:
                             try:
                                 test_filename = f"{page_name}{ext}"
                                 test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
                                 
-                                # Since we can't check R2, make intelligent guess based on:
-                                # 1. File name pattern (looks like actual content)
-                                # 2. Node structure (has proper hierarchy)
-                                # 3. File extension matches common content types
-                                
-                                # More permissive content detection for development environment
+                                # More permissive content detection
                                 name_suggests_content = bool(
                                     page.name and (
                                         page.name.lower().endswith(ext.lower()) or  # Has the extension
@@ -117,12 +112,10 @@ def register_r2_routes(api_contents_bp):
                                     )
                                 )
                                 
-                                logger.debug(f"🔍 File {file_id} with ext {ext}: name_suggests_content={name_suggests_content}")
-                                
                                 if name_suggests_content:
                                     r2_exists = True
                                     existing_object_key = test_object_key
-                                    logger.debug(f"✅ File {file_id} detected as having content with key: {test_object_key}")
+                                    logger.debug(f"✅ File {file_id} detected as having content (fallback): {test_object_key}")
                                     break
                                     
                             except Exception:
