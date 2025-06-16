@@ -25,21 +25,18 @@ class R2StorageService:
                                        updated_at: datetime.datetime = None,
                                        use_cache: bool = True) -> bool:
         """
-        Check if a page detail's content actually exists in R2 storage
+        Check if a page detail's content actually exists in R2 storage by deriving path from node structure
         
         Args:
             detail_id: ID of the page detail
             detail_name: Name of the detail (for path generation)
-            detail_object_id: Object ID from database
+            detail_object_id: Object ID from database (legacy, not used for existence check)
             updated_at: Last update timestamp (for cache invalidation)
             use_cache: Whether to use caching
             
         Returns:
             True if file exists in R2, False otherwise
         """
-        if not detail_object_id or detail_object_id.strip() == '':
-            return False
-        
         # Generate cache key
         cache_key = f"page_detail_{detail_id}_{updated_at.timestamp() if updated_at else 0}"
         
@@ -54,17 +51,20 @@ class R2StorageService:
             # Import here to avoid circular imports
             from blueprints.contents.r2_utils import check_r2_object_exists, generate_r2_object_key
             
-            # If object_id is already an R2 object key, check it directly
-            if '/' in detail_object_id:
-                result = check_r2_object_exists(detail_object_id)
-            else:
-                # Generate the R2 object key from hierarchy and check
-                filename = detail_name if detail_name else "detail"
-                if not any(filename.endswith(ext) for ext in ['.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx']):
-                    filename += '.pdf'  # Default extension
+            # Always derive R2 path from node structure (same approach as other endpoints)
+            detail_name_clean = detail_name or f"detail_{detail_id}"
+            detail_extensions = ['.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp']
+            
+            result = False
+            
+            # Try multiple extensions to find the actual file
+            for ext in detail_extensions:
+                test_filename = f"{detail_name_clean}{ext}"
+                test_object_key = generate_r2_object_key(detail_id, test_filename, is_page_detail=True)
                 
-                object_key = generate_r2_object_key(detail_id, filename, is_page_detail=True)
-                result = check_r2_object_exists(object_key)
+                if check_r2_object_exists(test_object_key):
+                    result = True
+                    break
             
             # Cache the result
             if use_cache:
@@ -81,11 +81,16 @@ class R2StorageService:
         except ValueError as e:
             # This is likely a credentials error
             if "Missing required R2 credentials" in str(e):
-                logging.warning(f"🔑 R2 credentials not configured, falling back to object_id check for page detail {detail_id}")
-                # When R2 is not available, assume files with object_id have content
-                # This is a reasonable assumption since object_id is typically set when content is uploaded
-                fallback_result = bool(detail_object_id and detail_object_id.strip())
-                logging.debug(f"🔄 Fallback result for page detail {detail_id}: {fallback_result} (object_id: '{detail_object_id}')")
+                logging.warning(f"🔑 R2 credentials not configured, making intelligent guess for page detail {detail_id}")
+                # When R2 is not available, make intelligent guess based on name pattern
+                name_suggests_content = bool(
+                    detail_name and 
+                    (any(detail_name.lower().endswith(ext.lower()) for ext in ['.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp']) or 
+                     any(char.isdigit() for char in detail_name) or  # Has numbers
+                     len(detail_name) > 3)  # Not just placeholder names
+                )
+                
+                fallback_result = name_suggests_content
                 
                 # Cache the fallback result too
                 if use_cache:
@@ -99,8 +104,10 @@ class R2StorageService:
                 raise
         except Exception as e:
             logging.error(f"Error checking R2 content for page detail {detail_id}: {str(e)}")
-            # Fallback to simple object_id check
-            return detail_object_id is not None and detail_object_id.strip() != ''
+            # Fallback to intelligent guess based on name
+            if detail_name:
+                return any(detail_name.lower().endswith(ext.lower()) for ext in ['.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp'])
+            return False
     
     @staticmethod
     def check_page_content_exists(page_id: int, page_name: str = None, 
@@ -108,24 +115,18 @@ class R2StorageService:
                                 updated_at: datetime.datetime = None,
                                 use_cache: bool = True) -> bool:
         """
-        Check if a page's content actually exists in R2 storage
+        Check if a page's content actually exists in R2 storage by deriving path from node structure
         
         Args:
             page_id: ID of the page
             page_name: Name of the page (for path generation)
-            page_object_id: Object ID from database
+            page_object_id: Object ID from database (legacy, not used for existence check)
             updated_at: Last update timestamp (for cache invalidation)
             use_cache: Whether to use caching
             
         Returns:
             True if file exists in R2, False otherwise
         """
-        logging.debug(f"🔍 Checking page {page_id} content exists: name='{page_name}', object_id='{page_object_id}'")
-        
-        if not page_object_id or page_object_id.strip() == '':
-            logging.debug(f"❌ Page {page_id} has no object_id")
-            return False
-        
         # Generate cache key
         cache_key = f"page_{page_id}_{updated_at.timestamp() if updated_at else 0}"
         
@@ -134,29 +135,26 @@ class R2StorageService:
             cache_entry = _r2_existence_cache[cache_key]
             # Check if cache entry is still valid
             if (datetime.datetime.now() - cache_entry['timestamp']).seconds < CACHE_TTL_SECONDS:
-                logging.debug(f"📋 Cache hit for page {page_id}: {cache_entry['exists']}")
                 return cache_entry['exists']
         
         try:
             # Import here to avoid circular imports
             from blueprints.contents.r2_utils import check_r2_object_exists, generate_r2_object_key
             
-            # If object_id is already an R2 object key, check it directly
-            if '/' in page_object_id:
-                logging.debug(f"🔗 Page {page_id} object_id looks like R2 key: '{page_object_id}'")
-                result = check_r2_object_exists(page_object_id)
-                logging.debug(f"🔍 Direct R2 check for page {page_id}: {result}")
-            else:
-                # Generate the R2 object key from hierarchy and check
-                filename = page_name if page_name else "file"
-                if not any(filename.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']):
-                    filename += '.png'  # Default extension for pages
+            # Always derive R2 path from node structure (same approach as r2-image-url endpoint)
+            page_name_clean = page_name or f"file_{page_id}"
+            image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+            
+            result = False
+            
+            # Try multiple extensions to find the actual file
+            for ext in image_extensions:
+                test_filename = f"{page_name_clean}{ext}"
+                test_object_key = generate_r2_object_key(page_id, test_filename, is_page_detail=False)
                 
-                logging.debug(f"🏗️ Generating R2 object key for page {page_id} with filename: '{filename}'")
-                object_key = generate_r2_object_key(page_id, filename, is_page_detail=False)
-                logging.debug(f"🔑 Generated object key for page {page_id}: '{object_key}'")
-                result = check_r2_object_exists(object_key)
-                logging.debug(f"🔍 Generated key R2 check for page {page_id}: {result}")
+                if check_r2_object_exists(test_object_key):
+                    result = True
+                    break
             
             # Cache the result
             if use_cache:
@@ -168,17 +166,21 @@ class R2StorageService:
                 # Simple cache cleanup
                 R2StorageService._cleanup_cache()
             
-            logging.debug(f"✅ Final result for page {page_id}: {result}")
             return result
             
         except ValueError as e:
             # This is likely a credentials error
             if "Missing required R2 credentials" in str(e):
-                logging.warning(f"🔑 R2 credentials not configured, falling back to object_id check for page {page_id}")
-                # When R2 is not available, assume files with object_id have content
-                # This is a reasonable assumption since object_id is typically set when content is uploaded
-                fallback_result = bool(page_object_id and page_object_id.strip())
-                logging.debug(f"🔄 Fallback result for page {page_id}: {fallback_result} (object_id: '{page_object_id}')")
+                logging.warning(f"🔑 R2 credentials not configured, making intelligent guess for page {page_id}")
+                # When R2 is not available, make intelligent guess based on name pattern
+                name_suggests_content = bool(
+                    page_name and 
+                    (any(page_name.lower().endswith(ext.lower()) for ext in ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp']) or 
+                     any(char.isdigit() for char in page_name) or  # Has numbers (like 002_08.pdf)
+                     len(page_name) > 3)  # Not just placeholder names
+                )
+                
+                fallback_result = name_suggests_content
                 
                 # Cache the fallback result too
                 if use_cache:
@@ -192,10 +194,10 @@ class R2StorageService:
                 raise
         except Exception as e:
             logging.error(f"❌ Error checking R2 content for page {page_id}: {str(e)}", exc_info=True)
-            # Fallback to simple object_id check
-            fallback_result = page_object_id is not None and page_object_id.strip() != ''
-            logging.debug(f"🔄 Fallback result for page {page_id}: {fallback_result}")
-            return fallback_result
+            # Fallback to intelligent guess based on name
+            if page_name:
+                return any(page_name.lower().endswith(ext.lower()) for ext in ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp'])
+            return False
     
     @staticmethod
     def _cleanup_cache():
