@@ -23,20 +23,17 @@ logger = get_content_logger()
 
 def get_r2_client():
     """
-    Create and return a configured R2 (S3-compatible) client using Flask app config
+    Create and return a configured R2 (S3-compatible) client
     """
     try:
-        # Get credentials from Flask app config (like the original implementation)
         aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
         aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
         r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
         
         if not aws_access_key_id or not aws_secret_access_key:
-            error_msg = "R2 credentials not found in Flask app configuration"
-            logger.warning(error_msg)  # Changed from error to warning
-            raise ValueError(error_msg)
+            raise ValueError("R2 credentials not found in configuration")
         
-        # Configure the client with specific settings for R2 (matching original)
+        # Configure the client with specific settings for R2
         config = Config(
             signature_version='s3v4',
             retries={'max_attempts': 3},
@@ -56,7 +53,7 @@ def get_r2_client():
         
         return client
     except Exception as e:
-        logger.warning(f"Failed to create R2 client: {str(e)}")  # Changed from error to warning
+        logger.error(f"Failed to create R2 client: {str(e)}")
         raise
 
 
@@ -77,7 +74,7 @@ def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
         bucket_name = current_app.config.get('R2_BUCKET_NAME')
         
         if not bucket_name:
-            raise ValueError("R2 bucket name not found in Flask app configuration")
+            raise ValueError("R2 bucket name not found in configuration")
         
         # Generate signed URL
         if method.upper() == 'GET':
@@ -97,7 +94,7 @@ def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
         
         return signed_url
     except Exception as e:
-        logger.warning(f"Failed to generate signed URL for {object_key}: {str(e)}")  # Changed from error to warning
+        logger.error(f"Failed to generate R2 signed URL: {str(e)}")
         raise
 
 
@@ -112,33 +109,20 @@ def check_r2_object_exists(object_key):
         True if object exists, False otherwise
     """
     try:
-        logger.debug(f"🔍 Checking R2 object existence: '{object_key}'")
-        
         r2_client = get_r2_client()
         bucket_name = current_app.config.get('R2_BUCKET_NAME')
         
-        logger.debug(f"🪣 Using bucket: '{bucket_name}'")
-        
-        # Try to get object metadata
-        response = r2_client.head_object(Bucket=bucket_name, Key=object_key)
-        logger.debug(f"✅ R2 object '{object_key}' exists - metadata: {response.get('Metadata', {})}")
+        r2_client.head_object(Bucket=bucket_name, Key=object_key)
         return True
     except ClientError as e:
-        # Object doesn't exist if we get a 404
         if e.response['Error']['Code'] == '404':
-            logger.debug(f"❌ R2 object '{object_key}' does not exist (404)")
             return False
         else:
-            # Other errors (permissions, etc.) - log and return False
-            logger.warning(f"❌ Error checking R2 object '{object_key}': {str(e)}")  # Changed from error to warning
-            return False
-    except ValueError as ve:
-        # R2 credentials not available - this is expected in development
-        logger.debug(f"❌ R2 credentials not available for checking '{object_key}': {str(ve)}")
-        return False
+            logger.error(f"Error checking R2 object existence: {str(e)}")
+            raise
     except Exception as e:
-        logger.warning(f"❌ Unexpected error checking R2 object '{object_key}': {str(e)}", exc_info=True)  # Changed from error to warning
-        return False
+        logger.error(f"Failed to check R2 object existence: {str(e)}")
+        raise
 
 
 def delete_r2_object(object_key):
@@ -242,7 +226,6 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
         # Join with forward slashes for R2 object key
         object_key = '/'.join(path_components)
         
-        logger.debug(f"Generated R2 object key for file {file_id}: {object_key}")
         return object_key
         
     except Exception as e:
