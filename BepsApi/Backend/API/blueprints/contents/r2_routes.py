@@ -31,29 +31,29 @@ def register_r2_routes(api_contents_bp):
     def batch_check_r2_files():
         """
         Batch check R2 file existence for multiple files
+        More efficient for frontend to check many files at once
         
         Request body:
-        {
-            "file_ids": [1, 2, 3, ...]
-        }
-        
-        Response:
-        {
-            "1": {"r2_exists": true, "object_key": "path/to/file"},
-            "2": {"r2_exists": false, "object_key": null},
-            ...
-        }
+        - file_ids: Array of file IDs to check
         """
         try:
+            # Check user permissions
+            user_id = get_jwt_identity()
+            user = Users.query.get(user_id)
+            
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+            
+            # Get request data
             data = request.get_json()
             if not data or 'file_ids' not in data:
                 logger.error("Missing file_ids in request body")
-                return jsonify({'error': 'Missing file_ids in request body'}), 400
+                return jsonify({'error': 'file_ids array is required'}), 400
             
             file_ids = data['file_ids']
             if not isinstance(file_ids, list):
                 logger.error("file_ids must be a list")
-                return jsonify({'error': 'file_ids must be a list'}), 400
+                return jsonify({'error': 'file_ids must be an array'}), 400
             
             logger.info(f"🔍 Batch checking R2 existence for {len(file_ids)} files: {file_ids}")
             
@@ -78,39 +78,80 @@ def register_r2_routes(api_contents_bp):
                     page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
                     
                     if page:
-                        # This is a page
+                        # This is a page - use original logic with multiple extensions
                         logger.debug(f"Found page {file_id}: name='{page.name}', object_id='{page.object_id}'")
-                        r2_exists = page.check_r2_content_exists()
-                        object_key = page.object_id if r2_exists else None
+                        
+                        if r2_credentials_available:
+                            # Try multiple extensions like the original implementation
+                            page_name = page.name or f"file_{file_id}"
+                            image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+                            
+                            r2_exists = False
+                            existing_object_key = None
+                            
+                            for ext in image_extensions:
+                                test_filename = f"{page_name}{ext}"
+                                test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                                
+                                if check_r2_object_exists(test_object_key):
+                                    r2_exists = True
+                                    existing_object_key = test_object_key
+                                    break
+                            
+                            object_key = existing_object_key
+                        else:
+                            # Fallback to object_id check when R2 credentials not available
+                            r2_exists = bool(page.object_id and page.object_id.strip())
+                            object_key = page.object_id if r2_exists else None
+                        
                         logger.debug(f"Page {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
+                        
+                        results[str(file_id)] = {
+                            'r2_exists': r2_exists,
+                            'object_key': object_key,
+                            'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
+                        }
+                        
                     else:
                         # Check if it's a page detail
                         detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
                         if detail:
                             # This is a page detail
                             logger.debug(f"Found page detail {file_id}: name='{detail.name}', object_id='{detail.object_id}', page_id={detail.page_id}")
-                            r2_exists = detail.check_r2_content_exists()
-                            object_key = detail.object_id if r2_exists else None
+                            
+                            if r2_credentials_available:
+                                # For page details, use the service method as it handles hierarchy correctly
+                                r2_exists = detail.check_r2_content_exists()
+                                object_key = detail.object_id if r2_exists else None
+                            else:
+                                # Fallback to object_id check when R2 credentials not available
+                                r2_exists = bool(detail.object_id and detail.object_id.strip())
+                                object_key = detail.object_id if r2_exists else None
+                            
                             logger.debug(f"Page detail {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
+                            
+                            results[str(file_id)] = {
+                                'r2_exists': r2_exists,
+                                'object_key': object_key
+                            }
                         else:
                             # File not found
                             logger.warning(f"File {file_id} not found in pages or page details")
-                            r2_exists = False
-                            object_key = None
-                    
-                    results[str(file_id)] = {
-                        'r2_exists': r2_exists,
-                        'object_key': object_key
-                    }
+                            results[str(file_id)] = {
+                                'r2_exists': False,
+                                'object_key': None,
+                                'error': 'File not found'
+                            }
                     
                 except Exception as e:
                     logger.error(f"Error checking R2 for file {file_id}: {str(e)}", exc_info=True)
                     results[str(file_id)] = {
                         'r2_exists': False,
-                        'object_key': None
+                        'object_key': None,
+                        'error': str(e)
                     }
             
-            files_with_r2 = sum(1 for r in results.values() if r['r2_exists'])
+            files_with_r2 = sum(1 for r in results.values() if r.get('r2_exists', False))
             logger.info(f"✅ Batch R2 check completed. {files_with_r2}/{len(file_ids)} files have R2 content")
             logger.debug(f"Results: {results}")
             
