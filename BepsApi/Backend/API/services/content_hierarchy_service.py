@@ -194,71 +194,116 @@ class ContentHierarchyService:
     
     def _build_hierarchy(self) -> Dict[str, Any]:
         """
-        Build the complete hierarchy as a nested dictionary in a performant, non-recursive way.
+        Build the complete hierarchy as a nested dictionary
         
         Returns:
             Dict containing the complete hierarchy tree
         """
         try:
-            # 1. Fetch all data in bulk to avoid N+1 query problems
-            all_channels = ContentRelChannels.query.filter_by(is_deleted=False).all()
-            all_folders = ContentRelFolders.query.filter_by(is_deleted=False).all()
-            all_pages = ContentRelPages.query.filter_by(is_deleted=False).all()
-            all_details = ContentRelPageDetails.query.filter_by(is_deleted=False).all()
-
-            # 2. Organize data into dictionaries for efficient lookup (O(1) access)
-            channel_map = {c.id: {'id': c.id, 'name': c.name, 'type': 'channel', 'folders': []} for c in all_channels}
-            folder_map = {f.id: {'id': f.id, 'name': f.name, 'type': 'folder', 'parent_id': f.parent_id, 'channel_id': f.channel_id, 'subfolders': [], 'pages': []} for f in all_folders}
-            page_map = {p.id: {'id': p.id, 'name': p.name, 'type': 'page', 'folder_id': p.folder_id, 'object_id': p.object_id, 'has_content': self._safe_check_content_exists(p), 'details': []} for p in all_pages}
-
-            # 3. Assemble the hierarchy in memory
-            # Link page details to their parent pages
-            for detail in all_details:
-                if detail.page_id in page_map:
-                    page_map[detail.page_id]['details'].append({
-                        'id': detail.id,
-                        'name': detail.name,
-                        'type': 'page_detail',
-                        'object_id': detail.object_id,
-                        'page_id': detail.page_id,
-                        'has_content': self._safe_check_content_exists(detail)
-                    })
-
-            # Link pages to their parent folders
-            for page_id, page_node in page_map.items():
-                if page_node['folder_id'] in folder_map:
-                    folder_map[page_node['folder_id']]['pages'].append(page_node)
-
-            # Link folders to their parents (channels or other folders)
+            # Start with channels
+            channels = ContentRelChannels.query.filter_by(is_deleted=False).all()
+            
             hierarchy = []
-            for folder_id, folder_node in folder_map.items():
-                if folder_node['parent_id'] is None:
-                    # This is a top-level folder, link to channel
-                    if folder_node['channel_id'] in channel_map:
-                        channel_map[folder_node['channel_id']]['folders'].append(folder_node)
-                elif folder_node['parent_id'] in folder_map:
-                    # This is a subfolder, link to parent folder
-                    parent_folder = folder_map[folder_node['parent_id']]
-                    parent_folder['subfolders'].append(folder_node)
-
+            
+            for channel in channels:
+                channel_node = {
+                    'id': channel.id,
+                    'name': channel.name,
+                    'type': 'channel',
+                    'folders': []
+                }
+                
+                # Get top-level folders for this channel
+                top_folders = ContentRelFolders.query.filter_by(
+                    channel_id=channel.id,
+                    parent_id=None,
+                    is_deleted=False
+                ).all()
+                
+                # Process each top folder and its children
+                for folder in top_folders:
+                    folder_node = self._build_folder_simple(folder)
+                    channel_node['folders'].append(folder_node)
+                    
+                hierarchy.append(channel_node)
+                
             return {
-                'channels': list(channel_map.values()),
+                'channels': hierarchy,
                 'timestamp': datetime.datetime.now().isoformat()
             }
                 
         except Exception as e:
-            logging.error(f"Error building content hierarchy: {str(e)}", exc_info=True)
+            logging.error(f"Error building content hierarchy: {str(e)}")
             return {
                 'channels': [],
                 'error': str(e)
             }
     
-    def _process_folder(self, folder) -> Dict[str, Any]:
+    def _build_folder_simple(self, folder) -> Dict[str, Any]:
         """
-        [DEPRECATED] This recursive method is inefficient and can cause server timeouts.
-        It is replaced by the bulk-processing logic in _build_hierarchy.
+        Build folder structure with simple content checks (no complex R2 validation)
+        
+        Args:
+            folder: ContentRelFolders instance to process
+            
+        Returns:
+            Dict representing the folder and its contents
         """
-        raise NotImplementedError("_process_folder is deprecated and should not be used.")
+        folder_node = {
+            'id': folder.id,
+            'name': folder.name,
+            'type': 'folder',
+            'subfolders': [],
+            'pages': []
+        }
+        
+        # Get subfolders
+        subfolders = ContentRelFolders.query.filter_by(
+            parent_id=folder.id,
+            is_deleted=False
+        ).all()
+        
+        # Process each subfolder recursively
+        for subfolder in subfolders:
+            subfolder_node = self._build_folder_simple(subfolder)
+            folder_node['subfolders'].append(subfolder_node)
+        
+        # Get pages in this folder
+        pages = ContentRelPages.query.filter_by(
+            folder_id=folder.id,
+            is_deleted=False
+        ).all()
+        
+        # Add pages with their details (simple content check)
+        for page in pages:
+            # Get page details for this page
+            page_details = ContentRelPageDetails.query.filter_by(
+                page_id=page.id,
+                is_deleted=False
+            ).all()
+            
+            page_node = {
+                'id': page.id,
+                'name': page.name,
+                'type': 'page',
+                'object_id': page.object_id,
+                'has_content': bool(page.object_id and page.object_id.strip()),
+                'details': [
+                    {
+                        'id': detail.id,
+                        'name': detail.name,
+                        'type': 'page_detail',
+                        'object_id': detail.object_id,
+                        'page_id': detail.page_id,
+                        'has_content': bool(detail.object_id and detail.object_id.strip())
+                    }
+                    for detail in page_details
+                ]
+            }
+            
+            folder_node['pages'].append(page_node)
+        
+        return folder_node
 
     def _safe_check_content_exists(self, item) -> bool:
         """
