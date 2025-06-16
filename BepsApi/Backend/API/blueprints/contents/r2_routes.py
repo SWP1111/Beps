@@ -57,115 +57,48 @@ def register_r2_routes(api_contents_bp):
             
             logger.info(f"🔍 Batch checking R2 existence for {len(file_ids)} files: {file_ids}")
             
-            # Check if R2 credentials are available (using Flask app config like the original)
-            aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
-            aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
-            r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
-            r2_bucket_name = current_app.config.get('R2_BUCKET_NAME')
-            
-            r2_credentials_available = all([aws_access_key_id, aws_secret_access_key, r2_endpoint_url, r2_bucket_name])
-            
-            if not r2_credentials_available:
-                logger.warning("🔑 R2 credentials not configured in Flask app config - using fallback object_id checks")
-            
             results = {}
             
             for file_id in file_ids:
                 try:
-                    logger.debug(f"Checking file ID: {file_id}")
-                    
-                    # Check if it's a page or page detail
+                    # Get the file
                     page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
-                    
-                    if page:
-                        # This is a page - use original logic with multiple extensions
-                        logger.debug(f"Found page {file_id}: name='{page.name}', object_id='{page.object_id}'")
-                        
-                        if r2_credentials_available:
-                            # Try multiple extensions like the original implementation
-                            page_name = page.name or f"file_{file_id}"
-                            image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
-                            
-                            r2_exists = False
-                            existing_object_key = None
-                            
-                            try:
-                                for ext in image_extensions:
-                                    test_filename = f"{page_name}{ext}"
-                                    test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
-                                    
-                                    if check_r2_object_exists(test_object_key):
-                                        r2_exists = True
-                                        existing_object_key = test_object_key
-                                        break
-                            except Exception as r2_error:
-                                # R2 check failed (credentials issue, network, etc.) - fall back to object_id
-                                logger.debug(f"R2 check failed for file {file_id}, falling back to object_id: {str(r2_error)}")
-                                r2_exists = bool(page.object_id and page.object_id.strip())
-                                existing_object_key = page.object_id if r2_exists else None
-                            
-                            object_key = existing_object_key
-                        else:
-                            # Fallback to object_id check when R2 credentials not available
-                            r2_exists = bool(page.object_id and page.object_id.strip())
-                            object_key = page.object_id if r2_exists else None
-                        
-                        logger.debug(f"Page {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
-                        
+                    if not page:
                         results[str(file_id)] = {
-                            'r2_exists': r2_exists,
-                            'object_key': object_key,
-                            'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
+                            'r2_exists': False,
+                            'error': 'File not found'
                         }
+                        continue
+                    
+                    # Check R2 existence (original logic)
+                    page_name = page.name or f"file_{file_id}"
+                    image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+                    
+                    r2_exists = False
+                    existing_object_key = None
+                    
+                    for ext in image_extensions:
+                        test_filename = f"{page_name}{ext}"
+                        test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
                         
-                    else:
-                        # Check if it's a page detail
-                        detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
-                        if detail:
-                            # This is a page detail
-                            logger.debug(f"Found page detail {file_id}: name='{detail.name}', object_id='{detail.object_id}', page_id={detail.page_id}")
-                            
-                            if r2_credentials_available:
-                                # For page details, use the service method as it handles hierarchy correctly
-                                r2_exists = detail.check_r2_content_exists()
-                                object_key = detail.object_id if r2_exists else None
-                            else:
-                                # Fallback to object_id check when R2 credentials not available
-                                r2_exists = bool(detail.object_id and detail.object_id.strip())
-                                object_key = detail.object_id if r2_exists else None
-                            
-                            logger.debug(f"Page detail {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
-                            
-                            results[str(file_id)] = {
-                                'r2_exists': r2_exists,
-                                'object_key': object_key
-                            }
-                        else:
-                            # File not found
-                            logger.warning(f"File {file_id} not found in pages or page details")
-                            results[str(file_id)] = {
-                                'r2_exists': False,
-                                'object_key': None,
-                                'error': 'File not found'
-                            }
+                        if check_r2_object_exists(test_object_key):
+                            r2_exists = True
+                            existing_object_key = test_object_key
+                            break
+                    
+                    results[str(file_id)] = {
+                        'r2_exists': r2_exists,
+                        'object_key': existing_object_key,
+                        'has_legacy_cloudflare_image': bool(page.object_id and page.object_id.strip())
+                    }
                     
                 except Exception as e:
-                    logger.error(f"Error checking R2 for file {file_id}: {str(e)}", exc_info=True)
                     results[str(file_id)] = {
                         'r2_exists': False,
-                        'object_key': None,
                         'error': str(e)
                     }
             
-            files_with_r2 = sum(1 for r in results.values() if r.get('r2_exists', False))
-            logger.info(f"✅ Batch R2 check completed. {files_with_r2}/{len(file_ids)} files have R2 content")
-            logger.debug(f"Results: {results}")
-            
-            response_data = results
-            if not r2_credentials_available:
-                response_data['_warning'] = 'R2 credentials not configured in Flask app config - results based on database object_id only'
-            
-            return jsonify(response_data)
+            return jsonify(results)
             
         except Exception as e:
             logger.error(f"Error in batch R2 check: {str(e)}", exc_info=True)
