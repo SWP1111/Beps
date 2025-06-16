@@ -15,8 +15,10 @@ BepsApi/beps/lib
 venv/
 
 
-__pycache__/
+
 *.py[cod]
 *$py.class
 *.cpython-*.pyc
 *.pyo
+__pycache__/
+*.pyc
