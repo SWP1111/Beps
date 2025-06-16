@@ -507,86 +507,113 @@ td:nth-child(even) {
                 };
 
                 const setupWebSocket = () => {
-                    // Connect to the local BepsApp on the user's machine
-                    const ws = new WebSocket('ws://127.0.0.1:8080');
+                    let ws = null;
                     const pingInterval = ref(null);
                     const isConnected = ref(false);
                     const reconnectTimeout = ref(null);
+                    const connectionPromise = ref(null);
                     
                     const connect = () => {
-                        console.log('Attempting to connect to BEPsApp WebSocket server...');
-                        
-                        ws.onopen = () => {
-                            console.log('WebSocket connection established with BEPsApp');
-                            isConnected.value = true;
+                        return new Promise((resolve, reject) => {
+                            console.log('Attempting to connect to BEPsApp WebSocket server...');
                             
-                            // Send a ping immediately on connection to verify it's working
-                            ws.send(JSON.stringify({
-                                type: 'command',
-                                action: 'ping',
-                                timestamp: Date.now()
-                            }));
-                            
-                            // Set up regular pings to keep connection alive
-                            pingInterval.value = setInterval(() => {
-                                if (ws.readyState === WebSocket.OPEN) {
-                                    ws.send(JSON.stringify({
-                                        type: 'command',
-                                        action: 'ping',
-                                        timestamp: Date.now()
-                                    }));
-                                }
-                            }, 30000); // Send a ping every 30 seconds
-                        };
-                        
-                        ws.onmessage = (event) => {
-                            try {
-                                const data = JSON.parse(event.data);
-                                console.log('Received message from BEPsApp:', data);
-                                
-                                // Handle different message types
-                                if (data.type === 'response' && data.action === 'pong') {
-                                    console.log('Received pong from BEPsApp - connection confirmed');
-                                } else if (data.type === 'navigationResult') {
-                                    console.log('Navigation result:', data);
-                                }
-                            } catch (err) {
-                                console.error('Error processing WebSocket message:', err);
+                            // Close existing connection if any
+                            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                                ws.close();
                             }
-                        };
-                        
-                        ws.onclose = (event) => {
-                            console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
-                            isConnected.value = false;
-                            clearInterval(pingInterval.value);
                             
-                            // Attempt to reconnect after a delay
-                            reconnectTimeout.value = setTimeout(() => {
-                                console.log('Attempting to reconnect...');
-                                connect();
-                            }, 5000); // Try to reconnect after 5 seconds
-                        };
-                        
-                        ws.onerror = (error) => {
-                            console.error('WebSocket error:', error);
-                        };
+                            ws = new WebSocket('ws://127.0.0.1:8080');
+                            
+                            const timeout = setTimeout(() => {
+                                if (ws.readyState === WebSocket.CONNECTING) {
+                                    ws.close();
+                                    reject(new Error('Connection timeout'));
+                                }
+                            }, 5000); // 5 second timeout
+                            
+                            ws.onopen = () => {
+                                clearTimeout(timeout);
+                                console.log('WebSocket connection established with BEPsApp');
+                                isConnected.value = true;
+                                
+                                // Send a ping immediately on connection to verify it's working
+                                ws.send(JSON.stringify({
+                                    type: 'command',
+                                    action: 'ping',
+                                    timestamp: Date.now()
+                                }));
+                                
+                                // Set up regular pings to keep connection alive
+                                clearInterval(pingInterval.value);
+                                pingInterval.value = setInterval(() => {
+                                    if (ws && ws.readyState === WebSocket.OPEN) {
+                                        ws.send(JSON.stringify({
+                                            type: 'command',
+                                            action: 'ping',
+                                            timestamp: Date.now()
+                                        }));
+                                    }
+                                }, 30000); // Send a ping every 30 seconds
+                                
+                                resolve();
+                            };
+                            
+                            ws.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+                                    console.log('Received message from BEPsApp:', data);
+                                    
+                                    // Handle different message types
+                                    if (data.type === 'response' && data.action === 'pong') {
+                                        console.log('Received pong from BEPsApp - connection confirmed');
+                                    } else if (data.type === 'navigationResult') {
+                                        console.log('Navigation result:', data);
+                                    }
+                                } catch (err) {
+                                    console.error('Error processing WebSocket message:', err);
+                                }
+                            };
+                            
+                            ws.onclose = (event) => {
+                                clearTimeout(timeout);
+                                console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+                                isConnected.value = false;
+                                clearInterval(pingInterval.value);
+                                
+                                // Only auto-reconnect if this wasn't a manual close
+                                if (event.code !== 1000) {
+                                    // Attempt to reconnect after a delay
+                                    reconnectTimeout.value = setTimeout(() => {
+                                        console.log('Attempting to reconnect...');
+                                        connect().catch(err => console.error('Reconnection failed:', err));
+                                    }, 5000); // Try to reconnect after 5 seconds
+                                }
+                            };
+                            
+                            ws.onerror = (error) => {
+                                clearTimeout(timeout);
+                                console.error('WebSocket error:', error);
+                                isConnected.value = false;
+                                reject(error);
+                            };
+                        });
                     };
                     
                     // Initial connection attempt
-                    connect();
+                    connect().catch(err => console.error('Initial connection failed:', err));
                     
                     // Cleanup function to be called on component unmount
                     const cleanup = () => {
                         clearInterval(pingInterval.value);
                         clearTimeout(reconnectTimeout.value);
-                        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-                            ws.close();
+                        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                            ws.close(1000); // Normal closure
                         }
                     };
                     
                     // Method to send a message to BEPsApp
                     const sendMessage = (message) => {
-                        if (ws.readyState === WebSocket.OPEN) {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify(message));
                             return true;
                         } else {
@@ -595,14 +622,25 @@ td:nth-child(even) {
                         }
                     };
                     
+                    // Method to manually attempt connection
+                    const attemptConnection = () => {
+                        if (!connectionPromise.value) {
+                            connectionPromise.value = connect().finally(() => {
+                                connectionPromise.value = null;
+                            });
+                        }
+                        return connectionPromise.value;
+                    };
+                    
                     return {
                         isConnected,
                         sendMessage,
-                        cleanup
+                        cleanup,
+                        attemptConnection
                     };
                 };
 
-                const { isConnected, sendMessage, cleanup } = setupWebSocket();
+                const { isConnected, sendMessage, cleanup, attemptConnection } = setupWebSocket();
 
                 const checkIfAppIsRunning = () => {
                     return new Promise((resolve) => {
@@ -614,7 +652,21 @@ td:nth-child(even) {
                     });
                 };
 
-                const handleGoToClick = () => {
+                const handleGoToClick = async () => {
+                    // If not connected, try to connect first
+                    if (!isConnected.value) {
+                        try {
+                            console.log('WebSocket not connected, attempting to connect...');
+                            await attemptConnection();
+                            console.log('WebSocket connection established');
+                        } catch (error) {
+                            console.error('Failed to establish WebSocket connection:', error);
+                            showAppNotRunningMessage();
+                            return;
+                        }
+                    }
+                    
+                    // Now send the navigation message
                     if (isConnected.value) {
                         const navigationData = {
                             type: 'navigation',

@@ -1090,8 +1090,11 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
             # Reverse to get channel -> folder order
             path_components.reverse()
             
-            # Add page name and detail name
-            path_components.append(parent_page.name)
+            # Add page name WITHOUT extension for page details folder
+            page_name_without_ext = os.path.splitext(parent_page.name)[0] if parent_page.name else "page"
+            path_components.append(page_name_without_ext)
+            
+            # Add detail name with proper extension
             detail_name = page_detail_name or detail.name or "detail"
             
             # Extract file extension and apply to detail name

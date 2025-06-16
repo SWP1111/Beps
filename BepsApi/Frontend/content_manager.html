@@ -571,9 +571,13 @@
             // Add Authorization header
             const headers = {
                 'Authorization': `Bearer ${jwtToken}`,
-                'Content-Type': 'application/json',
                 ...options.headers
             };
+            
+            // Only add Content-Type if not uploading FormData
+            if (!(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
             
             console.log('🔑 Making authenticated request to:', url);
             console.log('🔑 JWT token found (length):', jwtToken.length);
@@ -1600,12 +1604,8 @@
             console.log(`이미지 보기: ${fileId}`);
             
             // R2 이미지 URL 가져오기
-            fetch(`/contents/file/${fileId}/r2-image-url`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json'
-                }
+            authenticatedFetch(`/contents/file/${fileId}/r2-image-url`, {
+                method: 'GET'
             })
             .then(response => {
                 if (!response.ok) {
@@ -1633,11 +1633,34 @@
         }
         
         // 페이지 상세 파일 다운로드
-        function downloadPageDetail(detailId, detailName) {
+        async function downloadPageDetail(detailId, detailName) {
             console.log(`페이지 상세 다운로드: ${detailId}`);
             
-            // 다운로드 API 엔드포인트 호출
-            window.location.href = `/contents/page-detail/${detailId}/download`;
+            try {
+                // 인증된 요청으로 다운로드 URL 가져오기
+                const response = await authenticatedFetch(`/contents/page-detail/${detailId}/download`, {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`파일 다운로드에 실패했습니다: ${response.status}`);
+                }
+                
+                // 리디렉션 응답을 처리하여 실제 파일 다운로드
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = detailName || `page_detail_${detailId}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('페이지 상세 다운로드 중 오류가 발생했습니다:', error);
+                alert('페이지 상세 다운로드 중 오류가 발생했습니다.');
+            }
         }
 
         // 페이지 상세 파일 업로드
@@ -1673,10 +1696,9 @@
                 const formData = new FormData();
                 formData.append('file', contentFile);
                 
-                // 업로드 API 호출
-                fetch(`/contents/page-detail/${detailId}/upload-content`, {
+                // 인증된 요청으로 업로드 API 호출
+                authenticatedFetch(`/contents/page-detail/${detailId}/upload-content`, {
                     method: 'POST',
-                    credentials: 'include',
                     body: formData
                 })
                 .then(response => {
@@ -1749,11 +1771,8 @@
             if (!channelName) return;
             
             // 채널 추가 API 엔드포인트 호출
-            fetch('/contents/channel', {
+            authenticatedFetch('/contents/channel', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({ name: channelName })
             })
             .then(response => {
@@ -1791,7 +1810,7 @@
             }
             
             // 채널 삭제 API 엔드포인트 호출
-            fetch(`/contents/channel/${currentSelectedChannel}`, {
+            authenticatedFetch(`/contents/channel/${currentSelectedChannel}`, {
                 method: 'DELETE'
             })
             .then(response => {
@@ -1840,7 +1859,7 @@
                 formData.append('channelId', currentSelectedChannel);
                 
                 // 파일 업로드 API 엔드포인트 호출
-                fetch('/contents/file', {
+                authenticatedFetch('/contents/file', {
                     method: 'POST',
                     body: formData
                 })
@@ -1907,11 +1926,8 @@
             const allIds = [...fileIds, ...detailIds];
             
             // 파일 삭제 API 엔드포인트 호출
-            fetch('/contents/files', {
+            authenticatedFetch('/contents/files', {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({ fileIds: allIds })
             })
             .then(response => {

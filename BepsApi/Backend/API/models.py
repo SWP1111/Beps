@@ -399,7 +399,8 @@ class ContentRelPageDetails(db.Model):
     page_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'))
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
-    object_id = db.Column(db.String, nullable=False)
+    object_id = db.Column(db.String, nullable=True)
+    has_content = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
     is_deleted = db.Column(db.Boolean, default=False)
@@ -411,6 +412,7 @@ class ContentRelPageDetails(db.Model):
             'name': self.name,
             'description': self.description,
             'object_id': self.object_id,
+            'has_content': self.has_content,
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
