@@ -13,14 +13,14 @@
         <link rel="stylesheet" href="asset/css/progress_admin_search.css">
         <link rel="stylesheet" href="asset/css/progress_admin_active_user.css">
         <link rel="stylesheet" href="asset/css/progress_admin.css">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="asset/css/bootstrap.min.css" rel="stylesheet">
         <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>       
         <script type="text/javascript" src="asset/js/echarts.min.js"></script>
         <script src="asset/js/flatpickr.min.js"></script>
         <script src="asset/js/ko.js"></script>
         <script src="asset/js/config.js"></script>
         <script type="module" src="asset/js/progress_admin.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="asset/js/bootstrap.bundle.min.js"></script>
     </head>
 
     <body>
@@ -135,6 +135,29 @@
                             <span class="login-total-value" id="login-total-count"></span>
                         </div>
                         <div class="login-chart" id="login-count-chart"></div>
+                        <button class="login-external-button" id="login-count-chart-reset">
+                            <svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6.18182 19.79H26.9091M6.18182 11.1537H26.9091M30.3636 11.1537H33.8182M30.3636 19.79H33.8182M30.3636 28.4264H33.8182M6.18182 28.4264H26.9091M1 0.790039H39V38.79H1V0.790039Z" stroke="black" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div id="external-ips-modal" class="modal">
+                            <div class="external-ips-modal-content">
+                                <span class="close">&times;</span>
+                                <table class="external-ips-table">
+                                <thead>
+                                    <tr>
+                                    <th>접속 IP</th>
+                                    <th>접속일시</th>
+                                    <th>접속자</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="externalIpsTableBody">
+                                </tbody>
+                                </table>
+                                <div class="external-ips-pagination">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -151,33 +174,33 @@
                         <div class="learning-rate-avg-container">
                             <div  class="learning-rate-avg-content" id="learning-rate-avg-content">                               
                                 <span id="completion-rate"></span>
-                                 <div>
-                                    <span id ="completion-learned-avg-pages" style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">165</span>
-                                    <span style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">/</span>
-                                    <span class ="completion-total-pages" style="margin-top: 10px; font-weight: 700; font-size: 20px; font-family: Noto Sans KR">165</span>
+                                 <div class="learning-rate-avg-area">
+                                    <span id ="completion-learned-avg-pages">165</span>
+                                    <span>/</span>
+                                    <span class ="completion-total-pages" style="font-size: 20px;">165</span>
                                 </div>
                                 <img src="asset/images/arrow(1).png" class="learning-rate-avg-arrow" id="learning-rate-avg-arrow" />
                             </div>
                         </div>                      
                         <div class="learning-rate-progress"></div>
                         <div class="learning-rate-bottom-container" >
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-weight: 700; font-size: 17px; font-family: Noto Sans KR">100%</span>
+                            <div class="learning-rate-bottom-container-item">
+                                <span style="font-size: 17px;">100%</span>
                                 <div>
-                                    <span class ="completion-total-pages" style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">165</span>
-                                    <span style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">/</span>
-                                    <span class ="completion-total-pages" style="margin-top: 10px; font-weight: 700; font-size: 20px; font-family: Noto Sans KR">165</span>
+                                    <span class ="completion-total-pages" style="margin-top: 10px; font-size: 30px;">165</span>
+                                    <span style="margin-top: 10px; font-size: 30px;">/</span>
+                                    <span class ="completion-total-pages" style="margin-top: 10px; font-size: 20px;">165</span>
                                 </div>
                                 <!-- <div style="display: flex; flex-direction: column; align-items:center;">
                                     <span id="completion-hours" style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">2시간</span>
                                     <span id="completion-mh" style="font-weight: 700; font-size: 17px; font-family: Noto Sans KR">45분 0초</span>
                                 </div> -->
                             </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-weight: 700; font-size: 17px; font-family: Noto Sans KR; text-align: right;">0%</span>
+                            <div class="learning-rate-bottom-container-item">
+                                <span style="text-align: right;">0%</span>
                                  <div>
-                                    <span id="completion-pages" style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">0 /</span>
-                                    <span class ="completion-total-pages"  style="margin-top: 10px; font-weight: 700; font-size: 20px; font-family: Noto Sans KR">165</span>
+                                    <span id="completion-pages" style="margin-top: 10px; font-size: 30px;">0 /</span>
+                                    <span class ="completion-total-pages"  style="margin-top: 10px; font-size: 20px;">165</span>
                                 </div>
                                 <!-- <div style="display: flex; flex-direction: column; align-items:center;">                                    
                                     <span id="completion-zero" style="margin-top: 10px; font-weight: 700; font-size: 30px; font-family: Noto Sans KR">0시간</span>
@@ -190,9 +213,9 @@
                                 <img src="asset/images/arrow_black.png" id="learning-pointer" style="width: 25px; height: 17px;" draggable="false"/>
                                 <div>
                                     <input type="text" min="0" max="100" class="learning-pointer-percent" id="learning-pointer-percent" />
-                                    <span style="font-weight: 700; margin-left: -7px; font-size: 17px; font-family: Noto Sans KR">%</span>
+                                    <span style="margin-left: -7px; font-size: 17px;">%</span>
                                 </div>
-                                <span style="margin-top: 10px; font-weight: 700; font-size: 10px; font-family: Noto Sans KR; margin-left: -10px;">학습 독려하기</span>
+                                <span style="margin-top: 10px; font-size: 10px; margin-left: -10px;">학습 독려하기</span>
                                 <button class="push-message-button" id="push-message-button">
                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M3.1377 0.535156C3.76814 0.439509 4.4135 0.540967 4.98438 0.825195V0.824219L21.7822 9.22656L21.8877 9.2793H21.8896C22.2971 9.50283 22.6498 9.81321 22.9199 10.1904L23.0391 10.3691C23.3404 10.8582 23.4999 11.4216 23.5 11.9961C23.5 12.4988 23.3778 12.9932 23.1455 13.4365L23.0391 13.624C22.7753 14.0521 22.4119 14.4087 21.9814 14.6641L21.793 14.7666L4.99902 23.167C4.56194 23.3812 4.08235 23.4939 3.5957 23.499C3.14489 23.4984 2.7004 23.4004 2.29297 23.2109L2.12012 23.124C1.72314 22.9083 1.37866 22.6088 1.11035 22.2471L1 22.0879C0.753917 21.7088 0.593577 21.281 0.530273 20.835L0.509766 20.6426C0.469259 20.1277 0.557763 19.6106 0.767578 19.1387L3.64746 12.6924L3.65234 12.6816C3.74324 12.4647 3.79004 12.2313 3.79004 11.9961C3.78998 11.761 3.74317 11.5283 3.65234 11.3115L3.19824 11.502L3.2002 11.501L3.65234 11.3105L3.64746 11.3008L0.767578 4.85449C0.542247 4.3444 0.458671 3.7843 0.524414 3.2334L0.5625 2.99805C0.671005 2.45051 0.924333 1.94363 1.29492 1.53027L1.46094 1.35938C1.86437 0.973608 2.36343 0.705241 2.9043 0.580078L3.1377 0.535156ZM3.47852 1.91309L3.34961 1.92871C3.05011 1.97689 2.76979 2.10468 2.53711 2.29688L2.44043 2.38281C2.222 2.59322 2.06392 2.85792 1.98242 3.14844L1.95215 3.27441C1.89271 3.57205 1.91474 3.87974 2.01367 4.16504L2.06055 4.28516L2.0625 4.28906L4.92969 10.7354C4.95815 10.8019 4.9832 10.8701 5.00391 10.9395L5.11035 11.2959H13.75C13.8892 11.2959 14.0245 11.3379 14.1387 11.4141L14.2451 11.501C14.3763 11.6322 14.4501 11.8105 14.4502 11.9961C14.4502 12.1353 14.409 12.2706 14.333 12.3848L14.2451 12.4922C14.1139 12.6234 13.9355 12.6973 13.75 12.6973H5.11035L5.00391 13.0537C4.9832 13.1231 4.95816 13.1913 4.92969 13.2578L2.0625 19.7031L2.06055 19.708C1.93983 19.986 1.89536 20.2905 1.93164 20.5898L1.95215 20.7188C2.01161 21.0162 2.14983 21.2913 2.35059 21.5166L2.44043 21.6104C2.65889 21.8207 2.92929 21.9676 3.22266 22.0381L3.34961 22.0645C3.64904 22.1126 3.95518 22.0792 4.23633 21.9697L4.35547 21.918L4.3623 21.9141L21.1621 13.5117L21.166 13.5098C21.4096 13.3849 21.6195 13.2037 21.7773 12.9814L21.8418 12.8838C22.005 12.6168 22.0908 12.309 22.0908 11.9961C22.0907 11.7224 22.0242 11.4537 21.8984 11.2119L21.8418 11.1094C21.6991 10.8758 21.502 10.6808 21.2686 10.54L21.166 10.4834L21.1621 10.4814L4.3623 2.0791L4.13867 2.52539L4.15234 2.49707L4.3623 2.07812L4.35547 2.0752L4.23633 2.02344C3.99541 1.9296 3.73617 1.89164 3.47852 1.91309Z" fill="#2E7939" stroke="#30C930"/>
@@ -223,10 +246,10 @@
                             
                 <div class="top-last-area">
                     <div class="frame-area">
-                        <div class="login-rank-area-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; gap: 10px; margin-left: 40px; margin-right: 40px; padding-bottom: 3px;">
-                            <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px; margin-top: 0px; ">접속 순위</span>
+                        <div class="rank-area-header">
+                            <span style="font-size: 20px; margin-top: 0px; ">접속 순위</span>
                             <button class="top-bottom-selector active" data-group="login-rank" data-value="top">
-                                <span style="font-family: NotosansKR; font-weight: 700; font-size: 15px; margin-top: 3px;" >상위</span>
+                                <span style="font-size: 15px; margin-top: 3px;" >상위</span>
                                 <svg width="29" height="29" viewBox="0 0 51 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M15.0833 23.7064V40.373C15.0833 40.9256 14.8638 41.4555 14.4731 41.8462C14.0824 42.2369 13.5525 42.4564 13 42.4564H8.83333C8.2808 42.4564 7.75089 42.2369 7.36019 41.8462C6.96949 41.4555 6.75 40.9256 6.75 40.373V25.7897C6.75 25.2372 6.96949 24.7073 7.36019 24.3166C7.75089 23.9259 8.2808 23.7064 8.83333 23.7064H15.0833ZM15.0833 23.7064C17.2935 23.7064 19.4131 22.8284 20.9759 21.2656C22.5387 19.7028 23.4167 17.5832 23.4167 15.373V13.2897C23.4167 12.1846 23.8557 11.1248 24.6371 10.3434C25.4185 9.56203 26.4783 9.12305 27.5833 9.12305C28.6884 9.12305 29.7482 9.56203 30.5296 10.3434C31.311 11.1248 31.75 12.1846 31.75 13.2897V23.7064H38C39.1051 23.7064 40.1649 24.1454 40.9463 24.9268C41.7277 25.7082 42.1667 26.768 42.1667 27.873L40.0833 38.2897C39.7837 39.5678 39.2154 40.6652 38.4639 41.4167C37.7124 42.1682 36.8184 42.5331 35.9167 42.4564H21.3333C19.6757 42.4564 18.086 41.7979 16.9139 40.6258C15.7418 39.4537 15.0833 37.864 15.0833 36.2064" stroke="black" stroke-width="4.16667" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
@@ -238,59 +261,59 @@
                                 </svg>
                             </button>
                         </div>
-                        <div class="login-rank-main" id="login-rank-chart"  style="display: flex; align-items: center;">
-                            <button id="login-rank-prev" style="border: none; background-color: transparent; cursor: pointer;">
+                        <div class="login-rank-main" id="login-rank-chart"  style="display: flex; flex:1; align-items: center;">
+                            <button id="login-rank-prev" class="login-rank-type-selector">
                                 <svg width="29" height="29" viewBox="0 0 51 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M29.625 38.29L17.125 25.79L29.625 13.29L32.5625 16.2275L23.0208 25.79L32.5625 35.3525L29.625 38.29Z" fill="black"/>
                                 </svg>
                             </button>
-                            <span id="login-rank-title" style="font-family: NotosansKR; font-weight: 700; font-size: 17px; margin-right: 10px;">개인 순위</span>
+                            <span id="login-rank-title" style="font-size: 17px; margin-right: 10px;">개인 순위</span>
                             <div style="flex:1; display: flex; justify-content: space-between; align-items: center;">
-                                <div style="text-align: center; display: flex; align-items: center;">
+                                <div class="login-rank-item">
                                     <div>
                                         <svg width="36" height="40" viewBox="0 0 79 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M16.4064 50.0088C16.4064 37.3235 26.3223 27.04 38.5548 27.04H40.1954C52.4279 27.04 62.3438 37.3235 62.3438 50.0088C62.3438 62.6941 52.4279 72.9775 40.1954 72.9775H38.5548C26.3223 72.9775 16.4064 62.6941 16.4064 50.0088Z" fill="#F6D828" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                             <path d="M41.0156 59.8525V43.2756C41.0156 41.3922 41.0156 40.4472 40.2609 40.2142C38.5973 39.6991 36.0937 43.443 36.0937 43.443M41.0156 59.8525L36.0937 59.8492M41.0156 59.8525L45.9375 59.8492M44.4937 7.35254L36.0937 26.7053M59.0625 7.35254L49.8061 28.6806M34.2562 7.35254L39.375 19.1453M19.6875 7.35254L28.9439 28.6806" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </div>
-                                    <span id="login-rank-top-first" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; ">개인1</span>
+                                    <span id="login-rank-top-first">개인1</span>
                                 </div>
-                                <div style="text-align: center; display: flex; align-items: center;">
-                                    <div style="text-align: center; display: flex; align-items: center; gap: 5px; border-radius: 10px; border: none;">
+                                <div class="login-rank-item">
+                                    <div class="login-rank-item-area">
                                         <svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M16.7789 50.0088C16.7789 37.3235 26.6949 27.04 38.9274 27.04H40.568C52.8005 27.04 62.7164 37.3235 62.7164 50.0088C62.7164 62.6941 52.8005 72.9775 40.568 72.9775H38.9274C26.6949 72.9775 16.7789 62.6941 16.7789 50.0088Z" fill="#ACABAB" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                             <path d="M34.8257 43.8334C35.0882 41.2577 36.8207 40.165 38.6254 40.165H40.8107C42.6154 40.165 44.3446 41.2577 44.6071 43.8334C44.6871 44.6672 44.6871 45.5066 44.6071 46.3403C44.4463 47.9088 42.5497 49.7102 42.5497 49.7102L39.7475 51.6494C39.7475 51.6494 34.8257 54.9306 34.8257 58.2119C34.8257 59.9837 36.2596 59.8525 38.0315 59.8525H44.6071M44.8663 7.35254L36.4663 26.7053M59.435 7.35254L50.1786 28.6806M34.6288 7.35254L39.7475 19.1453M20.0601 7.35254L29.3165 28.6806" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </div>
-                                    <span id="login-rank-top-second" style="font-family: NotosansKR; font-weight: 700; font-size: 15px;">개인2</span>
+                                    <span id="login-rank-top-second">개인2</span>
                                 </div>
-                                <div style="text-align: center; display: flex; align-items: center;">
-                                    <div style="text-align: center; display: flex; align-items: center; gap: 5px; border-radius: 10px; border: none;">
+                                <div class="login-rank-item">
+                                    <div class="login-rank-item-area">
                                         <svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M16.7791 50.0088C16.7791 37.3235 26.695 27.04 38.9274 27.04H40.5681C52.8005 27.04 62.7164 37.3235 62.7164 50.0088C62.7164 62.6941 52.8005 72.9775 40.5681 72.9775H38.9274C26.695 72.9775 16.7791 62.6941 16.7791 50.0088Z" fill="#CC6914" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                             <path d="M34.8256 43.8334C35.0881 41.2577 36.8174 40.165 38.6253 40.165H40.8106C42.6153 40.165 44.3445 41.2577 44.607 43.8334C44.687 44.6672 44.687 45.5066 44.607 46.3403C44.3905 48.4666 42.9336 50.0088 41.3586 50.0088M41.3586 50.0088C42.9336 50.0088 44.3905 51.5509 44.607 53.6772C44.687 54.5109 44.687 55.3504 44.607 56.1841C44.3445 58.7598 42.6153 59.8525 40.8106 59.8525H38.6253C36.8174 59.8525 35.0881 58.7598 34.8256 56.1841M41.3586 50.0088H41.1617M44.8663 7.35254L36.4663 26.7053M59.435 7.35254L50.1786 28.6806M34.6288 7.35254L39.7475 19.1453M20.0601 7.35254L29.3164 28.6806" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </div>
-                                    <span id="login-rank-top-third" style="font-family: NotosansKR; font-weight: 700; font-size: 15px;">개인3</span>
+                                    <span id="login-rank-top-third">개인3</span>
                                 </div>
                             </div>
-                            <button id="login-rank-next" style="border: none; background-color: transparent; cursor: pointer;">
+                            <button id="login-rank-next" class="login-rank-type-selector">
                                 <svg width="29" height="29" viewBox="0 0 51 51" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M21.375 38.29L33.875 25.79L21.375 13.29L18.4375 16.2275L27.9792 25.79L18.4375 35.3525L21.375 38.29Z" fill="black"/>
                                 </svg>
                             </button>
                         </div>
-                        <div class="login-rank-bottom" style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                        <div class="login-rank-bottom" style="display: flex; justify-content: center; align-items:end; gap: 15px;">
                             <button class="ellipse-button active" data-group="login-type" data-value="user"></button>
                             <button class="ellipse-button" data-group="login-type" data-value="team"></button>
                             <button class="ellipse-button" data-group="login-type" data-value="company"></button>
                         </div>
                     </div>
                     <div class="frame-area">
-                        <div class="updated-page-rank-area-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; gap: 10px; margin-left: 40px; margin-right: 40px; padding-bottom: 3px;">
-                            <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px; margin-top: 0px; ">페이지 업데이트</span>
+                        <div class="rank-area-header">
+                            <span style="font-size: 20px; margin-top: 0px; ">페이지 업데이트</span>
                             <button class="top-bottom-selector active" id="top-updated">
-                                <span style="font-family: NotosansKR; font-weight: 700; font-size: 15px; margin-top: 3px;" >최신순</span>
+                                <span style="font-size: 15px; margin-top: 3px;" >최신순</span>
                                 <svg width="32" height="32" viewBox="0 0 65 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clip-path="url(#clip0_1_345)">
                                         <path d="M56.9844 31.4349L49.2844 26.8474L52.1772 18.5522C52.3354 18.0984 52.361 17.6089 52.251 17.1411C52.1409 16.6733 51.8998 16.2466 51.5559 15.911C51.1915 15.5271 50.7216 15.2596 50.2055 15.1424C49.6894 15.0251 49.1501 15.0633 48.6556 15.2521L8.19661 29.9779C7.86736 30.0919 7.56378 30.2696 7.30322 30.5009C7.04265 30.7322 6.83021 31.0126 6.67802 31.326C6.52583 31.6395 6.43687 31.9798 6.41623 32.3276C6.39559 32.6754 6.44367 33.0239 6.55772 33.3531L12.3768 49.3409C12.6303 49.9948 13.1325 50.5217 13.7734 50.8064C14.4144 51.091 15.1419 51.1103 15.7971 50.86L56.3996 36.0819C56.8832 35.915 57.3089 35.6131 57.6265 35.2121C57.9441 34.811 58.1403 34.3274 58.1919 33.8185C58.2334 33.348 58.1423 32.8754 57.9288 32.4541C57.7154 32.0328 57.3883 31.6798 56.9844 31.4349ZM14.9253 48.2212L9.22498 32.5597L49.3968 17.9383L45.8969 27.9769L55.1885 33.5666L14.9253 48.2212Z" fill="black"/>
@@ -304,7 +327,7 @@
                                 </svg>
                             </button>
                             <button class="top-bottom-selector" id="bottom-updated">
-                                <span style="font-family: NotosansKR; font-weight: 700; font-size: 15px; margin-top: 6px;" >오래된순</span>
+                                <span style="font-size: 15px; margin-top: 6px;" >오래된순</span>
                                 <svg width="32" height="32" viewBox="0 0 65 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clip-path="url(#clip0_1_351)">
                                         <path d="M56.4844 31.4349L48.7844 26.8474L51.6772 18.5522C51.8354 18.0984 51.861 17.6089 51.751 17.1411C51.6409 16.6733 51.3998 16.2466 51.0559 15.911C50.6915 15.5271 50.2216 15.2596 49.7055 15.1424C49.1894 15.0251 48.6501 15.0633 48.1556 15.2521L7.69661 29.9779C7.36736 30.0919 7.06378 30.2696 6.80322 30.5009C6.54265 30.7322 6.33021 31.0126 6.17802 31.326C6.02583 31.6395 5.93687 31.9798 5.91623 32.3276C5.89559 32.6754 5.94367 33.0239 6.05772 33.3531L11.8768 49.3409C12.1303 49.9948 12.6325 50.5217 13.2734 50.8064C13.9144 51.091 14.6419 51.1103 15.2971 50.86L55.8996 36.0819C56.3832 35.915 56.8089 35.6131 57.1265 35.2121C57.4441 34.811 57.6403 34.3274 57.6919 33.8185C57.7334 33.348 57.6423 32.8754 57.4288 32.4541C57.2154 32.0328 56.8883 31.6798 56.4844 31.4349ZM14.4253 48.2212L8.72498 32.5597L48.8968 17.9383L45.3969 27.9769L54.6885 33.5666L14.4253 48.2212Z" fill="black"/>
@@ -318,36 +341,36 @@
                                 </svg>
                             </button>
                         </div>
-                        <div class="updated-page-rank-main" style="display: flex; flex-direction:column; justify-content: space-between; align-items: center; margin-left: 40px; margin-right: 40px; ">
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%;">
-                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 2;">Page</div>
-                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 1.2;">일시</div>
-                                <div style="font-family: NotosansKR; font-weight: 700; font-size: 15px; text-align: center; flex: 1;">담당자</div>
+                        <div class="updated-page-rank-main" style="display: flex; flex-direction:column; justify-content: space-between; align-items: center; margin-left: 40px; margin-right: 40px; gap: 10px;">
+                            <div class="updated-page-rank-item">
+                                <div style="font-size: 15px; text-align: center; flex: 2;">Page</div>
+                                <div style="font-size: 15px; text-align: center; flex: 1.2;">일시</div>
+                                <div style="font-size: 15px; text-align: center; flex: 1;">담당자</div>
                             </div>
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; margin-top: 10px;">
-                                <div data-group="updated-page-first" data-index="0" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">1. 국내의 BIM/DX 실태</div>
-                                <div data-group="updated-page-first" data-index="0" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center; ">2025-03-13</div>
-                                <div data-group="updated-page-first" data-index="0" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center; ">김신지</div>
+                            <div class="updated-page-rank-item" style="margin-top: 10px;">
+                                <div data-group="updated-page-first" data-index="0" data-value="name" class="updated-page-rank-item-name">1. 국내의 BIM/DX 실태</div>
+                                <div data-group="updated-page-first" data-index="0" data-value="updated-at" class="updated-page-rank-item-updated">2025-03-13</div>
+                                <div data-group="updated-page-first" data-index="0" data-value="manager" class="updated-page-rank-item-manager">김신지</div>
                             </div>   
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
-                                <div data-group="updated-page-second" data-index="1" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">2. 건설산업의 혁신</div>
-                                <div data-group="updated-page-second" data-index="1" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;" >2025-03-10</div>
-                                <div data-group="updated-page-second" data-index="1" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            <div class="updated-page-rank-item">
+                                <div data-group="updated-page-second" data-index="1" data-value="name" class="updated-page-rank-item-name">2. 건설산업의 혁신</div>
+                                <div data-group="updated-page-second" data-index="1" data-value="updated-at" class="updated-page-rank-item-updated">2025-03-10</div>
+                                <div data-group="updated-page-second" data-index="1" data-value="manager" class="updated-page-rank-item-manager">김신지</div>
                             </div>   
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
-                                <div data-group="updated-page-third" data-index="2" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">3. 전면BIM설계 도입의 한계</div>
-                                <div data-group="updated-page-third" data-index="2" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-09</div>
-                                <div data-group="updated-page-third" data-index="2" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            <div class="updated-page-rank-item">
+                                <div data-group="updated-page-third" data-index="2" data-value="name" class="updated-page-rank-item-name">3. 전면BIM설계 도입의 한계</div>
+                                <div data-group="updated-page-third" data-index="2" data-value="updated-at" class="updated-page-rank-item-updated">2025-03-09</div>
+                                <div data-group="updated-page-third" data-index="2" data-value="manager" class="updated-page-rank-item-manager">김신지</div>
                             </div>   
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
-                                <div data-group="updated-page-fourth" data-index="3" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">4. 개요</div>
-                                <div data-group="updated-page-fourth" data-index="3" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-09</div>
-                                <div data-group="updated-page-fourth" data-index="3" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            <div class="updated-page-rank-item">
+                                <div data-group="updated-page-fourth" data-index="3" data-value="name" class="updated-page-rank-item-name">4. 개요</div>
+                                <div data-group="updated-page-fourth" data-index="3" data-value="updated-at" class="updated-page-rank-item-updated">2025-03-09</div>
+                                <div data-group="updated-page-fourth" data-index="3" data-value="manager" class="updated-page-rank-item-manager">김신지</div>
                             </div>   
-                            <div class="updated-page-rank-main-header" style="display: flex; justify-content: space-between; flex: 1; width:100%; ">
-                                <div data-group="updated-page-fifth" data-index="4" data-value="name" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">5. S/W적 요소</div>
-                                <div data-group="updated-page-fifth" data-index="4" data-value="updated-at" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1.2; text-align: center;">2025-03-03</div>
-                                <div data-group="updated-page-fifth" data-index="4" data-value="manager" style="font-family: NotosansKR; font-weight: 700; font-size: 15px; flex: 1; text-align: center;">김신지</div>
+                            <div class="updated-page-rank-item">
+                                <div data-group="updated-page-fifth" data-index="4" data-value="name" class="updated-page-rank-item-name">5. S/W적 요소</div>
+                                <div data-group="updated-page-fifth" data-index="4" data-value="updated-at" class="updated-page-rank-item-updated">2025-03-03</div>
+                                <div data-group="updated-page-fifth" data-index="4" data-value="manager"class="updated-page-rank-item-manager">김신지</div>
                             </div>                         
                         </div>
                     </div>                    
@@ -363,84 +386,89 @@
                     </div>
                     <div class="category-chart" id="category-chart"></div>
                 </div>
-                <div class="frame-area" style="display:flex; flex-direction: row; margin-top: 20px; margin-left: 40px; padding: 10px; gap: 20px; width: 1030px;">
-                    <div class="top_viewed_pages">
-                        <div class="top_viewed_pages_header" style="display: flex; justify-content: space-between; border-bottom: 1px solid black; gap: 10px; padding-bottom: 3px; width: 490px;">
-                            <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px;">가장 많이 본 페이지</span>
+                <div class="frame-area" style="display:flex; flex-direction: row; flex: 2; justify-content: space-around; margin-top: 20px; margin-left: 40px; padding: 10px; gap: 20px;">
+                    <div class="top-viewed-pages">
+                        <div class="top-viewed-header">
+                            <span style="font-size: 20px;">가장 많이 본 페이지</span>
                         </div>
-                        <div class="top_viewed_pages_main" style="display: flex; flex-direction: column; gap: 30px; margin-top: 80px;">
-                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="0"
-                                    style="position: relative; display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                        <div class="top-viewed-pages-main">
+                            <div class="top-viewed-pages-item" data-group="top-viewed-page" data-index="0"
+                                    style="position: relative;">
                                 <span> 1. 국내의 BIM/DX 실태 </span>
-                                <div style="position:absolute; background-color: rgba(76,70,85,1); width: 296px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 12px; color: black; left: 5px; top: -45%; white-space: nowrap; overflow: hidden;">마지막 업데이트:</span>
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; right: 10px; top: 22%;">120회</span>
+                                <div class="top-viewed-first-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count" style="color: white;">120회</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="1" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-pages-item" data-group="top-viewed-page" data-index="1">
                                 <span> 2. S/W 구분 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 240px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 12px; color: black; left: 5px; top: -45%; white-space: nowrap; overflow: hidden;">마지막 업데이트:</span>
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">80회</span>
+                                <div class="top-viewed-second-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">80회</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="2" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-pages-item" data-group="top-viewed-page" data-index="2">
                                 <span> 3. 개요 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 130px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 12px; color: black; left: 5px; top: -45%; white-space: nowrap; overflow: hidden;">마지막 업데이트:</span>
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">35회</span>
+                                <div class="top-viewed-third-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">35회</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="3" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-pages-item" data-group="top-viewed-page" data-index="3">
                                 <span> 4. H/W적 요소 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 84px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 12px; color: black; left: 5px; top: -45%; white-space: nowrap; overflow: hidden;">마지막 업데이트:</span>
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">28회</span>
+                                <div class="top-viewed-fourth-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">28회</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_pages_item" data-group="top-viewed-page" data-index="4" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-pages-item" data-group="top-viewed-page" data-index="4">
                                 <span> 5. 건설산업의 혁신 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 61px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 12px; color: black; left: 5px; top: -45%; white-space: nowrap; overflow: hidden; ">마지막 업데이트:</span>
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">22회</span>
+                                <div class="top-viewed-fifth-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">22회</span>
                                 </div>
                             </div>
                         </div>  
                     </div>
-                    <div class="top_viewed_memos" id="memo_rank">
-                          <div class="top_viewed_memos_header" style="display: flex; justify-content: space-between; border-bottom: 1px solid black; gap: 10px; padding-bottom: 3px; width: 490px;">
+                    <div class="top-viewed-memos" id="memo_rank">
+                          <div class="top-viewed-header">
                             <span style="font-family: NotosansKR; font-weight: 700; font-size: 20px;">의견서 많이 쓴 페이지</span>
                         </div>
-                        <div class="top_viewed_pages_main" style="display: flex; flex-direction: column; gap: 30px; margin-top: 80px;">
-                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="0"
-                                    style="position: relative; display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                        <div class="top-viewed-pages-main">
+                            <div class="top-viewed-memo-item" data-group="top-viewed-memo" data-index="0"
+                                    style="position: relative;">
                                 <span> 1. 건설산업의 혁신 </span>
-                                <div style="position:absolute; background-color: rgba(76,70,85,1); width: 296px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: white; right: 10px; top: 22%;">154개</span>
+                                <div class="top-viewed-first-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count" style="color: white;">154개</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="1" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-memo-item" data-group="top-viewed-memo" data-index="1">
                                 <span> 2. 국내의 BIM/DX 실태 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 240px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">137개</span>
+                                <div class="top-viewed-second-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">137개</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="2" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-memo-item" data-group="top-viewed-memo" data-index="2">
                                 <span> 3. 전면BIM설계 도입의 한계 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 130px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">86개</span>
+                                <div class="top-viewed-third-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">86개</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="3" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-memo-item" data-group="top-viewed-memo" data-index="3">
                                 <span> 4. 개요 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 84px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">74개</span>
+                                <div class="top-viewed-fourth-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">74개</span>
                                 </div>
                             </div>
-                            <div class="top_viewed_memo_item" data-group="top-viewed-memo" data-index="4" style="display:flex; flex-direction:row; font-family: NotosansKR; font-weight: 700; font-size: 15px; border-bottom: 1px solid black; padding-bottom: 5px; width: 200px;">
+                            <div class="top-viewed-memo-item" data-group="top-viewed-memo" data-index="4">
                                 <span> 5. S/W적 요소 </span>
-                                <div style="position:absolute; background-color: rgba(185,185,185,1); width: 61px; height: 36px; margin-left: 195px; margin-top: -7px; border-radius: 0px 7px 7px 0px;">
-                                    <span style="position:absolute; font-family: NotosansKR; font-weight: 700; font-size: 15px; color: rgba(76,70,86,1); right: 10px; top: 22%;">53개</span>
+                                <div class="top-viewed-fifth-item">
+                                    <span class="top-viewed-item-modified">마지막 업데이트:</span>
+                                    <span class="top-viewed-item-count">53개</span>
                                 </div>
                             </div>
                         </div>  

@@ -15,21 +15,21 @@ export async function activeUser(period_type, period_value)
     const {refresh} = attachCustomScrollbar(container, scrollbar, thumb);
     const user_count = document.getElementById("active-user-count");
 
-    let allTotalDuration = null;
-    let pendingUsers = [];        // 나중에 처리할 사용자들
+    //let allTotalDuration = null;
+    //let pendingUsers = [];        // 나중에 처리할 사용자들
 
-    getTopUserConnectionDuration(period_type, period_value)
-    .then(data =>
-    {
-        allTotalDuration = data.data.top[0][2];
+    // getTopUserConnectionDuration(period_type, period_value)
+    // .then(data =>
+    // {
+    //     allTotalDuration = data.data.top[0][2];
 
-        for (const {userId, element, duration} of pendingUsers) {
-            const percentage = ((duration / allTotalDuration) * 100).toFixed(2);
-            const status = element.querySelector('.status');
-            status.className = (percentage <= 20) ? "yellow-RedBorder" : "yellow";
-        }
-    }
-    );
+    //     for (const {userId, element, duration} of pendingUsers) {
+    //         const percentage = ((duration / allTotalDuration) * 100).toFixed(2);
+    //         const status = element.querySelector('.status');
+    //         status.className = (percentage <= 20) ? "yellow-RedBorder" : "yellow";
+    //     }
+    // }
+    // );
 
     let websocketUrl = `${window.websocketUrl}`;
     const socket = new WebSocket(websocketUrl);
@@ -58,12 +58,14 @@ export async function activeUser(period_type, period_value)
                     .filter(user => !currentUserMap.has(user.user_id))
                     .map(async user => {
                     const info = await getUserInfo(user);
-                    const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
-                    const userDurationSec = userDuration.total_duration;
-                    return { user, info, userDurationSec};
+                    const today = new Date().toISOString().split('T')[0];
+                    //const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
+                    const completionRate = await getCompletionRate('day', `2025-01-01~${today}`, 'user', user.user_id);
+                    //const userDurationSec = userDuration.total_duration;
+                    return { user, info, completionRate};
                 }));
 
-                for (const {user, info, userDurationSec} of userInfos) {
+                for (const {user, info, completionRate /*userDurationSec*/} of userInfos) {
                     
                     if(currentUserMap.has(user.user_id)) continue;
 
@@ -84,19 +86,24 @@ export async function activeUser(period_type, period_value)
                     container.appendChild(item);
                     currentUserMap.set(user.user_id, item);
 
-                    if(allTotalDuration)
-                    {
-                        const userPercentage = (allTotalDuration > 0) 
-                            ? parseFloat(((userDurationSec / allTotalDuration) * 100).toFixed(2))
-                            : parseFloat("0.00");
-
-                        if(userPercentage <= 20)
-                            status.className = "yellow-RedBorder";
-                        else
-                            status.className = "yellow";
-                    }
+                     if(completionRate <= 20)
+                        status.className = "yellow-RedBorder";
                     else
-                        pendingUsers.push({userId: user.user_id, element: item, duration: userDurationSec});
+                        status.className = "yellow";
+
+                    // if(allTotalDuration)
+                    // {
+                    //     const userPercentage = (allTotalDuration > 0) 
+                    //         ? parseFloat(((userDurationSec / allTotalDuration) * 100).toFixed(2))
+                    //         : parseFloat("0.00");
+
+                    //     if(userPercentage <= 20)
+                    //         status.className = "yellow-RedBorder";
+                    //     else
+                    //         status.className = "yellow";
+                    // }
+                    // else
+                    //     pendingUsers.push({userId: user.user_id, element: item, duration: userDurationSec});
                 }
 
                 refresh();
@@ -121,6 +128,24 @@ async function getUserInfo(user) {
             position: userData.position
         };
     }
+}
+
+async function getCompletionRate(period_type='day', period_value, filter_type='user', filter_value) {
+    let url = `${window.baseUrl}leaning/completion-rate?period_value=${period_value}`;
+    if(period_type != null)
+      url += `&period_type=${period_type}`;
+    if(filter_type != null)
+      url += `&filter_type=${filter_type}`;
+    if(filter_value != null)
+      url += `&filter_value=${encodeURIComponent(filter_value)}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    if(response.ok) {
+        return data.completion_rate;        
+    }
+    else 
+        return 0;
 }
 
 export async function getUserConnectionDuration(period_type=null, period_value, filter_type=null, filter_value=null) {

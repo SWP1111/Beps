@@ -200,9 +200,9 @@ def delete_memo(id):
     return '', 204 
 
 
-# ?�� GET /leaning/memo_rank API 메모 ??�� 조회    
+# 🔹 GET /leaning/memo_rank API 메모 랭킹 조회    
 @api_memo_bp.route('/memo_rank', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # ?�� JWT 검증을 먼�? ?�행
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def memo_rank():
     from services.user_summary_service import get_period_value
     try:
@@ -257,7 +257,15 @@ def memo_rank():
         if not result:
             return jsonify({'error': 'No data found'}), 404
         
-        return jsonify({'data': [dict(row) for row in result]}), 200  # 200: OK
+        return jsonify({
+            'data': [
+                {
+                    **dict(row),
+                    'modified_at': row['modified_at'].isoformat() if isinstance(row['modified_at'], datetime) else row['modified_at']
+                }
+                for row in result
+            ]
+            }), 200  # 200: OK
     
     except Exception as e:
         logger.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")

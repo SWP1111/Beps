@@ -262,8 +262,9 @@ document.addEventListener('DOMContentLoaded', async() => {
       const dx = e.clientX - startX;
       let newLeft = startLeft + dx;
 
-      // 범위 제한 (0px ~ 400px)
-      newLeft = Math.max(0, Math.min(newLeft, 400));
+      // 범위 제한 (0px ~ earning-rate-progress의 너비 - 21px)
+      const maxLeft = document.getElementsByClassName("learning-rate-progress")[0].offsetWidth - 21;
+      newLeft = Math.max(0, Math.min(newLeft, maxLeft));
       console.log(`newLeft: ${newLeft}, offsetWidth: ${learningPointerContent.offsetWidth}, parentWidth: ${learningPointerContent.parentElement.offsetWidth}`);
       
       if(learningPointerContent.style.marginLeft === "0px" && parseInt(pointer.style.marginLeft) >= newLeft) {
@@ -277,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         pointer.style.marginLeft = `${newLeft - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
       }
 
-      learningPointerPercent.value = `${Math.round((1 - newLeft / 400) * 100)}`;
+      learningPointerPercent.value = `${Math.round((1 - newLeft / maxLeft) * 100)}`;
     });
 
     document.addEventListener("mouseup", () => {
@@ -427,6 +428,8 @@ document.addEventListener('DOMContentLoaded', async() => {
         }       
       })
 
+      const mediaQuery = window.matchMedia("(min-width: 2000px)");
+
       const channelsOption = {
         color: [
           '#B7F362', '#FFA778', '#806FBC', '#170068', '#80CEC8', '#FFB0B0', '#FF6565',
@@ -448,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async() => {
           {
             name: 'Access From',
             type: 'pie',
-            radius: '55%',
+            radius: mediaQuery.matches? '70%' : '55%',
             center: ['33%', '45%'],
             data: chartData,
             emphasis: {
@@ -489,6 +492,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       span.textContent = `${index + 1}. `;
       countSpan.textContent = "0회";
       dateSpan.style.display = "none";
+      dateSpan.textContent = "";
 
       if(response.ok === false) return;
       const data = getTopViewdPages.top_viewd_pages;
@@ -498,10 +502,10 @@ document.addEventListener('DOMContentLoaded', async() => {
       span.textContent = `${index + 1}. ${page.file_name.replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
       countSpan.textContent = `${page.view_count}회`;
       element.title = `${page.channel_name.replace(/^\d+_/, '')} _ ${page.folder_name.replace(/^\d+_/, '')} _ ${page.file_name.replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
+      dateSpan.textContent = `마지막 업데이트: ${formatUTCtoLocalDate(page.updated_at)}`;
 
       div.addEventListener("mouseover", () => {
         dateSpan.style.display = "inline";
-        dateSpan.textContent = `마지막 업데이트: ${formatUTCtoLocalDate(page.updated_at)}`;
       });
 
       div.addEventListener("mouseleave", () => {
@@ -527,11 +531,13 @@ document.addEventListener('DOMContentLoaded', async() => {
 
       const span = element.querySelector("span");
       const div = element.querySelector("div");
-      const countSpan = div.querySelector("span");
+      const [dateSpan, countSpan] = div.querySelectorAll("span");
 
       span.textContent = `${index + 1}. `;
       countSpan.textContent = "0개";
-
+      dateSpan.style.display = "none";
+      dateSpan.textContent = "";
+    
       if(response.ok === false) return;
 
       const data = getMemoRank.data;
@@ -541,50 +547,14 @@ document.addEventListener('DOMContentLoaded', async() => {
       span.textContent = `${index + 1}. ${memo.name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
       countSpan.textContent = `${memo.cnt}개`;
       element.title = `${memo.channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${memo.folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${memo.name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      div.title = `최종 열람: ${formatUTCtoLocal(memo.modified_at)}`;
+      dateSpan.textContent = `마지막 업데이트: ${formatUTCtoLocalDate(memo.modified_at)}`;
 
-      // if(index == 0)
-      // {
-      //   if(data.length === 0) return;
-
-      //   span.textContent = `1. ${data[0].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      //   countSpan.textContent = `${data[0].cnt}개`;
-      //   element.title = `${data[0].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[0].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[0].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      // }
-      // else if(index == 1)
-      // {
-      //   if(data.length < 2) return;
-
-      //   span.textContent = `2. ${data[1].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      //   countSpan.textContent = `${data[1].cnt}개`;
-      //   element.title = `${data[1].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[1].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[1].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      // }
-      // else if(index == 2)
-      // {
-      //   if(data.length < 3) return;
-
-      //   span.textContent = `3. ${data[2].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      //   countSpan.textContent = `${data[2].cnt}개`;
-      //   element.title = `${data[2].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[2].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[2].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      // }
-      // else if(index == 3)
-      // {
-      //   if(data.length < 4) return;
-
-      //   span.textContent = `4. ${data[3].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      //   countSpan.textContent = `${data[3].cnt}개`;
-      //   element.title = `${data[3].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[3].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[3].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      // }
-      // else if(index == 4)
-      // {
-      //   if(data.length < 5) return;
-
-      //   span.textContent = `5. ${data[4].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-      //   countSpan.textContent = `${data[4].cnt}개`;
-      //   element.title = `${data[4].channel_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[4].folder_name.split("/").pop().replace(/^\d+_/, '')} _ ${data[4].name.split("/").pop().replace(/^\d+_/, '').replace(/\.[^.]+$/, '')}`;
-
-      // }
-
+      div.addEventListener("mouseover", () => {
+        dateSpan.style.display = "inline";          
+      });
+      div.addEventListener("mouseleave", () => {
+        dateSpan.style.display = "none";
+      });
     });
   }
 
@@ -667,18 +637,20 @@ document.addEventListener('DOMContentLoaded', async() => {
         span.textContent = `${data.total_pages}`;
       }
 
-      const leftValue = (400 * (1 - data.completion_rate / 100));
-      learningRateAvgArrow.style.marginLeft = leftValue + "px"; // 395px은 100%에 해당하는 너비로 가정
+      const maxLeft = document.getElementsByClassName("learning-rate-progress")[0].offsetWidth - 21;
+      const leftValue = (maxLeft * (1 - data.completion_rate / 100));
+      learningRateAvgArrow.style.marginLeft = leftValue + "px";
       
       if(leftValue + learningPointerContent.offsetWidth < learningPointerContent.parentElement.offsetWidth) {
         learningPointerContent.style.marginLeft = `${leftValue}px`;
+        pointer.style.marginLeft = "0px";
       }
       else {
         learningPointerContent.style.marginLeft = `${learningPointerContent.parentElement.offsetWidth - learningPointerContent.offsetWidth}px`;
         pointer.style.marginLeft = `${leftValue - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
       }
 
-      learningPointerPercent.value = `${Math.round((1 - leftValue / 400) * 100)}`;
+      learningPointerPercent.value = `${Math.round((1 - leftValue / maxLeft) * 100)}`;
 
     }
   }
@@ -707,7 +679,8 @@ document.addEventListener('DOMContentLoaded', async() => {
 
   window.parent.postMessage({
     type: 'resize',
-    height: document.documentElement.scrollHeight
+    height: document.body.scrollHeight,
+    width: document.body.scrollWidth
   }, '*');
 
   function formatMinutesToTime(totalMinutes) {
@@ -802,7 +775,10 @@ document.addEventListener('DOMContentLoaded', async() => {
 }
 
 function formatUTCtoLocalDate(utcString) {
-  const date = new Date(utcString + "Z"); // ISO 8601을 파싱함
+  const hasTimezone = /([+-]\d{2}:\d{2}|Z)$/.test(utcString);  // 시간대 정보 있는지 체크
+  const normalized = hasTimezone ? utcString : utcString + "Z"; // 시간대 정보가 없으면 Z를 추가
+
+  const date = new Date(normalized); // ISO 8601을 파싱함
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");

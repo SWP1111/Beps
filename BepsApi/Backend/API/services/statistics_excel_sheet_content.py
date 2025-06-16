@@ -33,7 +33,7 @@ def get_normal_files_width_category_names():
     """
     try:                
         def clean_name(name):
-            return re.sub(r'^\d+_', '', name) if name else None
+            return re.sub(r'^\d+_|(\.[^./\\]+$)', '', name) if name else None
         
         Folders = aliased(ContentRelFolders)
         
@@ -62,7 +62,7 @@ def get_normal_files_width_category_names():
             
             top_name_clean = clean_name(top_name)
             mid_name = clean_name(mid_folder.name) if mid_folder else ''
-            if mid_name is '':
+            if not mid_name:
                 logging.warning(f"mid_name is empty for file_id: {file_id}, folder_id: {folder_id}, top_folder_id: {top_folder_id}")
             bottom_name = clean_name(file_name)
             

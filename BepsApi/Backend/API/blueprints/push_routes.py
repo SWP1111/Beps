@@ -2,7 +2,7 @@ import datetime
 import logging
 import log_config
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 from extensions import db, redis_client
 from models import PushMessages, Users
 import json
@@ -78,6 +78,9 @@ def send():
                 'is_read': msg.is_read
             }))
             redis_client.expire(f"push_cache:{msg.user_id}", 600) # 10분 후 만료
+            
+            # 메시지 개수 알림을 Redis에 발행 blocking 문제 발생
+            # redis_client.publish(f"message_alert:{msg.user_id}", json.dumps({'count': redis_client.llen(f"push_cache:{msg.user_id}")}))
     
     for uid in user_ids:
         trim_old_push_messages(uid, Config.PUSH_MESSAGE_LIMIT)
@@ -186,3 +189,41 @@ def count():
             'message': '/leaning/push/load API를 먼저 호출해주세요.',
             'count': 0
         }), 404
+
+# 🔹 GET /leaning/push/message_alert API 메시지 알림 스트림 - SSE 방식으로 시도했는데, 동작 안되서 주석 처리      
+# @api_push_bp.route('/message_alert')
+# @jwt_required(locations=["headers","cookies"])
+# def message_alert():
+#     user_id = get_jwt_identity()
+#     channel = f"message_alert:{user_id}"
+    
+#     def event_stream():
+#         pubsub = redis_client.pubsub()
+#         pubsub.subscribe(channel)
+#         last_heartbeat = time.time()
+        
+#         try:
+#             while True:
+#                 # Non-blocking 메시지 체크
+#                 message = pubsub.get_message(ignore_subscribe_messages=True)
+                
+#                 if message and message['type'] == 'message':
+#                     data = message['data'].decode() if isinstance(message['data'], bytes) else str(message['data'])
+#                     yield f"data: {data}\n\n"
+#                     last_heartbeat = time.time()
+                
+#                 # 15초마다 하트비트 전송
+#                 if time.time() - last_heartbeat > 15:
+#                     yield ": heartbeat\n\n"
+#                     last_heartbeat = time.time()
+                
+#                 # Non-blocking sleep (gevent 버전)
+#                 sleep(3.0)
+                
+#         except GeneratorExit:
+#             logging.info("클라이언트 연결 종료 감지")
+#         finally:
+#             pubsub.close()
+#             logging.info("Redis 연결 정리 완료")
+    
+#     return Response(event_stream(), mimetype='text/event-stream')
