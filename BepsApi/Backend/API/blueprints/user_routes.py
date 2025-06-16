@@ -6,13 +6,14 @@ from flask_jwt_extended import create_access_token, decode_token, get_csrf_token
 import datetime
 from datetime import timezone
 from extensions import db
-from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg
+from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg, IpRange
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import requests
 from collections import defaultdict
 from urllib.parse import unquote
-from sqlalchemy import func, or_
+from sqlalchemy import cast, exists, func, or_
+from sqlalchemy.dialects.postgresql import INET
 import services.user_summary_service as summary_service
 import traceback
 from sqlalchemy import case
@@ -736,6 +737,76 @@ def get_search():
         logging.error(f"[get_search] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
+
+# GET /user/get_external_ips API 외부 IP 조회
+@api_user_bp.route('/get_external_ips', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+def get_external_ips():
+    try:
+        period_type = request.args.get('period_type', 'day')
+        period_value = request.args.get('period_value')
+        if period_value is None:
+            return jsonify({'error': 'Please provide period_value'}), 400
+        
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value')
+        if filter_type != 'all' and filter_value is None:
+            return jsonify({'error': 'Please provide filter_value'}), 400
+        
+        start_date,end_date = summary_service.get_period_value(period_type, period_value)  # Validate period_value
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        utc_end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+
+        query = db.session.query(
+            LoginHistory.user_id,
+            LoginHistory.ip_address,
+            Users.name.label('user_name'),
+            LoginHistory.login_time
+        ).join(
+            Users, LoginHistory.user_id == Users.id
+        ).filter(
+            LoginHistory.login_time >= utc_start_date,
+            LoginHistory.login_time < utc_end_date,
+        )
+        
+        if filter_type == 'user':
+            query = query.filter(LoginHistory.user_id == filter_value.lower())
+        elif filter_type == 'company':
+            query = query.filter(Users.company == filter_value)
+        elif filter_type == 'department':
+            part = filter_value.split('/')
+            if len(part) == 2:
+                query = query.filter(Users.company == part[0], Users.department == part[1])
+            else:
+                query = query.filter(Users.department == filter_value)
+               
+        query = query.filter(
+            ~exists().where(
+                cast(LoginHistory.ip_address, INET).between(
+                    cast(IpRange.start_ip, INET),
+                    cast(IpRange.end_ip, INET)
+                )
+            )
+        )
+        
+        rows = query.distinct().all()
+        
+        return jsonify({
+           'data': [
+                {
+                    'user_id': row.user_id,
+                    'ip_address': row.ip_address,
+                    'user_name': row.user_name,
+                    'login_time': row.login_time.isoformat() if row.login_time else None
+                } for row in rows
+            ] 
+        })
+
+    except Exception as e:
+        logging.error(f"[get_external_ips] error: {str(e)}, {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+    
 @api_user_bp.route('/companies', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
 def get_companies():

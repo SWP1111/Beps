@@ -58,8 +58,8 @@
                 try {
                     const innerDoc = iframe.contentDocument || iframe.contentWindow.document;
                     const scrollHeight = innerDoc.body.scrollHeight;
-                    iframe.style.height = (scrollHeight + 2) + 'px';
-                    console.log("iframe height: " + (scrollHeight + 2) + 'px');
+                    iframe.style.height = (scrollHeight - 70) + 'px';
+                    console.log("iframe height: " + (scrollHeight - 70) + 'px');
 
                 } catch (e) {
                     console.warn("다른 도메인이라면 자동 조정 불가");
@@ -68,8 +68,12 @@
 
                  window.addEventListener("message", (event) => {
                     if (event.data.type === "resize" && event.data.height) {
-                    const iframe = document.getElementById('content-frame');
-                    iframe.style.height = event.data.height + 'px';
+                        const iframe = document.getElementById('content-frame');
+                        iframe.style.height = event.data.height + 'px';  
+                        iframe.style.width = event.data.width + 'px';                     
+                        if(document.body.offsetWidth < event.data.width) {
+                            document.body.style.width = event.data.width + 'px';
+                        }
                     }
                 });
             </script>

@@ -35,38 +35,6 @@
     height: 17px;
 }
 
-/* @media (min-width: 3400px) and (min-height: 1800px) {
-    .filter {
-        display: flex;
-        align-items: center;
-        position: relative;
-        background-color: rgba(255, 255, 255, 1);
-        border: 1px solid rgba(0, 0, 0, 1);
-        width: 445px;
-        height: 70px;
-        margin-top: 52px;
-        margin-left: 42px;   
-        padding: 0px 10px;
-        box-sizing: border-box;
-    }
-
-    .filter .search {
-        flex: 1;
-        height: 100%;
-        border: none;
-        outline: none;
-        text-align: center;
-        font-family: NotosansKR;
-        font-weight: 700;
-        font-size: 30px;    
-    }
-    
-    .filter .search-icon {
-        width: 34px;
-        height: 34px;
-    }
-} */
-
 .search-container-wrapper {
     display: flex;
     position: relative;

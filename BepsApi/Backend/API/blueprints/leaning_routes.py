@@ -70,7 +70,7 @@ def end():
         end_time = datetime.datetime.now(timezone.utc)
         duration = end_time - start_time
         
-        if duration >= timedelta(seconds=Config.POINT_DURATION_SECONDS): # 최소 5분 이상 시청한 경우 DB 저장          
+        if duration >= timedelta(seconds=Config.POINT_DURATION_SECONDS): # POINT_DURATION_SECONDS 이상 시청한 경우 DB 저장          
             # 🔹 ContentViewingHistory 객체 생성
             learning = ContentViewingHistory(
                 user_id=user_id,
@@ -462,7 +462,10 @@ def get_top_viewd_pages():
             return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
         
         start_dt, end_dt = get_period_value(period_type, period_value)
-        
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        utc_start_date = datetime.datetime.combine(start_dt, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+        utc_end_date = datetime.datetime.combine(end_dt, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+
         query = db.session.query(
             ContentViewingHistory.file_id,
             func.coalesce(ContentRelPages.name, '[삭제된 파일]').label('file_name'),
@@ -482,8 +485,8 @@ def get_top_viewd_pages():
             ).outerjoin(
                 ContentRelChannels, ContentRelFolders.channel_id == ContentRelChannels.id
             ).filter(
-                ContentViewingHistory.start_time >= start_dt,
-                ContentViewingHistory.start_time < end_dt
+                ContentViewingHistory.start_time >= utc_start_date,
+                ContentViewingHistory.start_time < utc_end_date
             )     
         
         if filter_type == 'company' and filter_value:
