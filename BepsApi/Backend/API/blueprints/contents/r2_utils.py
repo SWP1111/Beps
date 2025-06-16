@@ -31,7 +31,17 @@ def get_r2_client():
         secret_access_key = os.getenv('R2_SECRET_ACCESS_KEY')
         
         if not all([account_id, access_key_id, secret_access_key]):
-            raise ValueError("Missing required R2 credentials in environment variables")
+            missing_vars = []
+            if not account_id:
+                missing_vars.append('CLOUDFLARE_ACCOUNT_ID')
+            if not access_key_id:
+                missing_vars.append('R2_ACCESS_KEY_ID')
+            if not secret_access_key:
+                missing_vars.append('R2_SECRET_ACCESS_KEY')
+            
+            error_msg = f"Missing required R2 credentials in environment variables: {', '.join(missing_vars)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Create R2 client
         r2_client = boto3.client(
@@ -101,22 +111,28 @@ def check_r2_object_exists(object_key):
         True if object exists, False otherwise
     """
     try:
+        logger.debug(f"🔍 Checking R2 object existence: '{object_key}'")
+        
         r2_client = get_r2_client()
         bucket_name = os.getenv('R2_BUCKET_NAME', 'beps-contents')
         
+        logger.debug(f"🪣 Using bucket: '{bucket_name}'")
+        
         # Try to get object metadata
-        r2_client.head_object(Bucket=bucket_name, Key=object_key)
+        response = r2_client.head_object(Bucket=bucket_name, Key=object_key)
+        logger.debug(f"✅ R2 object '{object_key}' exists - metadata: {response.get('Metadata', {})}")
         return True
     except ClientError as e:
         # Object doesn't exist if we get a 404
         if e.response['Error']['Code'] == '404':
+            logger.debug(f"❌ R2 object '{object_key}' does not exist (404)")
             return False
         else:
             # Other errors (permissions, etc.) - log and return False
-            logger.error(f"Error checking R2 object {object_key}: {str(e)}")
+            logger.error(f"❌ Error checking R2 object '{object_key}': {str(e)}")
             return False
     except Exception as e:
-        logger.error(f"Unexpected error checking R2 object {object_key}: {str(e)}")
+        logger.error(f"❌ Unexpected error checking R2 object '{object_key}': {str(e)}", exc_info=True)
         return False
 
 

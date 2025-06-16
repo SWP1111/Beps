@@ -47,34 +47,54 @@ def register_r2_routes(api_contents_bp):
         try:
             data = request.get_json()
             if not data or 'file_ids' not in data:
+                logger.error("Missing file_ids in request body")
                 return jsonify({'error': 'Missing file_ids in request body'}), 400
             
             file_ids = data['file_ids']
             if not isinstance(file_ids, list):
+                logger.error("file_ids must be a list")
                 return jsonify({'error': 'file_ids must be a list'}), 400
             
-            logger.info(f"Batch checking R2 existence for {len(file_ids)} files")
+            logger.info(f"🔍 Batch checking R2 existence for {len(file_ids)} files: {file_ids}")
+            
+            # Check if R2 credentials are available
+            import os
+            r2_credentials_available = all([
+                os.getenv('CLOUDFLARE_ACCOUNT_ID'),
+                os.getenv('R2_ACCESS_KEY_ID'),
+                os.getenv('R2_SECRET_ACCESS_KEY')
+            ])
+            
+            if not r2_credentials_available:
+                logger.warning("🔑 R2 credentials not configured - using fallback object_id checks")
             
             results = {}
             
             for file_id in file_ids:
                 try:
+                    logger.debug(f"Checking file ID: {file_id}")
+                    
                     # Check if it's a page or page detail
                     page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
                     
                     if page:
                         # This is a page
+                        logger.debug(f"Found page {file_id}: name='{page.name}', object_id='{page.object_id}'")
                         r2_exists = page.check_r2_content_exists()
                         object_key = page.object_id if r2_exists else None
+                        logger.debug(f"Page {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
                     else:
                         # Check if it's a page detail
                         detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
                         if detail:
                             # This is a page detail
+                            logger.debug(f"Found page detail {file_id}: name='{detail.name}', object_id='{detail.object_id}', page_id={detail.page_id}")
                             r2_exists = detail.check_r2_content_exists()
                             object_key = detail.object_id if r2_exists else None
+                            logger.debug(f"Page detail {file_id} R2 check result: exists={r2_exists}, object_key='{object_key}'")
                         else:
                             # File not found
+                            logger.warning(f"File {file_id} not found in pages or page details")
                             r2_exists = False
                             object_key = None
                     
@@ -84,18 +104,24 @@ def register_r2_routes(api_contents_bp):
                     }
                     
                 except Exception as e:
-                    logger.error(f"Error checking R2 for file {file_id}: {str(e)}")
+                    logger.error(f"Error checking R2 for file {file_id}: {str(e)}", exc_info=True)
                     results[str(file_id)] = {
                         'r2_exists': False,
                         'object_key': None
                     }
             
-            logger.info(f"Batch R2 check completed. {sum(1 for r in results.values() if r['r2_exists'])} files have R2 content")
+            files_with_r2 = sum(1 for r in results.values() if r['r2_exists'])
+            logger.info(f"✅ Batch R2 check completed. {files_with_r2}/{len(file_ids)} files have R2 content")
+            logger.debug(f"Results: {results}")
             
-            return jsonify(results)
+            response_data = results
+            if not r2_credentials_available:
+                response_data['_warning'] = 'R2 credentials not configured - results based on database object_id only'
+            
+            return jsonify(response_data)
             
         except Exception as e:
-            logger.error(f"Error in batch R2 check: {str(e)}")
+            logger.error(f"Error in batch R2 check: {str(e)}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
     @api_contents_bp.route('/file/<int:file_id>/r2-exists', methods=['GET'])
