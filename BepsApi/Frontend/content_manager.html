@@ -529,7 +529,7 @@
             window.userId = userId;
             
             // For completely restricted areas (development only)
-            if (document.getElementById('filter-all') && roleId !== 1 && roleId !== 999) {
+            if (document.getElementById('filter-all') && roleId !== 1 && roleId !== 2 && roleId !== 999) {
                 document.body.innerHTML = `
                     <div style="text-align: center; margin-top: 50px; color: #f44336;">
                         <h1>접근 권한이 없습니다</h1>
@@ -624,6 +624,10 @@
         // 콘텐츠 매니저 초기화
         async function initializeContentManager() {
             try {
+                console.log('🚀 Initializing content manager...');
+                console.log('👤 User role ID:', window.userRoleId);
+                console.log('🆔 User ID:', window.userId);
+                
                 contentListElement.innerHTML = '<div class="loading">콘텐츠 구조를 불러오는 중입니다...</div>';
                 
                 // 전체 계층 구조 가져오기 (API 사용)
@@ -635,6 +639,7 @@
                 
                 // 일반 사용자인 경우 접근 가능한 항목 필터링
                 if (window.userRoleId !== 1 && window.userRoleId !== 2 && window.userRoleId !== 999) {
+                    console.log('🔒 Filtering content for restricted user...');
                     await getUserAccessibleContent();
                     filterHierarchyForUser();
                 }
@@ -651,13 +656,20 @@
         // API를 통해 계층 구조 가져오기
         async function getContentHierarchy() {
             try {
+                console.log('🔍 Fetching content hierarchy...');
                 // API 엔드포인트 호출
                 const response = await fetch('/contents/hierarchy');
+                console.log('📊 Hierarchy response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error(`계층 구조를 가져오는데 실패했습니다: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('❌ Hierarchy response error:', errorText);
+                    throw new Error(`계층 구조를 가져오는데 실패했습니다: ${response.status} - ${errorText}`);
                 }
                 
-                return await response.json();
+                const data = await response.json();
+                console.log('✅ Hierarchy data received:', data);
+                return data;
             } catch (error) {
                 console.error('계층 구조를 불러오는 중 오류가 발생했습니다:', error);
                 return null;
@@ -727,13 +739,18 @@
         
         // 채널 목록 렌더링
         function renderChannels() {
+            console.log('🎨 Rendering channels...');
+            console.log('📊 Hierarchy data:', hierarchyData);
+            
             contentListElement.innerHTML = '';
             
             if (!hierarchyData || !hierarchyData.channels || hierarchyData.channels.length === 0) {
+                console.log('❌ No channels to display');
                 contentListElement.innerHTML = '<div class="loading">표시할 채널이 없습니다.</div>';
                 return;
             }
             
+            console.log(`✅ Found ${hierarchyData.channels.length} channels`);
             hierarchyData.channels.forEach(channel => {
                 const contentItem = document.createElement('div');
                 contentItem.className = 'content-item';
