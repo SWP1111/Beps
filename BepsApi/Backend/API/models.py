@@ -381,6 +381,26 @@ class ContentRelPages(db.Model):
     updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
     is_deleted = db.Column(db.Boolean, default=False)
     
+    def check_r2_content_exists(self, use_cache=True):
+        """
+        Check if this page's content actually exists in R2 storage
+        Uses the R2StorageService for proper separation of concerns
+        """
+        from services.r2_storage_service import R2StorageService
+        
+        return R2StorageService.check_page_content_exists(
+            page_id=self.id,
+            page_name=self.name,
+            page_object_id=self.object_id,
+            updated_at=self.updated_at,
+            use_cache=use_cache
+        )
+    
+    @property
+    def has_content(self):
+        """Computed property that checks if actual file exists in R2 storage"""
+        return self.check_r2_content_exists()
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -388,6 +408,7 @@ class ContentRelPages(db.Model):
             'name': self.name,
             'description': self.description,
             'object_id': self.object_id,
+            'has_content': self.has_content,  # Uses the property
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted
@@ -400,10 +421,32 @@ class ContentRelPageDetails(db.Model):
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
     object_id = db.Column(db.String, nullable=True)
-    has_content = db.Column(db.Boolean, default=False)
+    # has_content = db.Column(db.Boolean, default=False)  # Temporarily commented until DB migration
     created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
     is_deleted = db.Column(db.Boolean, default=False)
+    
+    def check_r2_content_exists(self, use_cache=True):
+        """
+        Check if this page detail's content actually exists in R2 storage
+        Uses the R2StorageService for proper separation of concerns
+        """
+        from services.r2_storage_service import R2StorageService
+        
+        return R2StorageService.check_page_detail_content_exists(
+            detail_id=self.id,
+            detail_name=self.name,
+            detail_object_id=self.object_id,
+            updated_at=self.updated_at,
+            use_cache=use_cache
+        )
+    
+    @property
+    def has_content(self):
+        """Computed property that checks if actual file exists in R2 storage"""
+        # For performance, we can add caching here in the future
+        # For now, use the method that actually checks R2
+        return self.check_r2_content_exists()
     
     def to_dict(self):
         return {
@@ -412,7 +455,7 @@ class ContentRelPageDetails(db.Model):
             'name': self.name,
             'description': self.description,
             'object_id': self.object_id,
-            'has_content': self.has_content,
+            'has_content': self.has_content,  # Uses the property
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'is_deleted': self.is_deleted

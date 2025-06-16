@@ -295,7 +295,7 @@ class ContentHierarchyService:
                         'type': 'page_detail',
                         'object_id': detail.object_id,
                         'page_id': detail.page_id,
-                        'has_content': detail.object_id is not None and detail.object_id.strip() != ''
+                        'has_content': detail.check_r2_content_exists() if hasattr(detail, 'check_r2_content_exists') else (detail.object_id is not None and detail.object_id.strip() != '')
                     }
                     for detail in page_details
                 ]
@@ -1076,7 +1076,7 @@ class ContentHierarchyService:
                     'name': detail.name,
                     'description': detail.description,
                     'object_id': detail.object_id,
-                    'has_content': detail.object_id is not None and detail.object_id.strip() != '',
+                    'has_content': detail.check_r2_content_exists() if hasattr(detail, 'check_r2_content_exists') else (detail.object_id is not None and detail.object_id.strip() != ''),
                     'created_at': detail.created_at.isoformat() if detail.created_at else None,
                     'updated_at': detail.updated_at.isoformat() if detail.updated_at else None
                 }
