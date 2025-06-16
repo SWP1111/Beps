@@ -282,28 +282,96 @@ def register_r2_routes(api_contents_bp):
     @jwt_required(locations=['headers','cookies'])
     def get_r2_image_url(file_id):
         """
-        Get R2 image URL for viewing
+        Get a pre-signed URL for viewing a file's image from R2
+        
+        Path parameter:
+        - file_id: ID of the file
+        
+        Query parameters:
+        - expires: Expiration time in seconds (optional, default: 3600)
         """
         try:
-            # Find the file
+            # Check user permissions
+            user_id = get_jwt_identity()
+            user = Users.query.get(user_id)
+            
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+            
+            # Get the file
             page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
             if not page:
                 return jsonify({'error': 'File not found'}), 404
             
-            if not page.object_id:
-                return jsonify({'error': 'No R2 content available'}), 404
+            # Check if R2 file exists (using the same approach as batch check)
+            # First try to find the R2 object using standard extensions
+            page_name = page.name or f"file_{file_id}"
+            image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
             
-            # Generate signed URL for viewing
-            signed_url = generate_r2_signed_url(page.object_id, expires_in=3600, method='GET')
+            r2_object_key = None
+            
+            # Check if R2 credentials are available
+            import os
+            r2_credentials_available = all([
+                os.getenv('CLOUDFLARE_ACCOUNT_ID'),
+                os.getenv('R2_ACCESS_KEY_ID'),
+                os.getenv('R2_SECRET_ACCESS_KEY')
+            ])
+            
+            if not r2_credentials_available:
+                # Fallback to legacy object_id if R2 credentials not available
+                if page.object_id and page.object_id.strip():
+                    r2_object_key = page.object_id
+                else:
+                    return jsonify({'error': 'No R2 image associated with this file and R2 credentials not configured'}), 404
+            else:
+                # Try multiple extensions to find the actual file
+                for ext in image_extensions:
+                    test_filename = f"{page_name}{ext}"
+                    test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                    
+                    if check_r2_object_exists(test_object_key):
+                        r2_object_key = test_object_key
+                        break
+                
+                if not r2_object_key:
+                    # Also try the legacy object_id as fallback
+                    if page.object_id and page.object_id.strip():
+                        if check_r2_object_exists(page.object_id):
+                            r2_object_key = page.object_id
+                
+                if not r2_object_key:
+                    return jsonify({'error': 'No R2 image associated with this file'}), 404
+            
+            # Check user permissions (admin, developer, or has specific access)
+            if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer
+                # Check if user has specific access to this file
+                try:
+                    from services.content_hierarchy_service import ContentHierarchyService
+                    service = ContentHierarchyService()
+                    folder_ids, file_ids = service.get_user_accessible_content(int(user_id))
+                    
+                    if file_id not in file_ids:
+                        return jsonify({'error': 'Access denied'}), 403
+                except Exception as perm_error:
+                    logger.warning(f"Could not check user permissions for file {file_id}: {str(perm_error)}")
+                    # Continue anyway for admin/reviewer/developer roles
+            
+            # Get expires parameter
+            expires = int(request.args.get('expires', 3600))
+            
+            # Generate pre-signed URL for download using the found R2 object key
+            signed_url = generate_r2_signed_url(r2_object_key, expires_in=expires, method='GET')
             
             return jsonify({
                 'signed_url': signed_url,
-                'object_key': page.object_id,
-                'file_id': file_id
+                'expires_in': expires,
+                'object_key': r2_object_key,
+                'legacy_object_id': page.object_id  # Keep for backward compatibility
             })
             
         except Exception as e:
-            logger.error(f"Error getting R2 image URL for file {file_id}: {str(e)}")
+            logger.error(f"Error generating R2 image URL for file {file_id}: {str(e)}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
     @api_contents_bp.route('/file/<int:file_id>/r2-object-key', methods=['GET'])
