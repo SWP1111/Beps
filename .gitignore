@@ -7,6 +7,8 @@ BepsApi/Backend/Websocket/logs
 BepsApi/Backend/API/logs
 webhook_listener/__pycache__
 BepsApi/Backend/API/services/__pycache__
+BepsApi/Backend/API/blueprints/contents/__pycache__
+
 *.log
 .cursor
 BepsApi/beps/lib
