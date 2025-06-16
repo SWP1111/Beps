@@ -70,21 +70,27 @@ def register_r2_routes(api_contents_bp):
                         }
                         continue
                     
-                    # Check R2 existence (original logic)
+                    # Check R2 existence (original logic with fallback)
                     page_name = page.name or f"file_{file_id}"
                     image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
                     
                     r2_exists = False
                     existing_object_key = None
                     
-                    for ext in image_extensions:
-                        test_filename = f"{page_name}{ext}"
-                        test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
-                        
-                        if check_r2_object_exists(test_object_key):
-                            r2_exists = True
-                            existing_object_key = test_object_key
-                            break
+                    try:
+                        # Try R2 existence check (original logic)
+                        for ext in image_extensions:
+                            test_filename = f"{page_name}{ext}"
+                            test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                            
+                            if check_r2_object_exists(test_object_key):
+                                r2_exists = True
+                                existing_object_key = test_object_key
+                                break
+                    except Exception:
+                        # R2 credentials not available - fall back to object_id check
+                        r2_exists = bool(page.object_id and page.object_id.strip())
+                        existing_object_key = page.object_id if r2_exists else None
                     
                     results[str(file_id)] = {
                         'r2_exists': r2_exists,
