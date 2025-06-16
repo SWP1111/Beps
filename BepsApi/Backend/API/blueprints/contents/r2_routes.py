@@ -11,7 +11,7 @@ This module handles:
 import logging
 import datetime
 from datetime import timezone
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models import ContentRelPages, ContentRelPageDetails, Users
@@ -57,16 +57,16 @@ def register_r2_routes(api_contents_bp):
             
             logger.info(f"🔍 Batch checking R2 existence for {len(file_ids)} files: {file_ids}")
             
-            # Check if R2 credentials are available
-            import os
-            r2_credentials_available = all([
-                os.getenv('CLOUDFLARE_ACCOUNT_ID'),
-                os.getenv('R2_ACCESS_KEY_ID'),
-                os.getenv('R2_SECRET_ACCESS_KEY')
-            ])
+            # Check if R2 credentials are available (using Flask app config like the original)
+            aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
+            aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
+            r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
+            r2_bucket_name = current_app.config.get('R2_BUCKET_NAME')
+            
+            r2_credentials_available = all([aws_access_key_id, aws_secret_access_key, r2_endpoint_url, r2_bucket_name])
             
             if not r2_credentials_available:
-                logger.warning("🔑 R2 credentials not configured - using fallback object_id checks")
+                logger.warning("🔑 R2 credentials not configured in Flask app config - using fallback object_id checks")
             
             results = {}
             
@@ -157,7 +157,7 @@ def register_r2_routes(api_contents_bp):
             
             response_data = results
             if not r2_credentials_available:
-                response_data['_warning'] = 'R2 credentials not configured - results based on database object_id only'
+                response_data['_warning'] = 'R2 credentials not configured in Flask app config - results based on database object_id only'
             
             return jsonify(response_data)
             
@@ -291,6 +291,28 @@ def register_r2_routes(api_contents_bp):
         - expires: Expiration time in seconds (optional, default: 3600)
         """
         try:
+            # Check R2 configuration first (using Flask app config like the original)
+            aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
+            aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
+            r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
+            r2_bucket_name = current_app.config.get('R2_BUCKET_NAME')
+            
+            if not aws_access_key_id:
+                logger.error("AWS_ACCESS_KEY_ID is not configured")
+                return jsonify({'error': 'R2 configuration error: AWS_ACCESS_KEY_ID missing'}), 500
+            
+            if not aws_secret_access_key:
+                logger.error("AWS_SECRET_ACCESS_KEY is not configured")
+                return jsonify({'error': 'R2 configuration error: AWS_SECRET_ACCESS_KEY missing'}), 500
+            
+            if not r2_endpoint_url:
+                logger.error("R2_ENDPOINT_URL is not configured")
+                return jsonify({'error': 'R2 configuration error: R2_ENDPOINT_URL missing'}), 500
+            
+            if not r2_bucket_name:
+                logger.error("R2_BUCKET_NAME is not configured")
+                return jsonify({'error': 'R2 configuration error: R2_BUCKET_NAME missing'}), 500
+            
             # Check user permissions
             user_id = get_jwt_identity()
             user = Users.query.get(user_id)
@@ -303,45 +325,24 @@ def register_r2_routes(api_contents_bp):
             if not page:
                 return jsonify({'error': 'File not found'}), 404
             
-            # Check if R2 file exists (using the same approach as batch check)
+            # Check if R2 file exists (using the same approach as original)
             # First try to find the R2 object using standard extensions
             page_name = page.name or f"file_{file_id}"
             image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
             
             r2_object_key = None
             
-            # Check if R2 credentials are available
-            import os
-            r2_credentials_available = all([
-                os.getenv('CLOUDFLARE_ACCOUNT_ID'),
-                os.getenv('R2_ACCESS_KEY_ID'),
-                os.getenv('R2_SECRET_ACCESS_KEY')
-            ])
+            # Try multiple extensions to find the actual file
+            for ext in image_extensions:
+                test_filename = f"{page_name}{ext}"
+                test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
+                
+                if check_r2_object_exists(test_object_key):
+                    r2_object_key = test_object_key
+                    break
             
-            if not r2_credentials_available:
-                # Fallback to legacy object_id if R2 credentials not available
-                if page.object_id and page.object_id.strip():
-                    r2_object_key = page.object_id
-                else:
-                    return jsonify({'error': 'No R2 image associated with this file and R2 credentials not configured'}), 404
-            else:
-                # Try multiple extensions to find the actual file
-                for ext in image_extensions:
-                    test_filename = f"{page_name}{ext}"
-                    test_object_key = generate_r2_object_key(file_id, test_filename, is_page_detail=False)
-                    
-                    if check_r2_object_exists(test_object_key):
-                        r2_object_key = test_object_key
-                        break
-                
-                if not r2_object_key:
-                    # Also try the legacy object_id as fallback
-                    if page.object_id and page.object_id.strip():
-                        if check_r2_object_exists(page.object_id):
-                            r2_object_key = page.object_id
-                
-                if not r2_object_key:
-                    return jsonify({'error': 'No R2 image associated with this file'}), 404
+            if not r2_object_key:
+                return jsonify({'error': 'No R2 image associated with this file'}), 404
             
             # Check user permissions (admin, developer, or has specific access)
             if user.role_id not in [1, 2, 999]:  # Not admin, reviewer, or developer

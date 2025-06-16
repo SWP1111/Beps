@@ -13,6 +13,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 import logging
+from flask import current_app
 from log_config import get_content_logger
 from models import ContentRelPages, ContentRelFolders, ContentRelChannels, ContentRelPageDetails
 
@@ -22,41 +23,38 @@ logger = get_content_logger()
 
 def get_r2_client():
     """
-    Get R2 client with credentials from environment variables
+    Create and return a configured R2 (S3-compatible) client using Flask app config
     """
     try:
-        # Get credentials from environment variables
-        account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID')
-        access_key_id = os.getenv('R2_ACCESS_KEY_ID')
-        secret_access_key = os.getenv('R2_SECRET_ACCESS_KEY')
+        # Get credentials from Flask app config (like the original implementation)
+        aws_access_key_id = current_app.config.get('AWS_ACCESS_KEY_ID')
+        aws_secret_access_key = current_app.config.get('AWS_SECRET_ACCESS_KEY')
+        r2_endpoint_url = current_app.config.get('R2_ENDPOINT_URL')
         
-        if not all([account_id, access_key_id, secret_access_key]):
-            missing_vars = []
-            if not account_id:
-                missing_vars.append('CLOUDFLARE_ACCOUNT_ID')
-            if not access_key_id:
-                missing_vars.append('R2_ACCESS_KEY_ID')
-            if not secret_access_key:
-                missing_vars.append('R2_SECRET_ACCESS_KEY')
-            
-            error_msg = f"Missing required R2 credentials in environment variables: {', '.join(missing_vars)}"
+        if not aws_access_key_id or not aws_secret_access_key:
+            error_msg = "R2 credentials not found in Flask app configuration"
             logger.error(error_msg)
             raise ValueError(error_msg)
         
-        # Create R2 client
-        r2_client = boto3.client(
-            's3',
-            endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-            region_name='auto',  # R2 uses 'auto' as region
-            config=Config(
-                signature_version='s3v4',
-                retries={'max_attempts': 3}
-            )
+        # Configure the client with specific settings for R2 (matching original)
+        config = Config(
+            signature_version='s3v4',
+            retries={'max_attempts': 3},
+            s3={
+                'addressing_style': 'virtual'  # Use virtual hosted-style requests
+            }
         )
         
-        return r2_client
+        client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint_url,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name='auto',  # R2 uses 'auto' region
+            config=config
+        )
+        
+        return client
     except Exception as e:
         logger.error(f"Failed to create R2 client: {str(e)}")
         raise
@@ -64,7 +62,7 @@ def get_r2_client():
 
 def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
     """
-    Generate a signed URL for R2 object access
+    Generate a pre-signed URL for R2 object access
     
     Args:
         object_key: The R2 object key
@@ -76,7 +74,10 @@ def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
     """
     try:
         r2_client = get_r2_client()
-        bucket_name = os.getenv('R2_BUCKET_NAME', 'beps-contents')
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        if not bucket_name:
+            raise ValueError("R2 bucket name not found in Flask app configuration")
         
         # Generate signed URL
         if method.upper() == 'GET':
@@ -114,7 +115,7 @@ def check_r2_object_exists(object_key):
         logger.debug(f"🔍 Checking R2 object existence: '{object_key}'")
         
         r2_client = get_r2_client()
-        bucket_name = os.getenv('R2_BUCKET_NAME', 'beps-contents')
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
         
         logger.debug(f"🪣 Using bucket: '{bucket_name}'")
         
@@ -148,7 +149,7 @@ def delete_r2_object(object_key):
     """
     try:
         r2_client = get_r2_client()
-        bucket_name = os.getenv('R2_BUCKET_NAME', 'beps-contents')
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
         
         # Delete the object
         r2_client.delete_object(Bucket=bucket_name, Key=object_key)
