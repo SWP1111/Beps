@@ -242,6 +242,13 @@ td:nth-child(even) {
                 const currentUser = ref({});
                 const replies = ref([]);
 
+                const getCookie = (name) => {
+                    const value = `; ${document.cookie}`;
+                    const parts = value.split(`; ${name}=`);
+                    if (parts.length === 2) return parts.pop().split(';').shift();
+                    return null;
+                };
+
                 const loadData = async () => {
                     // Load memo data from localStorage
                     try {
@@ -372,12 +379,14 @@ td:nth-child(even) {
 
                         console.log(`Attempting to mark memo ${memoId} as viewed (current status is 1)`);
                         
+                        const csrfToken = getCookie('csrf_access_token');
                         const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
                             method: "POST",
                             credentials: "include",
                             headers: {
                                 "Accept": "application/json",
-                                "Content-Type": "application/json"
+                                "Content-Type": "application/json",
+                                "X-CSRF-TOKEN": csrfToken
                             }
                         });
                         
@@ -509,13 +518,15 @@ td:nth-child(even) {
                         content: replyComment.value,
                         user_id: currentUser.value.id
                     };
-
+                    
+                    const csrfToken = getCookie('csrf_access_token');
                     fetch(`${url}memo/reply/`, {
                         method: "POST",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken
                         },
                         body: JSON.stringify(replyData)
                     })
@@ -611,14 +622,16 @@ td:nth-child(even) {
                         alert('답변 내용을 입력해주세요.');
                         return;
                     }
-
+                    
+                    const csrfToken = getCookie('csrf_access_token');
                     // API call to update the reply
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "PUT",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken
                         },
                         body: JSON.stringify({ content: reply.editContent })
                     })
@@ -644,11 +657,15 @@ td:nth-child(even) {
                     if (!confirm('정말로 이 답변을 삭제하시겠습니까?')) {
                         return;
                     }
-
+                    
+                    const csrfToken = getCookie('csrf_access_token');
                     // API call to delete the reply
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "DELETE",
-                        credentials: "include"
+                        credentials: "include",
+                        headers: {
+                            "X-CSRF-TOKEN": csrfToken
+                        }
                     })
                     .then(response => {
                         if (!response.ok) {
