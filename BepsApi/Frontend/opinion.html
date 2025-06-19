@@ -25,25 +25,30 @@
                 <thead>
                     <tr>
                         <th>번호</th>
+                        <th>제목</th>
+                        <th>등록일</th>
+                        <th>타입</th>
                         <th>회사</th>
                         <th>부서</th>
                         <th>작성자</th>
-                        <th>제목</th>
-                        <th>등록일</th>
+                        <th>위치</th>
+                        <th>답변</th>
                         <th>처리상태</th>
-                        <th>작업</th>
-                        <th>페이지</th>
-                        <th>파일 ID</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="memo in memoList" :key="memo.id">
                         <td>{{ memo.id }}</td>
+                        <td>{{ memo.title }}</td>
+                        <td>{{ formatDate(memo.modified_at) }}</td>
+                        <td>{{ memo.type_text }}</td>
                         <td>{{ memo.user ? memo.user.company : '' }}</td>
                         <td>{{ memo.user ? memo.user.department : '' }}</td>
                         <td>{{ memo.user ? memo.user.name + " " + memo.user.position : '' }}</td>
-                        <td>{{ memo.title }}</td>
-                        <td>{{ formatDate(memo.modified_at) }}</td>
+                        <td>{{ memo.path }}</td>
+                        <td>
+                            <button class="reply-button" @click="replyToMemo(memo)">답변</button>
+                        </td>
                         <td>
                             <span class="status-badge" 
                                   :class="{
@@ -54,11 +59,6 @@
                                 {{ memo.status_text }}
                             </span>
                         </td>
-                        <td>
-                            <button class="reply-button" @click="replyToMemo(memo)">답변</button>
-                        </td>
-                        <td>{{ memo.path }}</td>
-                        <td>{{ memo.file_id }}</td>
                     </tr>
                 </tbody>
             </table>

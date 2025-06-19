@@ -74,9 +74,9 @@ createApp({
 
         const formatStatus = (status) => {
             switch(status) {
-                case 0: return '대기';
-                case 1: return '처리중';
-                case 2: return '완료';
+                case 0: return '답변대기';
+                case 1: return '답변완료';
+                case 2: return '처리완료';
                 default: return '알 수 없음';
             }
         };
@@ -216,8 +216,10 @@ createApp({
 
                 // Get user information for each memo
                 const promises = paginatedData.map(async memo => {
-                    // Add status_text property
-                    memo.status_text = formatStatus(memo.status);
+                    // Add status_text property - use backend's status_text if available, otherwise format it
+                    if (!memo.status_text) {
+                        memo.status_text = formatStatus(memo.status);
+                    }
                     
                     // Fetch detailed path if file_id exists
                     if (memo.file_id) {

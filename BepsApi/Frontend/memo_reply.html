@@ -301,6 +301,11 @@ td:nth-child(even) {
                                 company: loggedInUser.user.company || '',
                                 department: loggedInUser.user.department || ''
                             };
+                            
+                            // If current user is the memo author, mark memo as viewed to update status
+                            if (memo.value && memo.value.user_id === currentUser.value.id) {
+                                markMemoAsViewed(memo.value.id);
+                            }
                         } else {
                             alert('로그인 정보를 불러올 수 없습니다.');
                             window.close();
@@ -337,6 +342,34 @@ td:nth-child(even) {
                     })
                     .catch(error => {
                         console.error("Error fetching replies:", error);
+                    });
+                };
+
+                const markMemoAsViewed = (memoId) => {
+                    // Mark memo as viewed by the author to change status from 1 to 2
+                    fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                            "Accept": "application/json",
+                            "Content-Type": "application/json"
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to mark memo as viewed');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Memo marked as viewed:", data);
+                        // Update the memo status in the local data
+                        if (memo.value) {
+                            memo.value.status = data.status;
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error marking memo as viewed:", error);
                     });
                 };
 

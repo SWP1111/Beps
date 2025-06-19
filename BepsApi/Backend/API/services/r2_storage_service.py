@@ -140,6 +140,7 @@ class R2StorageService:
         try:
             # Import here to avoid circular imports
             from blueprints.contents.r2_utils import check_r2_object_exists, generate_r2_object_key
+            from models import ContentRelPageDetails
             
             # Always derive R2 path from node structure (same approach as r2-image-url endpoint)
             page_name_clean = page_name or f"file_{page_id}"
@@ -147,7 +148,7 @@ class R2StorageService:
             
             result = False
             
-            # Try multiple extensions to find the actual file
+            # 1. Try multiple extensions to find the main page file
             for ext in image_extensions:
                 test_filename = f"{page_name_clean}{ext}"
                 test_object_key = generate_r2_object_key(page_id, test_filename, is_page_detail=False)
@@ -155,6 +156,26 @@ class R2StorageService:
                 if check_r2_object_exists(test_object_key):
                     result = True
                     break
+            
+            # 2. If no main file found, check for page detail files
+            if not result:
+                page_details = ContentRelPageDetails.query.filter_by(
+                    page_id=page_id,
+                    is_deleted=False
+                ).all()
+                
+                for detail in page_details:
+                    detail_extensions = ['.pdf', '.webm', '.mp4', '.avi', '.mov', '.wmv', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx']
+                    for ext in detail_extensions:
+                        detail_filename = f"{detail.name}{ext}"
+                        detail_object_key = generate_r2_object_key(detail.id, detail_filename, is_page_detail=True)
+                        
+                        if check_r2_object_exists(detail_object_key):
+                            result = True
+                            break
+                    
+                    if result:
+                        break
             
             # Cache the result
             if use_cache:
@@ -172,7 +193,7 @@ class R2StorageService:
             # This is likely a credentials error
             if "Missing required R2 credentials" in str(e):
                 logging.warning(f"🔑 R2 credentials not configured, making intelligent guess for page {page_id}")
-                # When R2 is not available, make intelligent guess based on name pattern
+                # When R2 is not available, make intelligent guess based on name pattern and page details
                 name_suggests_content = bool(
                     page_name and 
                     (any(page_name.lower().endswith(ext.lower()) for ext in ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp']) or 
@@ -180,7 +201,18 @@ class R2StorageService:
                      len(page_name) > 3)  # Not just placeholder names
                 )
                 
-                fallback_result = name_suggests_content
+                # Also check if page has detail files
+                has_page_details = False
+                try:
+                    from models import ContentRelPageDetails
+                    has_page_details = ContentRelPageDetails.query.filter_by(
+                        page_id=page_id,
+                        is_deleted=False
+                    ).count() > 0
+                except Exception:
+                    pass
+                
+                fallback_result = name_suggests_content or has_page_details
                 
                 # Cache the fallback result too
                 if use_cache:

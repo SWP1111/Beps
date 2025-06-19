@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 api_memo_reply_bp = Blueprint('memo_reply', __name__)
 
-# ?�� 메모 ?�용 로거 초기??
+# ?�� 메모 ?�용 로거 초기??
 logger = get_memo_logger()
 
 @api_memo_reply_bp.route('/', methods=['POST'])
@@ -34,10 +34,13 @@ def create_memo_reply():
             content=data['content']
         )
         
+        # Update memo status to 1 (답변완료) when a reply is added
+        memo.status = 1
+        
         db.session.add(reply)
         db.session.commit()
         
-        logger.info(f"Successfully created memo reply with id: {reply.id}")
+        logger.info(f"Successfully created memo reply with id: {reply.id}, updated memo status to 1")
         return jsonify(reply.to_dict()), 201
     except Exception as e:
         logger.error(f"Error creating memo reply: {str(e)}")
@@ -59,6 +62,32 @@ def get_replies_by_memo(memo_id):
         return jsonify(result), 200
     except Exception as e:
         logger.error(f"Error retrieving memo replies: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@api_memo_reply_bp.route('/memo/<int:memo_id>/mark_viewed', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def mark_memo_viewed(memo_id):
+    try:
+        # Get current user from JWT token
+        current_user_id = get_jwt_identity()
+        
+        # Check if memo exists
+        memo = MemoData.query.get_or_404(memo_id)
+        
+        # Only allow the memo author to mark it as viewed
+        if memo.user_id != current_user_id:
+            return jsonify({"error": "Only the memo author can mark it as viewed"}), 403
+            
+        # If memo status is 1 (답변완료), change it to 2 (처리완료)
+        if memo.status == 1:
+            memo.status = 2
+            db.session.commit()
+            logger.info(f"Memo {memo_id} status changed to 2 (처리완료) by author {current_user_id}")
+            
+        return jsonify({"message": "Memo marked as viewed", "status": memo.status}), 200
+    except Exception as e:
+        logger.error(f"Error marking memo as viewed: {str(e)}")
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 @api_memo_reply_bp.route('/<int:id>', methods=['PUT'])

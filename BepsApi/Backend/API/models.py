@@ -538,6 +538,7 @@ class MemoData(db.Model):
     world_position_y = db.Column(db.Float, nullable=False)  # double in C#
     world_position_z = db.Column(db.Float, nullable=False)  # double in C#
     status = db.Column(db.Integer, nullable=False)  # uint in C#
+    type = db.Column(db.Integer, nullable=False, default=0)  # 0: 독후감, 1: 제안, 2: 질문
     time_stamp = db.Column(db.BigInteger, nullable=True)  # Added for DB tracking
 
     user = db.relationship('Users', backref=db.backref('memos', lazy=True))
@@ -545,6 +546,20 @@ class MemoData(db.Model):
     folder = db.relationship('ContentRelFolders', backref=db.backref('memos', lazy=True))
 
     def to_dict(self):
+        # Convert type int to string
+        type_mapping = {
+            0: "독후감",
+            1: "제안", 
+            2: "질문"
+        }
+        
+        # Convert status int to string
+        status_mapping = {
+            0: "답변대기",
+            1: "답변완료",
+            2: "처리완료"
+        }
+        
         return {
             'id': self.id,
             'modified_at': self.modified_at,
@@ -560,6 +575,9 @@ class MemoData(db.Model):
             'worldPositionY': self.world_position_y,  # Match C# JsonPropertyName
             'worldPositionZ': self.world_position_z,  # Match C# JsonPropertyName
             'status': self.status,  # Match C# JsonPropertyName
+            'status_text': status_mapping.get(self.status, "알 수 없음"),
+            'type': self.type,
+            'type_text': type_mapping.get(self.type, "알 수 없음"),
             'time_stamp': self.time_stamp
         }
 
