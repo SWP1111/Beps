@@ -50,7 +50,7 @@ BEGIN
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
         COALESCE(SUM(calculate_work_duration(
             lh.login_time,
-            COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+            lh.logout_time,
             v_work_start_utc,
             v_work_end_utc,
             v_is_weekday
@@ -58,10 +58,10 @@ BEGIN
         
         -- 근무 외 시간: 전체 세션 - 근무 시간
         COALESCE(SUM(
-            (COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes') - lh.login_time) -
+            (lh.logout_time - lh.login_time) -
             calculate_work_duration(
                 lh.login_time,
-                COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+                lh.logout_time,
                 v_work_start_utc,
                 v_work_end_utc,
                 v_is_weekday
@@ -97,7 +97,7 @@ BEGIN
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
         COALESCE(SUM(calculate_work_duration(
             lh.login_time,
-            COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+            lh.logout_time,
             v_work_start_utc,
             v_work_end_utc,
             v_is_weekday
@@ -105,10 +105,10 @@ BEGIN
         
         -- 근무 외 시간: 전체 세션 - 근무 시간
         COALESCE(SUM(
-            (COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes') - lh.login_time) - 
+            (lh.logout_time - lh.login_time) - 
             calculate_work_duration(
                 lh.login_time,
-                COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+                lh.logout_time,
                 v_work_start_utc,
                 v_work_end_utc,
                 v_is_weekday
@@ -146,7 +146,7 @@ BEGIN
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
         COALESCE(SUM(calculate_work_duration(
             lh.login_time,
-            COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+            lh.logout_time,
             v_work_start_utc,
             v_work_end_utc,
             v_is_weekday
@@ -154,10 +154,10 @@ BEGIN
         
         -- 근무 외 시간: 전체 세션 - 근무 시간
         COALESCE(SUM(
-            (COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes') - lh.login_time) - 
+            (lh.logout_time - lh.login_time) - 
             calculate_work_duration(
                 lh.login_time,
-                COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+                lh.logout_time,
                 v_work_start_utc,
                 v_work_end_utc,
                 v_is_weekday
@@ -194,7 +194,7 @@ BEGIN
         -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
         COALESCE(SUM(calculate_work_duration(
             lh.login_time,
-            COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+            lh.logout_time,
             v_work_start_utc,
             v_work_end_utc,
             v_is_weekday
@@ -202,10 +202,10 @@ BEGIN
         
         -- 근무 외 시간: 전체 세션 - 근무 시간
         COALESCE(SUM(
-            (COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes') - lh.login_time) - 
+            (lh.logout_time - lh.login_time) - 
             calculate_work_duration(
                 lh.login_time,
-                COALESCE(lh.logout_time, lh.login_time + INTERVAL '5 minutes'),
+                lh.logout_time,
                 v_work_start_utc,
                 v_work_end_utc,
                 v_is_weekday

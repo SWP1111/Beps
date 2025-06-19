@@ -43,7 +43,11 @@ def send():
     if filter_type == 'company':
         query = query.filter(Users.company == filter_value)
     elif filter_type == 'department':
-        query = query.filter(Users.department == filter_value)
+        parts = filter_value.split('||',1)
+        if len(parts) == 2:
+            query = query.filter(Users.department == parts[1], Users.company == parts[0])
+        else:
+            query = query.filter(Users.department == filter_value)
     elif filter_type == 'user':
         query = query.filter(Users.id == filter_value)
     

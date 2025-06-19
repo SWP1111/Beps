@@ -132,14 +132,14 @@ def add_comletion_history(user_id, page_id, duration, end_time):
     try:
         item = LearningCompletionHistory.query.filter_by(user_id=user_id, page_id=page_id).first()
         if item:
-             already_completed = item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES) 
+            already_completed = item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES)              
+            item.total_duration += duration
              
-             item.total_duration += duration
-             if not already_completed and item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES):
-                 item.completed_at = end_time           
+            if not already_completed and item.total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES):
+                item.completed_at = end_time           
         else:
             total_duration = duration
-            completed_at = end_time if total_duration >= timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES) else None
+            completed_at = end_time
             
             item = LearningCompletionHistory(
                 user_id=user_id,

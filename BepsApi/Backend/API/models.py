@@ -43,6 +43,8 @@ class Users(db.Model):
     logout_time = db.Column(db.DateTime(timezone=True))
     login_time = db.Column(db.DateTime(timezone=True))
     is_deleted = db.Column(db.Boolean, default=False)
+    phone = db.Column(db.Text, nullable=True) 
+    email = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
         return {
@@ -57,7 +59,9 @@ class Users(db.Model):
             'time_stamp': self.time_stamp,
             'logout_time': self.logout_time,
             'login_time': self.login_time,
-            'is_deleted': self.is_deleted
+            'is_deleted': self.is_deleted,
+            'phone': self.phone,
+            'email': self.email
         }
 
 class LoginHistory(db.Model):

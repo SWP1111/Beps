@@ -100,34 +100,45 @@ async function Login(username, password) {
            console.log("ERPLogin response: ", response);
            let responseUserInfo = await GetUserInfo(username);
            console.log("responseUserInfo: ", responseUserInfo);
-        
+           
+           if(responseUserInfo.success)
+           {
+                localStorage.setItem("isLoggedIn", "true");
+                localStorage.setItem("username", username);
+
+                const userInfo = responseUserInfo.data;
+                localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
+
+                window.location.href = "main.html";
+           }
+
             //사용자 추가 또는 업데이트
-            console.log("사용자 추가 Id:", username, " Company: ", response.data.company, " Department: ", response.data.department, " Position: ", response.position, " Name: ", response.data.username);
-            const insertReponse = await InsertUser(username,response.data.company,response.data.department,response.data.position,response.data.username);
-            console.log("insertReponse: ", insertReponse);
-            if(insertReponse.success)
-            {
-                responseUserInfo = await GetUserInfo(username);
-                if(responseUserInfo.success)
-                {            
-                        localStorage.setItem("isLoggedIn", "true");
-                        localStorage.setItem("username", username);
+            // console.log("사용자 추가 Id:", username, " Company: ", response.data.company, " Department: ", response.data.department, " Position: ", response.position, " Name: ", response.data.username);
+            // const insertReponse = await InsertUser(username,response.data.company,response.data.department,response.data.position,response.data.username);
+            // console.log("insertReponse: ", insertReponse);
+            // if(insertReponse.success)
+            // {
+            //     responseUserInfo = await GetUserInfo(username);
+            //     if(responseUserInfo.success)
+            //     {            
+            //             localStorage.setItem("isLoggedIn", "true");
+            //             localStorage.setItem("username", username);
 
-                        const userInfo = responseUserInfo.data;
-                        localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
+            //             const userInfo = responseUserInfo.data;
+            //             localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
 
-                        window.location.href = "main.html";
-                        console.log("로그인 최종 성공");
-                }
-                else
-                {
-                    alert(responseUserInfo.message);
-                }
-            }
-            else
-            {
-                alert(insertReponse.message);
-            }      
+            //             window.location.href = "main.html";
+            //             console.log("로그인 최종 성공");
+            //     }
+            //     else
+            //     {
+            //         alert(responseUserInfo.message);
+            //     }
+            // }
+            // else
+            // {
+            //     alert(insertReponse.message);
+            // }      
         }
         else
         {

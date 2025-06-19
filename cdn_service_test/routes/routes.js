@@ -100,7 +100,7 @@ async function getFoldersWithPages(channelId) {
   const { rows: pages } = await dbPool.query(
     `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY id`
   );
-
+  
   // 폴더별로 묶기
   const folderItems = folders.map(folder => {
     const pageItems = pages
@@ -137,6 +137,7 @@ router.get(`/${service_type}/page/:pageId`, async (req, res) => {
   }
 });
 
+
 router.put(`/${service_type}/page-detail/:id/margin`, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { margin } = req.body;
@@ -161,6 +162,7 @@ router.put(`/${service_type}/page-detail/:id/margin`, async (req, res) => {
   }
 });
 
+
 // 하위 폴더 재귀 조회
 async function getSubFolders(parentId, channelId) {
   const query = parentId === null
@@ -177,7 +179,6 @@ async function getSubFolders(parentId, channelId) {
   });
 
   for (const folder of folders) {
-    //folder.attributes = { ...folder };
     delete folder.folders;
     delete folder.pages;
 
@@ -207,6 +208,7 @@ async function getSubFolders(parentId, channelId) {
 
   return folders;
 }
+
 
 // 폴더에 속한 페이지만 불러오기 (page_detail 제외)
 async function getPages(folderId) {
@@ -242,6 +244,7 @@ async function getStructureByChannel(channelId) {
   };
 }
 
+
 router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
   const channelId = parseInt(req.params.channelId);
   if (!channelId) {
@@ -259,7 +262,6 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
 */
 
 
-
 // 해당 페이지 보기
 router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.static(CONSTANTS.CONTENTS_DIR, {
   acceptRanges: true,
@@ -271,6 +273,7 @@ router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.
   }
 }));
 
+
 // 해당 페이지의 상세보기 정보 조회
 router.get('/view-details/*', authenticateJwtQuery, (req, res) => {
   const filePath = path.join(CONSTANTS.CONTENTS_DIR, req.params[0]);
@@ -281,6 +284,7 @@ router.get('/view-details/*', authenticateJwtQuery, (req, res) => {
     res.send(data);
   });
 });
+
 
 // 설치버전 다운로드
 router.use(`/${service_type}/download-installer/*`, authenticateJwtQuery, validateRangeHeader, (req, res) => {
@@ -330,6 +334,7 @@ router.use(`/${service_type}/download-installer/*`, authenticateJwtQuery, valida
   }
 });
 
+
 router.use(`/${service_type}/download-installer-path/:appname`, authenticateJwtQuery, validateRangeHeader, (req, res) => {
   try {
     const filePath = path.join(CONSTANTS.APPLICATION_DIR, req.params.appname);
@@ -361,6 +366,7 @@ router.use(`/${service_type}/download-installer-path/:appname`, authenticateJwtQ
   }
 });
 
+
 // 최신 버전 번호 가져오기
 router.get(`/${service_type}/get-installer-name/:appname`, (req, res) => {
   try {
@@ -382,6 +388,7 @@ router.get(`/${service_type}/get-installer-name/:appname`, (req, res) => {
   }
 });
 
+
 // 설치버전 다운로드
 router.get(`/${service_type}/get-installer-version`, (req, res) => {
   const files = fs.readdirSync(CONSTANTS.APPLICATION_DIR);
@@ -397,6 +404,7 @@ router.get(`/${service_type}/get-installer-version`, (req, res) => {
   const version = versionMatch[1];
   res.json({ version });
 });
+
 
 // latest 버전 조회
 router.get(`/${service_type}/get-exe-version`, (req, res) => {

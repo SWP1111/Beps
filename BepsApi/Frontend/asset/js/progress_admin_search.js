@@ -429,7 +429,12 @@ async function getOrganizations() {
 }
 
 async function getUsers(company, department) {
-  const url = `${window.baseUrl}/user/user_by_org?company=${company}&department=${department}`;
+  const params = new URLSearchParams({
+    company: company,
+    department: department
+  });
+  const queryString = params.toString();
+  const url = `${window.baseUrl}/user/user_by_org?${queryString}`;
   const response = await fetch(url);
   const getData = await response.json();
   

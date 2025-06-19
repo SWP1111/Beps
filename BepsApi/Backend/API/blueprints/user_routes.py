@@ -219,6 +219,8 @@ def upsert_user():
             if(is_valid('name', data)): user.name = data.get('name')
             if(is_valid('access_group_id', data)): user.access_group_id = data.get('access_group_id')
             if(is_valid('role_id', data)): user.role_id = data.get('role_id')
+            if(is_valid('phone', data)): user.phone = data.get('phone')
+            if(is_valid('email', data)): user.email = data.get('email')
             if login is True: user.login_time = datetime.datetime.now(timezone.utc)
             db.session.add(user)
             db.session.commit()
@@ -230,6 +232,8 @@ def upsert_user():
             if(is_valid('name',data)):user.name = data.get('name')
             if(is_valid('access_group_id',data)):user.access_group_id = data.get('access_group_id')
             if(is_valid('role_id',data)):user.role_id = data.get('role_id')
+            if(is_valid('phone',data)):user.phone = data.get('phone')
+            if(is_valid('email',data)):user.email = data.get('email')
             if login is True: user.login_time = datetime.datetime.now(timezone.utc)
             db.session.commit()
         return jsonify(user.to_dict()), 201
@@ -775,7 +779,7 @@ def get_external_ips():
         elif filter_type == 'company':
             query = query.filter(Users.company == filter_value)
         elif filter_type == 'department':
-            part = filter_value.split('/')
+            part = filter_value.split('||',1)
             if len(part) == 2:
                 query = query.filter(Users.company == part[0], Users.department == part[1])
             else:

@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if(user_role == 5 || user_role == 6 || user_role == null) { // 일반사용자 또는 외부사용자
         document.getElementById("contents-button").style.display = "none"; // 학습 버튼 숨김
-        document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
+        //document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
     }
 
     // 담당자 관리 버튼은 role_id가 1 또는 999일 때만 표시
