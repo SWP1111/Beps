@@ -291,7 +291,12 @@ td:nth-child(even) {
 
                     // Load current user data
                     try {
-                        const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+                        console.log('Attempting to load user data from localStorage...');
+                        const loggedInUserString = localStorage.getItem("loggedInUser");
+                        console.log('Raw loggedInUser string from localStorage:', loggedInUserString);
+                        const loggedInUser = JSON.parse(loggedInUserString);
+                        console.log('Parsed loggedInUser object:', loggedInUser);
+
                         if (loggedInUser && loggedInUser.user) {
                             currentUser.value = {
                                 id: loggedInUser.user.id,
@@ -302,35 +307,28 @@ td:nth-child(even) {
                             };
                             
                             console.log('Current user loaded:', currentUser.value);
-                            console.log('Memo data:', memo.value);
-                            console.log('Memo user_id:', memo.value?.user_id);
-                            console.log('Current user id:', currentUser.value.id);
-                            console.log('Are they equal?', memo.value?.user_id === currentUser.value.id);
-                            console.log('Memo status:', memo.value?.status);
+                            console.log('Memo data loaded:', memo.value);
                             
-                            // Now that both memo and user data are loaded, check if we need to mark as viewed
-                            if (memo.value && memo.value.user_id === currentUser.value.id) {
-                                console.log('✅ Current user is memo author, marking as viewed');
-                                
-                                // Debug: Call debug endpoint first
-                                await debugMemoStatus(memo.value.id);
-                                
+                            // Robustly compare user IDs by converting both to strings
+                            const isAuthor = memo.value && String(memo.value.user_id) === String(currentUser.value.id);
+                            
+                            console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isAuthor}`);
+                            console.log('[Status Check] Current memo status is:', memo.value?.status);
+                            
+                            // Proceed if the current user is the author
+                            if (isAuthor) {
+                                console.log('✅ User is confirmed as memo author. Proceeding to check status...');
                                 await markMemoAsViewed(memo.value.id);
                             } else {
-                                console.log('❌ Current user is NOT the memo author or memo data missing');
-                                console.log('  - memo.value exists:', !!memo.value);
-                                if (memo.value) {
-                                    console.log('  - memo.user_id:', memo.value.user_id);
-                                    console.log('  - currentUser.id:', currentUser.value.id);
-                                    console.log('  - Types:', typeof memo.value.user_id, typeof currentUser.value.id);
-                                }
+                                console.log('❌ User is NOT the memo author. No status change will be triggered.');
                             }
                         } else {
+                            console.error("Failed to process user data: `loggedInUser` or `loggedInUser.user` is missing.", loggedInUser);
                             alert('로그인 정보를 불러올 수 없습니다.');
                             window.close();
                         }
                     } catch (error) {
-                        console.error('Error loading user data:', error);
+                        console.error('Error parsing or processing user data from localStorage:', error);
                         alert('로그인 정보를 불러올 수 없습니다.');
                         window.close();
                     }
@@ -366,7 +364,13 @@ td:nth-child(even) {
 
                 const markMemoAsViewed = async (memoId) => {
                     try {
-                        console.log(`Attempting to mark memo ${memoId} as viewed`);
+                        // Client-side check: only proceed if status is 1
+                        if (memo.value.status !== 1) {
+                            console.log(`Memo status is ${memo.value.status}, not 1. Skipping API call.`);
+                            return;
+                        }
+
+                        console.log(`Attempting to mark memo ${memoId} as viewed (current status is 1)`);
                         
                         const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
                             method: "POST",
