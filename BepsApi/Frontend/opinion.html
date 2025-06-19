@@ -37,7 +37,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="memo in memoList" :key="memo.id">
+                    <tr v-for="memo in memoList" :key="memo.id" :data-memo-id="memo.id">
                         <td>{{ memo.id }}</td>
                         <td>{{ memo.title }}</td>
                         <td>{{ formatDate(memo.modified_at) }}</td>

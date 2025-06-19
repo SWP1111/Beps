@@ -430,9 +430,87 @@ createApp({
             }
         };
 
+        const showStatusUpdateNotification = (memoId, statusText) => {
+            // Create a temporary notification element
+            const notification = document.createElement('div');
+            notification.innerHTML = `메모 #${memoId} 상태가 "${statusText}"로 변경되었습니다.`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-size: 14px;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        };
+
+        // Test function for debugging status updates
+        const testStatusUpdate = (memoId, newStatus, statusText) => {
+            console.log(`Testing status update for memo ${memoId}`);
+            
+            // Simulate receiving a status update message
+            window.dispatchEvent(new MessageEvent('message', {
+                data: {
+                    type: 'memoStatusUpdate',
+                    memoId: memoId,
+                    newStatus: newStatus,
+                    statusText: statusText
+                }
+            }));
+        };
+
         onMounted(() => {
             loadCurrentUser();
             loadMemoData();
+            
+            // Add listener for real-time status updates from popup windows
+            window.addEventListener('message', (event) => {
+                console.log('Received message:', event.data); // Debug all messages
+                
+                if (event.data && event.data.type === 'memoStatusUpdate') {
+                    console.log('Processing memo status update:', event.data);
+                    
+                    // Find and update the memo in the current list
+                    const memoIndex = memoList.value.findIndex(memo => memo.id === event.data.memoId);
+                    if (memoIndex !== -1) {
+                        const oldStatus = memoList.value[memoIndex].status;
+                        const oldStatusText = memoList.value[memoIndex].status_text;
+                        
+                        // Update the memo status and status_text
+                        memoList.value[memoIndex].status = event.data.newStatus;
+                        memoList.value[memoIndex].status_text = event.data.statusText;
+                        
+                        console.log(`Updated memo ${event.data.memoId} status from ${oldStatus}(${oldStatusText}) to ${event.data.newStatus}(${event.data.statusText})`);
+                        
+                        // Add visual feedback - briefly highlight the updated row
+                        const updatedRow = document.querySelector(`tr[data-memo-id="${event.data.memoId}"]`);
+                        if (updatedRow) {
+                            updatedRow.style.backgroundColor = '#e8f5e8';
+                            setTimeout(() => {
+                                updatedRow.style.backgroundColor = '';
+                            }, 2000);
+                        }
+                        
+                        // Show a brief notification
+                        showStatusUpdateNotification(event.data.memoId, event.data.statusText);
+                    } else {
+                        console.warn(`Memo ${event.data.memoId} not found in current list`);
+                    }
+                }
+            });
         });
 
         return {
@@ -449,7 +527,8 @@ createApp({
             replyToMemo,
             formatStatus,
             formatDate,
-            formatMemoPath
+            formatMemoPath,
+            testStatusUpdate
         };
     }
 }).mount("#app");

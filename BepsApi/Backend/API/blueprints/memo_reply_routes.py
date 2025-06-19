@@ -70,24 +70,52 @@ def mark_memo_viewed(memo_id):
     try:
         # Get current user from JWT token
         current_user_id = get_jwt_identity()
+        logger.info(f"Received mark_viewed request for memo {memo_id} from user {current_user_id}")
         
         # Check if memo exists
         memo = MemoData.query.get_or_404(memo_id)
+        logger.info(f"Found memo {memo_id} with current status {memo.status} and author {memo.user_id}")
         
         # Only allow the memo author to mark it as viewed
         if memo.user_id != current_user_id:
+            logger.warning(f"User {current_user_id} attempted to mark memo {memo_id} as viewed, but author is {memo.user_id}")
             return jsonify({"error": "Only the memo author can mark it as viewed"}), 403
             
         # If memo status is 1 (답변완료), change it to 2 (처리완료)
+        old_status = memo.status
         if memo.status == 1:
             memo.status = 2
             db.session.commit()
-            logger.info(f"Memo {memo_id} status changed to 2 (처리완료) by author {current_user_id}")
+            logger.info(f"Memo {memo_id} status changed from {old_status} to 2 (처리완료) by author {current_user_id}")
+        else:
+            logger.info(f"Memo {memo_id} status is {memo.status}, no change needed (only changes from 1 to 2)")
             
         return jsonify({"message": "Memo marked as viewed", "status": memo.status}), 200
     except Exception as e:
         logger.error(f"Error marking memo as viewed: {str(e)}")
         db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@api_memo_reply_bp.route('/memo/<int:memo_id>/debug', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def debug_memo_status(memo_id):
+    try:
+        # Get current user from JWT token
+        current_user_id = get_jwt_identity()
+        
+        # Check if memo exists
+        memo = MemoData.query.get_or_404(memo_id)
+        
+        return jsonify({
+            "memo_id": memo_id,
+            "memo_status": memo.status,
+            "memo_author": memo.user_id, 
+            "current_user": current_user_id,
+            "is_author": memo.user_id == current_user_id,
+            "can_change_status": memo.status == 1 and memo.user_id == current_user_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Error debugging memo status: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @api_memo_reply_bp.route('/<int:id>', methods=['PUT'])

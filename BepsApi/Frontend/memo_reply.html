@@ -242,7 +242,7 @@ td:nth-child(even) {
                 const currentUser = ref({});
                 const replies = ref([]);
 
-                const loadData = () => {
+                const loadData = async () => {
                     // Load memo data from localStorage
                     try {
                         const memoData = JSON.parse(localStorage.getItem('replyMemo'));
@@ -256,25 +256,22 @@ td:nth-child(even) {
                                 if (memo.value.folder_id) pathParams.push(`folder_id=${memo.value.folder_id}`);
                                 
                                 if (pathParams.length > 0) {
-                                    fetch(`${url}file_bp/get_file_path?${pathParams.join('&')}`, {
-                                        method: "GET",
-                                        credentials: "include",
-                                        headers: {
-                                            "Accept": "application/json"
-                                        }
-                                    })
-                                    .then(response => {
+                                    try {
+                                        const response = await fetch(`${url}file_bp/get_file_path?${pathParams.join('&')}`, {
+                                            method: "GET",
+                                            credentials: "include",
+                                            headers: {
+                                                "Accept": "application/json"
+                                            }
+                                        });
+                                        
                                         if (response.ok) {
-                                            return response.json();
+                                            const data = await response.json();
+                                            memo.value.path = data.file_path;
                                         }
-                                        throw new Error('Failed to fetch file path');
-                                    })
-                                    .then(data => {
-                                        memo.value.path = data.file_path;
-                                    })
-                                    .catch(error => {
+                                    } catch (error) {
                                         console.error("Error fetching file path:", error);
-                                    });
+                                    }
                                 }
                             }
                             
@@ -283,11 +280,13 @@ td:nth-child(even) {
                         } else {
                             alert('메모 데이터를 불러올 수 없습니다.');
                             window.close();
+                            return;
                         }
                     } catch (error) {
                         console.error('Error loading memo data:', error);
                         alert('메모 데이터를 불러올 수 없습니다.');
                         window.close();
+                        return;
                     }
 
                     // Load current user data
@@ -302,9 +301,14 @@ td:nth-child(even) {
                                 department: loggedInUser.user.department || ''
                             };
                             
-                            // If current user is the memo author, mark memo as viewed to update status
+                            // Now that both memo and user data are loaded, check if we need to mark as viewed
                             if (memo.value && memo.value.user_id === currentUser.value.id) {
-                                markMemoAsViewed(memo.value.id);
+                                console.log('Current user is memo author, marking as viewed');
+                                
+                                // Debug: Call debug endpoint first
+                                debugMemoStatus(memo.value.id);
+                                
+                                await markMemoAsViewed(memo.value.id);
                             }
                         } else {
                             alert('로그인 정보를 불러올 수 없습니다.');
@@ -345,32 +349,83 @@ td:nth-child(even) {
                     });
                 };
 
-                const markMemoAsViewed = (memoId) => {
-                    // Mark memo as viewed by the author to change status from 1 to 2
-                    fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
-                        method: "POST",
-                        credentials: "include",
-                        headers: {
-                            "Accept": "application/json",
-                            "Content-Type": "application/json"
-                        }
-                    })
-                    .then(response => {
+                const markMemoAsViewed = async (memoId) => {
+                    try {
+                        console.log(`Attempting to mark memo ${memoId} as viewed`);
+                        
+                        const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json"
+                            }
+                        });
+                        
                         if (!response.ok) {
-                            throw new Error('Failed to mark memo as viewed');
+                            const errorText = await response.text();
+                            console.error(`Failed to mark memo as viewed: ${response.status} ${response.statusText} - ${errorText}`);
+                            return;
                         }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("Memo marked as viewed:", data);
+                        
+                        const data = await response.json();
+                        console.log("Memo marked as viewed successfully:", data);
+                        
                         // Update the memo status in the local data
                         if (memo.value) {
                             memo.value.status = data.status;
+                            
+                            // Update status text based on new status
+                            const statusMapping = {
+                                0: "답변대기",
+                                1: "답변완료",
+                                2: "처리완료"
+                            };
+                            memo.value.status_text = statusMapping[data.status] || "알 수 없음";
                         }
-                    })
-                    .catch(error => {
+                        
+                        // Notify parent window about status change for real-time update
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({
+                                    type: 'memoStatusUpdate',
+                                    memoId: memoId,
+                                    newStatus: data.status,
+                                    statusText: statusMapping[data.status] || "알 수 없음"
+                                }, '*');
+                                console.log('Status update message sent to parent window');
+                            }
+                        } catch (error) {
+                            console.error('Error sending status update to parent window:', error);
+                        }
+                        
+                    } catch (error) {
                         console.error("Error marking memo as viewed:", error);
-                    });
+                    }
+                };
+
+                const debugMemoStatus = async (memoId) => {
+                    try {
+                        console.log(`Debugging status for memo ${memoId}`);
+                        
+                        const response = await fetch(`${url}memo/reply/memo/${memoId}/debug`, {
+                            method: "GET",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log("Debug info:", data);
+                        } else {
+                            console.error(`Debug call failed: ${response.status} ${response.statusText}`);
+                        }
+                        
+                    } catch (error) {
+                        console.error("Error debugging memo status:", error);
+                    }
                 };
 
                 const formatDate = (dateString) => {
@@ -422,6 +477,27 @@ td:nth-child(even) {
                         // Add the new reply to the list
                         replyComment.value = '';
                         fetchReplies(memo.value.id);
+                        
+                        // Update memo status to 1 (답변완료) since a reply was added
+                        if (memo.value) {
+                            memo.value.status = 1;
+                            memo.value.status_text = "답변완료";
+                        }
+                        
+                        // Notify parent window about status change for real-time update
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({
+                                    type: 'memoStatusUpdate',
+                                    memoId: memo.value.id,
+                                    newStatus: 1,
+                                    statusText: "답변완료"
+                                }, '*');
+                                console.log('Reply added - status update message sent to parent window');
+                            }
+                        } catch (error) {
+                            console.error('Error sending status update to parent window:', error);
+                        }
                         
                         // Send message to local window process
                         try {

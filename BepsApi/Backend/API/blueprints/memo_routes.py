@@ -180,6 +180,7 @@ def update_memo(id):
         memo.world_position_y = data.get('worldPositionY', memo.world_position_y)
         memo.world_position_z = data.get('worldPositionZ', memo.world_position_z)
         memo.status = data.get('status', memo.status)
+        memo.type = data.get('type', memo.type)
         
         # Update modified_at timestamp
         memo.modified_at = datetime.now(timezone.utc)
