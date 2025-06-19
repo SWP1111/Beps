@@ -242,6 +242,25 @@ td:nth-child(even) {
                 const currentUser = ref({});
                 const replies = ref([]);
 
+                // Function to read a specific cookie, with enhanced logging
+                const getCookie = (name) => {
+                    console.log('[getCookie] Attempting to read cookies...');
+                    const allCookies = document.cookie;
+                    console.log('[getCookie] All visible cookies:', allCookies);
+                    
+                    const value = `; ${allCookies}`;
+                    const parts = value.split(`; ${name}=`);
+                    
+                    if (parts.length === 2) {
+                        const token = parts.pop().split(';').shift();
+                        console.log(`[getCookie] ✅ Found token "${token}" for cookie "${name}".`);
+                        return token;
+                    }
+                    
+                    console.error(`[getCookie] ❌ Cookie "${name}" not found.`);
+                    return null;
+                };
+
                 const loadData = async () => {
                     // Load memo data from localStorage
                     try {
@@ -370,12 +389,20 @@ td:nth-child(even) {
                         }
                         console.log(`[API Call] Attempting to mark memo ${memoId} as viewed.`);
                         
+                        const csrfToken = getCookie('csrf_access_token');
+                        if (!csrfToken) {
+                            console.error('[API Error] CSRF token not found in cookies. Aborting request.');
+                            alert('보안 토큰을 찾을 수 없습니다. 페이지를 새로고침하거나 다시 로그인해주세요.');
+                            return;
+                        }
+
                         const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
                             method: "POST",
                             credentials: "include",
                             headers: {
                                 "Accept": "application/json",
-                                "Content-Type": "application/json"
+                                "Content-Type": "application/json",
+                                "X-CSRF-TOKEN": csrfToken
                             }
                         });
                         
@@ -507,13 +534,20 @@ td:nth-child(even) {
                         content: replyComment.value,
                         user_id: currentUser.value.id
                     };
+                    
+                    const csrfToken = getCookie('csrf_access_token');
+                    if (!csrfToken) {
+                        alert('보안 토큰을 찾을 수 없습니다. 다시 로그인해주세요.');
+                        return;
+                    }
 
                     fetch(`${url}memo/reply/`, {
                         method: "POST",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken
                         },
                         body: JSON.stringify(replyData)
                     })
@@ -611,12 +645,19 @@ td:nth-child(even) {
                     }
                     
                     // API call to update the reply
+                    const csrfToken = getCookie('csrf_access_token');
+                    if (!csrfToken) {
+                        alert('보안 토큰을 찾을 수 없습니다. 다시 로그인해주세요.');
+                        return;
+                    }
+
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "PUT",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken
                         },
                         body: JSON.stringify({ content: reply.editContent })
                     })
@@ -644,12 +685,19 @@ td:nth-child(even) {
                     }
 
                     // API call to delete the reply
+                    const csrfToken = getCookie('csrf_access_token');
+                    if (!csrfToken) {
+                        alert('보안 토큰을 찾을 수 없습니다. 다시 로그인해주세요.');
+                        return;
+                    }
+
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "DELETE",
                         credentials: "include",
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": csrfToken
                         }
                     })
                     .then(response => {
