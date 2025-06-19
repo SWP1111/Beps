@@ -143,7 +143,7 @@ try:
         """
         CREATE TABLE public.users (
         id text NOT NULL,
-        password text NOT NULL,  
+        password text,  
         company text,
         department text,
         position text,
@@ -322,13 +322,12 @@ try:
         """
         CREATE TABLE login_summary_day (
             period_value DATE NOT NULL,         -- '2024-03-28' 등
-            scope TEXT NOT NULL CHECK (scope IN ('all','company','department','user')),                -- 'all(전체)', 'company(회사)', 'department(팀)', 'user(개인)'
             company_id INTEGER,
-            company TEXT,                       -- 회사명 (scope가 회사인 경우)
+            company TEXT,                       -- 회사명
             department_id INTEGER,
-            department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
-            user_id TEXT,                       -- scope가 개인인 경우
-            user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
+            department TEXT,               -- 부서명
+            user_id TEXT,                       -- 개인
+            user_name TEXT,                         -- 사용자명
             total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
             worktime_duration INTERVAL NOT NULL DEFAULT '0',         -- 근무 시간 내 접속
             offhour_duration INTERVAL NOT NULL DEFAULT '0',          -- 근무 시간 외 접속
@@ -342,44 +341,34 @@ try:
 
             CONSTRAINT login_summary_day_pkey PRIMARY KEY (  -- 기본키 제약 조건
                 period_value, 
-                scope, 
                 company_key,    
                 department_key,  
                 user_id_key
-            ),
-            
-            CONSTRAINT chk_scope_columns CHECK (                                                                                                         -- CHECK 제약 조건
-                -- 만약 company_id, department_id가 주어진다면 그걸로 대체체
-                (scope = 'all' AND company IS NULL AND department IS NULL AND user_id IS NULL) OR                   -- scope가 'all'인 경우 모든 컬럼이 NULL이어야 함
-                (scope = 'company' AND company IS NOT NULL AND department IS NULL AND user_id IS NULL) OR           -- scope가 'company'인 경우 company 컬럼만 NOT NULL이어야 함
-                (scope = 'department' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NULL) OR    -- scope가 'department'인 경우 company, department 컬럼만 NOT NULL이어야 함
-                (scope = 'user' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NOT NULL)         -- scope가 'user'인 경우 company, department, user_id 컬럼 NOT NULL이어야 함    
-            )
+            )          
         );
         """,      
         """
-        CREATE INDEX login_summary_day_unique_user_idx ON login_summary_day (period_value, user_id) WHERE scope = 'user'; -- 조회 시 칼럼 순서 동일해야 함
+        CREATE INDEX login_summary_day_unique_user_idx ON login_summary_day (period_value, user_id); -- 조회 시 칼럼 순서 동일해야 함
         """,
         """
-        CREATE INDEX login_summary_day_unique_department_idx ON login_summary_day (period_value, company, department) WHERE scope = 'department'; -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
+        CREATE INDEX login_summary_day_unique_department_idx ON login_summary_day (period_value, company, department); -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
         """,
         """
-        CREATE INDEX login_summary_day_unique_company_idx ON login_summary_day (period_value, company) WHERE scope = 'company';
+        CREATE INDEX login_summary_day_unique_company_idx ON login_summary_day (period_value, company);
         """,
         """
-        CREATE INDEX login_summary_day_unique_all_idx ON login_summary_day (period_value) WHERE scope = 'all';
+        CREATE INDEX login_summary_day_unique_all_idx ON login_summary_day (period_value);
         """,
         """
          CREATE TABLE login_summary_agg (
             period_type TEXT NOT NULL,          -- 'year', 'half', 'quarter'
             period_value TEXT NOT NULL,         -- '2024', '2024H1', '2024Q3' 등
-            scope TEXT NOT NULL CHECK (scope IN ('all','company','department','user')),     -- 'all(전체)', 'company(회사)', 'department(팀)', 'user(개인)'
             company_id INTEGER,
-            company TEXT,                       -- 회사명 (scope가 회사인 경우)
+            company TEXT,                       -- 회사명 
             department_id INTEGER,
-            department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
-            user_id TEXT,                       -- scope가 개인인 경우
-            user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
+            department TEXT,               -- 부서명
+            user_id TEXT,                       -- 개인인 경우
+            user_name TEXT,                         -- 사용자명
             total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
             worktime_duration INTERVAL NOT NULL DEFAULT '0',         -- 근무 시간 내 접속
             offhour_duration INTERVAL NOT NULL DEFAULT '0',          -- 근무 시간 외 접속
@@ -394,32 +383,23 @@ try:
             CONSTRAINT login_summary_agg_pkey PRIMARY KEY (  -- 기본키 제약 조건
                 period_type,
                 period_value, 
-                scope, 
                 company_key ,   
                 department_key ,
                 user_id_key
-            ),
-            
-            CONSTRAINT chk_scope_columns CHECK (                                                                                                         -- CHECK 제약 조건
-                -- 만약 company_id, department_id가 주어진다면 그걸로 대체체
-                (scope = 'all' AND company IS NULL AND department IS NULL AND user_id IS NULL) OR                   -- scope가 'all'인 경우 모든 컬럼이 NULL이어야 함
-                (scope = 'company' AND company IS NOT NULL AND department IS NULL AND user_id IS NULL) OR           -- scope가 'company'인 경우 company 컬럼만 NOT NULL이어야 함
-                (scope = 'department' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NULL) OR    -- scope가 'department'인 경우 company, department 컬럼만 NOT NULL이어야 함
-                (scope = 'user' AND company IS NOT NULL AND department IS NOT NULL AND user_id IS NOT NULL)         -- scope가 'user'인 경우 company, department, user_id 컬럼 NOT NULL이어야 함      
-            )                    
+            ),                              
         );
         """,
         """
-        CREATE INDEX login_summary_agg_unique_user_idx ON login_summary_agg (period_type, period_value, user_id) WHERE scope = 'user';
+        CREATE INDEX login_summary_agg_unique_user_idx ON login_summary_agg (period_type, period_value, user_id);
         """,
         """
-        CREATE INDEX login_summary_agg_unique_department_idx ON login_summary_agg (period_type, period_value, company, department) WHERE scope = 'department';
+        CREATE INDEX login_summary_agg_unique_department_idx ON login_summary_agg (period_type, period_value, company, department);
         """,
         """
-        CREATE INDEX login_summary_agg_unique_company_idx ON login_summary_agg (period_type, period_value, company) WHERE scope = 'company';
+        CREATE INDEX login_summary_agg_unique_company_idx ON login_summary_agg (period_type, period_value, company);
         """,
         """
-        CREATE INDEX login_summary_agg_unique_all_idx ON login_summary_agg (period_type, period_value) WHERE scope = 'all';
+        CREATE INDEX login_summary_agg_unique_all_idx ON login_summary_agg (period_type, period_value);
         """      
     ]
     #endregion
@@ -430,13 +410,12 @@ try:
     """
     CREATE TABLE learning_summary_day (
         stat_date  DATE NOT NULL,         -- '2024-03-28' 등
-        scope TEXT NOT NULL CHECK (scope IN ('all','company','department','user')),                -- 'all(전체)', 'company(회사)', 'department(팀)', 'user(개인)'
         company_id INTEGER,
-        company TEXT,                       -- 회사명 (scope가 회사인 경우)
+        company TEXT,                       -- 회사명
         department_id INTEGER,
-        department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
-        user_id TEXT,                       -- scope가 개인인 경우
-        user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
+        department TEXT,               -- 부서명
+        user_id TEXT,                       -- 개인인 경우
+        user_name TEXT,                         -- 사용자명
         channel_id INTEGER,                  -- 채널 ID
         channel_name TEXT,                -- 채널 이름
         total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
@@ -448,32 +427,31 @@ try:
         channel_key TEXT GENERATED ALWAYS AS (COALESCE(channel_id, '-1')) STORED,
         
         --제약 조건
-        CONSTRAINT pk_learning_summary_day PRIMARY KEY (stat_date , scope, company_key, department_key, user_id_key, channel_key)
+        CONSTRAINT pk_learning_summary_day PRIMARY KEY (stat_date , company_key, department_key, user_id_key, channel_key)
     );
     """,
     """
-    CREATE INDEX learning_summary_day_user_idx ON learning_summary_day (stat_date, user_id) WHERE scope = 'user'; -- 조회 시 칼럼 순서 동일해야 함
+    CREATE INDEX learning_summary_day_user_idx ON learning_summary_day (stat_date, user_id); -- 조회 시 칼럼 순서 동일해야 함
     """,
     """
-    CREATE INDEX learning_summary_day_company_idx ON learning_summary_day (stat_date, company) WHERE scope = 'company';
+    CREATE INDEX learning_summary_day_company_idx ON learning_summary_day (stat_date, company);
     """,
     """
-    CREATE INDEX learning_summary_day_department_idx ON learning_summary_day (stat_date, company, department) WHERE scope = 'department'; -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
+    CREATE INDEX learning_summary_day_department_idx ON learning_summary_day (stat_date, company, department); -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
     """,
     """
-    CREATE INDEX learning_summary_day_all_idx ON learning_summary_day (stat_date) WHERE scope = 'all';
+    CREATE INDEX learning_summary_day_all_idx ON learning_summary_day (stat_date);
     """,
     """
     CREATE TABLE learning_summary_agg (
         period_type TEXT NOT NULL,          -- 'year', 'half', 'quarter'
         period_value TEXT NOT NULL,         -- '2024', '2024H1', '2024Q3' 등
-        scope TEXT NOT NULL CHECK (scope IN ('all','company','department','user')),                -- 'all(전체)', 'company(회사)', 'department(팀)', 'user(개인)'
         company_id INTEGER,
-        company TEXT,                       -- 회사명 (scope가 회사인 경우)
+        company TEXT,                       -- 회사명
         department_id INTEGER,
-        department TEXT,               -- 부서명 (scope가 특정 부서에 해당하는 경우)
-        user_id TEXT,                       -- scope가 개인인 경우
-        user_name TEXT,                         -- 사용자명 (scope가 개인인 경우)
+        department TEXT,               -- 부서명
+        user_id TEXT,                       --개인
+        user_name TEXT,                         -- 사용자명
         channel_id INTEGER,                  -- 채널 ID
         channel_name TEXT,                -- 채널 이름
         total_duration INTERVAL NOT NULL DEFAULT '0',            -- 총 접속 시간
@@ -485,20 +463,20 @@ try:
         channel_key TEXT GENERATED ALWAYS AS (COALESCE(channel_id, '-1')) STORED,
         
         --제약 조건
-        CONSTRAINT pk_learning_summary_agg PRIMARY KEY (period_value , scope, company_key, department_key, user_id_key, channel_key)
+        CONSTRAINT pk_learning_summary_agg PRIMARY KEY (period_value , company_key, department_key, user_id_key, channel_key)
     );
     """,
     """
-    CREATE INDEX learning_summary_agg_user_idx ON learning_summary_agg (period_value, user_id) WHERE scope = 'user'; -- 조회 시 칼럼 순서 동일해야 함
+    CREATE INDEX learning_summary_agg_user_idx ON learning_summary_agg (period_value, user_id); -- 조회 시 칼럼 순서 동일해야 함
     """,
     """
-    CREATE INDEX learning_summary_agg_company_idx ON learning_summary_agg (period_value, company) WHERE scope = 'company';
+    CREATE INDEX learning_summary_agg_company_idx ON learning_summary_agg (period_value, company);
     """,
     """
-    CREATE INDEX learning_summary_agg_department_idx ON learning_summary_agg (period_value, company, department) WHERE scope = 'department'; -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
+    CREATE INDEX learning_summary_agg_department_idx ON learning_summary_agg (period_value, company, department); -- department_id가 주어지면 대체하고 company는 제거해도 될 듯
     """,
     """
-    CREATE INDEX learning_summary_agg_all_idx ON learning_summary_agg (period_value) WHERE scope = 'all';
+    CREATE INDEX learning_summary_agg_all_idx ON learning_summary_agg (period_value);
     """
     ]
     

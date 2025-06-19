@@ -37,157 +37,15 @@ DECLARE
     v_is_weekday BOOLEAN := (EXTRACT(DOW FROM p_start_utc AT TIME ZONE 'Asia/Seoul') NOT IN (0, 6)); -- 주말 여부
 BEGIN
 
-    -- 1. 전체 범위(전체) 집계
-    INSERT INTO public.login_summary_day (
-        period_value, scope,
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        v_period_value, 'all',
-        COALESCE(SUM(session_duration), '0'::INTERVAL),
-
-        -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
-        COALESCE(SUM(calculate_work_duration(
-            lh.login_time,
-            lh.logout_time,
-            v_work_start_utc,
-            v_work_end_utc,
-            v_is_weekday
-        )), '0'::INTERVAL),
-        
-        -- 근무 외 시간: 전체 세션 - 근무 시간
-        COALESCE(SUM(
-            (lh.logout_time - lh.login_time) -
-            calculate_work_duration(
-                lh.login_time,
-                lh.logout_time,
-                v_work_start_utc,
-                v_work_end_utc,
-                v_is_weekday
-            )), '0'::INTERVAL),
-
-        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
-
-    FROM login_history lh
-    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
-    HAVING COALESCE(SUM(session_duration), '0'::INTERVAL) > '0'::INTERVAL
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-
-    -- 2. 회사별 집계
-    INSERT INTO public.login_summary_day (
-        period_value, scope,
-        company_id, company,
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        v_period_value, 'company',
-        NULL, u.company,
-        COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
-
-        -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
-        COALESCE(SUM(calculate_work_duration(
-            lh.login_time,
-            lh.logout_time,
-            v_work_start_utc,
-            v_work_end_utc,
-            v_is_weekday
-        )), '0'::INTERVAL),
-        
-        -- 근무 외 시간: 전체 세션 - 근무 시간
-        COALESCE(SUM(
-            (lh.logout_time - lh.login_time) - 
-            calculate_work_duration(
-                lh.login_time,
-                lh.logout_time,
-                v_work_start_utc,
-                v_work_end_utc,
-                v_is_weekday
-            )), '0'::INTERVAL),
-
-        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
-
-    FROM login_history lh
-    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
-    JOIN users u ON lh.user_id = u.id
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
-    GROUP BY u.company
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-    
-
-    -- 3. 부서별 집계
-    INSERT INTO public.login_summary_day (
-        period_value, scope,
-        company_id, company, department_id, department,
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        v_period_value, 'department',
-        NULL, u.company, NULL, u.department,
-        COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
-        
-        -- 근무 시간: 세션과 근무 시간대가 겹치는 부분
-        COALESCE(SUM(calculate_work_duration(
-            lh.login_time,
-            lh.logout_time,
-            v_work_start_utc,
-            v_work_end_utc,
-            v_is_weekday
-        )), '0'::INTERVAL),
-        
-        -- 근무 외 시간: 전체 세션 - 근무 시간
-        COALESCE(SUM(
-            (lh.logout_time - lh.login_time) - 
-            calculate_work_duration(
-                lh.login_time,
-                lh.logout_time,
-                v_work_start_utc,
-                v_work_end_utc,
-                v_is_weekday
-            )), '0'::INTERVAL),
-
-        COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN lh.id END),
-        COUNT(DISTINCT CASE WHEN r.id IS NULL THEN lh.id END)
-
-    FROM login_history lh
-    LEFT JOIN ip_ranges r ON lh.ip_address::inet BETWEEN r.start_ip::inet AND r.end_ip::inet
-    JOIN users u ON lh.user_id = u.id
-    WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
-    GROUP BY u.company, u.department
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-
     -- 4. 사용자별 집계
     INSERT INTO public.login_summary_day (
-        period_value, scope,
+        period_value,
         company_id, company, department_id, department, user_id, user_name,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
-        v_period_value, 'user',
+        v_period_value,
         NULL, u.company, NULL, u.department, u.id, u.name,
         COALESCE(SUM(lh.session_duration), '0'::INTERVAL),
 
@@ -218,7 +76,7 @@ BEGIN
     JOIN users u ON lh.user_id = u.id
     WHERE lh.login_time >= p_start_utc AND lh.login_time < p_start_utc + INTERVAL '1 day' AND lh.logout_time IS NOT NULL
     GROUP BY u.company, u.department, u.id, u.name
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
+    ON CONFLICT (period_value, company_key, department_key, user_id_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration,
         worktime_duration = EXCLUDED.worktime_duration,
