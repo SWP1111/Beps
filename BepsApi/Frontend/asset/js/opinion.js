@@ -511,6 +511,10 @@ createApp({
                     }
                 }
             });
+            
+            // Make test function available globally for console debugging
+            window.testStatusUpdate = testStatusUpdate;
+            console.log('Debug function testStatusUpdate is now available in console');
         });
 
         return {

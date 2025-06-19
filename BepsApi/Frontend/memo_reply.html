@@ -301,14 +301,29 @@ td:nth-child(even) {
                                 department: loggedInUser.user.department || ''
                             };
                             
+                            console.log('Current user loaded:', currentUser.value);
+                            console.log('Memo data:', memo.value);
+                            console.log('Memo user_id:', memo.value?.user_id);
+                            console.log('Current user id:', currentUser.value.id);
+                            console.log('Are they equal?', memo.value?.user_id === currentUser.value.id);
+                            console.log('Memo status:', memo.value?.status);
+                            
                             // Now that both memo and user data are loaded, check if we need to mark as viewed
                             if (memo.value && memo.value.user_id === currentUser.value.id) {
-                                console.log('Current user is memo author, marking as viewed');
+                                console.log('✅ Current user is memo author, marking as viewed');
                                 
                                 // Debug: Call debug endpoint first
-                                debugMemoStatus(memo.value.id);
+                                await debugMemoStatus(memo.value.id);
                                 
                                 await markMemoAsViewed(memo.value.id);
+                            } else {
+                                console.log('❌ Current user is NOT the memo author or memo data missing');
+                                console.log('  - memo.value exists:', !!memo.value);
+                                if (memo.value) {
+                                    console.log('  - memo.user_id:', memo.value.user_id);
+                                    console.log('  - currentUser.id:', currentUser.value.id);
+                                    console.log('  - Types:', typeof memo.value.user_id, typeof currentUser.value.id);
+                                }
                             }
                         } else {
                             alert('로그인 정보를 불러올 수 없습니다.');
@@ -425,6 +440,39 @@ td:nth-child(even) {
                         
                     } catch (error) {
                         console.error("Error debugging memo status:", error);
+                    }
+                };
+
+                // Manual test function for the mark_viewed endpoint
+                const testMarkViewed = async (memoId) => {
+                    console.log(`🧪 Testing mark_viewed for memo ${memoId}`);
+                    
+                    try {
+                        // First get debug info
+                        await debugMemoStatus(memoId);
+                        
+                        // Then try to mark as viewed
+                        const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json"
+                            }
+                        });
+                        
+                        console.log(`Mark viewed response status: ${response.status}`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log("✅ Mark viewed successful:", data);
+                        } else {
+                            const errorText = await response.text();
+                            console.error(`❌ Mark viewed failed: ${response.status} ${response.statusText}`, errorText);
+                        }
+                        
+                    } catch (error) {
+                        console.error("Error testing mark viewed:", error);
                     }
                 };
 
@@ -826,6 +874,11 @@ td:nth-child(even) {
 
                 onMounted(() => {
                     loadData();
+                    
+                    // Make test functions available globally for debugging
+                    window.testMarkViewed = testMarkViewed;
+                    window.debugMemoStatus = debugMemoStatus;
+                    console.log('🔧 Debug functions available: testMarkViewed(memoId), debugMemoStatus(memoId)');
                 });
 
                 onUnmounted(() => {
