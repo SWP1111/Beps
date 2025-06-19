@@ -88,7 +88,6 @@ class LoginHistory(db.Model):
 class loginSummaryDay(db.Model):
     __tablename__ = 'login_summary_day'
     period_value = db.Column(db.Date)
-    scope = db.Column(db.Text)
     company_id = db.Column(db.Integer)
     company = db.Column(db.Text)
     department = db.Column(db.Text)
@@ -104,7 +103,7 @@ class loginSummaryDay(db.Model):
     user_id_key = db.Column(db.Text)
     
     __table_args__ = (
-        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key',
+        db.PrimaryKeyConstraint('period_value', 'company_key', 'department_key', 'user_id_key',
                                 name='login_summary_day_pkey'
                                 ),
     )
@@ -112,7 +111,6 @@ class loginSummaryDay(db.Model):
     def to_dict(self):
         return {
             'period_value': self.period_value,
-            'scope': self.scope,
             'company_id': self.company_id,
             'company': self.company,
             'department': self.department,
@@ -132,7 +130,6 @@ class loginSummaryAgg(db.Model):
     __tablename__ = 'login_summary_agg'
     period_type = db.Column(db.Text)
     period_value = db.Column(db.Text)
-    scope = db.Column(db.Text)
     company_id = db.Column(db.Integer)
     company = db.Column(db.Text)
     department = db.Column(db.Text)
@@ -148,7 +145,7 @@ class loginSummaryAgg(db.Model):
     user_id_key = db.Column(db.Text)
     
     __table_args__ = (
-        db.PrimaryKeyConstraint('period_type', 'period_value', 'scope', 'company_key', 'department_key', 'user_id_key',
+        db.PrimaryKeyConstraint('period_type', 'period_value', 'company_key', 'department_key', 'user_id_key',
                                 name='login_summary_agg_pkey'
                                 ),
     )
@@ -157,7 +154,6 @@ class loginSummaryAgg(db.Model):
         return {
             'period_type': self.period_type,
             'period_value': self.period_value,
-            'scope': self.scope,
             'company_id': self.company_id,
             'company': self.company,
             'department': self.department,
@@ -206,7 +202,6 @@ class ContentViewingHistory(db.Model):
 class LearningSummaryDay(db.Model):
     __tablename__ = 'learning_summary_day'
     stat_date = db.Column(db.Date)
-    scope = db.Column(db.Text)
     company_id = db.Column(db.Integer)
     company = db.Column(db.Text)
     department_id = db.Column(db.Integer)
@@ -222,7 +217,7 @@ class LearningSummaryDay(db.Model):
     channel_key = db.Column(db.Text)
 
     __table_args__ = (
-        db.PrimaryKeyConstraint('stat_date', 'scope', 'company_key', 'department_key', 'user_id_key', 'channel_key',
+        db.PrimaryKeyConstraint('stat_date', 'company_key', 'department_key', 'user_id_key', 'channel_key',
                                 name='pk_learning_summary_day'
                                 ),
     )
@@ -230,7 +225,6 @@ class LearningSummaryDay(db.Model):
     def to_dict(self):
         return {
             'stat_date': self.stat_date,
-            'scope': self.scope,
             'company_id': self.company_id,
             'company': self.company,
             'department': self.department,
@@ -249,7 +243,6 @@ class LearningSummaryAgg(db.Model):
     __tablename__ = 'learning_summary_agg'
     period_type = db.Column(db.Text)
     period_value = db.Column(db.Text)
-    scope = db.Column(db.Text)
     company_id = db.Column(db.Integer)
     company = db.Column(db.Text)
     deparment_id = db.Column(db.Integer)
@@ -265,7 +258,7 @@ class LearningSummaryAgg(db.Model):
     channel_key = db.Column(db.Text)
     
     __table_args__ = (
-        db.PrimaryKeyConstraint('period_value', 'scope', 'company_key', 'department_key', 'user_id_key', 'channel_key',
+        db.PrimaryKeyConstraint('period_value', 'company_key', 'department_key', 'user_id_key', 'channel_key',
                                 name='pk_learning_summary_agg'
                                 ),
     )
@@ -274,7 +267,6 @@ class LearningSummaryAgg(db.Model):
         return {
             'period_type': self.period_type,
             'period_value': self.period_value,
-            'scope': self.scope,
             'company_id': self.company_id,
             'company': self.company,
             'department': self.department,

@@ -10,86 +10,21 @@ BEGIN
                        ELSE ARRAY[format('%s-Q3', p_year), format('%s-Q4', p_year)]
                  END;
 
-    -- 1. 전체 범위 집계
-    INSERT INTO login_summary_agg (
-        period_type, period_value, scope,
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        'half', v_period_value, 'all',
-        SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
-        SUM(internal_count), SUM(external_count)
-    FROM login_summary_agg
-    WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'all'
-    HAVING COALESCE(SUM(total_duration), '0'::INTERVAL) > '0'::INTERVAL
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-
-    -- 2. 회사별
-    INSERT INTO login_summary_agg (
-        period_type, period_value, scope, company, 
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        'half', v_period_value, 'company', company,
-        SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
-        SUM(internal_count), SUM(external_count)
-    FROM login_summary_agg
-    WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'company'
-    GROUP BY company
-    HAVING COALESCE(SUM(total_duration), '0'::INTERVAL) > '0'::INTERVAL
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-
-    -- 3. 부서별
-    INSERT INTO login_summary_agg (
-        period_type, period_value, scope, company, department,
-        total_duration, worktime_duration, offhour_duration,
-        internal_count, external_count
-    )
-    SELECT
-        'half', v_period_value, 'department', company, department,
-        SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
-        SUM(internal_count), SUM(external_count)
-    FROM login_summary_agg
-    WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'department'
-    GROUP BY company, department
-    HAVING COALESCE(SUM(total_duration), '0'::INTERVAL) > '0'::INTERVAL
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
-    DO UPDATE SET
-        total_duration = EXCLUDED.total_duration,
-        worktime_duration = EXCLUDED.worktime_duration,
-        offhour_duration = EXCLUDED.offhour_duration,
-        internal_count = EXCLUDED.internal_count,
-        external_count = EXCLUDED.external_count;
-
     -- 4. 사용자별
     INSERT INTO login_summary_agg (
-        period_type, period_value, scope, company, department, user_id, user_name,
+        period_type, period_value, company, department, user_id, user_name,
         total_duration, worktime_duration, offhour_duration,
         internal_count, external_count
     )
     SELECT
-        'half', v_period_value, 'user', company, department, user_id, user_name,
+        'half', v_period_value, company, department, user_id, user_name,
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg
-    WHERE period_type = 'quarter' AND period_value = ANY(v_quarters) AND scope = 'user'
+    WHERE period_type = 'quarter' AND period_value = ANY(v_quarters)
     GROUP BY company, department, user_id, user_name
     HAVING COALESCE(SUM(total_duration), '0'::INTERVAL) > '0'::INTERVAL
-    ON CONFLICT (period_value, scope, company_key, department_key, user_id_key)
+    ON CONFLICT (period_value, company_key, department_key, user_id_key)
     DO UPDATE SET
         total_duration = EXCLUDED.total_duration,
         worktime_duration = EXCLUDED.worktime_duration,
