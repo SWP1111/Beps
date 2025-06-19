@@ -547,9 +547,8 @@ class MemoData(db.Model):
     def to_dict(self):
         # Convert type int to string
         type_mapping = {
-            0: "독후감",
-            1: "제안", 
-            2: "질문"
+            0: "질문",
+            1: "의견", 
         }
         
         # Convert status int to string
