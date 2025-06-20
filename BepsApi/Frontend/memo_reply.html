@@ -242,32 +242,6 @@ td:nth-child(even) {
                 const currentUser = ref({});
                 const replies = ref([]);
 
-                // Definitive function to get CSRF token from the JWT stored in localStorage.
-                const getCsrfFromJwt = () => {
-                    try {
-                        const loggedInUserString = localStorage.getItem("loggedInUser");
-                        if (!loggedInUserString) throw new Error("loggedInUser not found in localStorage");
-
-                        const loggedInUser = JSON.parse(loggedInUserString);
-                        const token = loggedInUser.token;
-                        if (!token) throw new Error("JWT not found in loggedInUser object");
-                        
-                        const payloadBase64 = token.split('.')[1];
-                        if (!payloadBase64) throw new Error("Invalid JWT format: Missing payload");
-                        
-                        const payloadJson = atob(payloadBase64);
-                        const payload = JSON.parse(payloadJson);
-                        
-                        if (!payload.csrf) throw new Error("CSRF token not found in JWT payload");
-
-                        console.log(`[CSRF] ✅ Successfully extracted CSRF token from JWT: ${payload.csrf}`);
-                        return payload.csrf;
-                    } catch (e) {
-                        console.error("[CSRF Error] Failed to get CSRF token from JWT.", e);
-                        return null;
-                    }
-                };
-
                 const loadData = async () => {
                     // Load memo data from localStorage
                     try {
@@ -395,20 +369,13 @@ td:nth-child(even) {
                             return;
                         }
                         console.log(`[API Call] Attempting to mark memo ${memoId} as viewed.`);
-                        
-                        const csrfToken = getCsrfFromJwt();
-                        if (!csrfToken) {
-                            alert('보안 토큰을 얻을 수 없습니다. 다시 로그인 해주세요.');
-                            return;
-                        }
 
                         const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
                             method: "POST",
                             credentials: "include",
                             headers: {
                                 "Accept": "application/json",
-                                "Content-Type": "application/json",
-                                "X-CSRF-TOKEN": csrfToken
+                                "Content-Type": "application/json"
                             }
                         });
                         
@@ -540,20 +507,13 @@ td:nth-child(even) {
                         content: replyComment.value,
                         user_id: currentUser.value.id
                     };
-                    
-                    const csrfToken = getCsrfFromJwt();
-                    if (!csrfToken) {
-                        alert('보안 토큰을 얻을 수 없습니다. 다시 로그인 해주세요.');
-                        return;
-                    }
 
                     fetch(`${url}memo/reply/`, {
                         method: "POST",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": csrfToken
+                            "Content-Type": "application/json"
                         },
                         body: JSON.stringify(replyData)
                     })
@@ -597,39 +557,16 @@ td:nth-child(even) {
                                     type: 'command',
                                     action: 'replySaved',
                                     memo_id: memo.value.id,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null,
-                                    reply_data: data
+                                    user_id: currentUser.value.id
                                 });
-                            } else if (window.external && typeof window.external.notify === "function") {
-                                // For older WebBrowser control
-                                window.external.notify(JSON.stringify({
-                                    type: 'command',
-                                    action: 'replySaved',
-                                    memo_id: memo.value.id,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null,
-                                    reply_data: data
-                                }));
-                            } else if (window.external && window.external.postMessage) {
-                                // Alternative approach
-                                window.external.postMessage(JSON.stringify({
-                                    type: 'command',
-                                    action: 'replySaved',
-                                    memo_id: memo.value.id,
-                                    file_id: memo.value.file_id || null,
-                                    folder_id: memo.value.folder_id || null,
-                                    reply_data: data
-                                }));
                             }
-                            console.log('Message sent to host application');
-                        } catch (err) {
-                            console.error('Failed to send message to host application:', err);
+                        } catch (e) {
+                            console.log('WebView2 message sending failed (probably not in WebView2 environment):', e);
                         }
                     })
                     .catch(error => {
                         console.error("Error saving reply:", error);
-                        alert('답변 저장에 실패했습니다: ' + error.message);
+                        alert('답변 저장 중 오류가 발생했습니다.');
                     });
                 };
 
@@ -651,19 +588,12 @@ td:nth-child(even) {
                     }
                     
                     // API call to update the reply
-                    const csrfToken = getCsrfFromJwt();
-                    if (!csrfToken) {
-                        alert('보안 토큰을 얻을 수 없습니다. 다시 로그인 해주세요.');
-                        return;
-                    }
-
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "PUT",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": csrfToken
+                            "Content-Type": "application/json"
                         },
                         body: JSON.stringify({ content: reply.editContent })
                     })
@@ -691,19 +621,12 @@ td:nth-child(even) {
                     }
 
                     // API call to delete the reply
-                    const csrfToken = getCsrfFromJwt();
-                    if (!csrfToken) {
-                        alert('보안 토큰을 얻을 수 없습니다. 다시 로그인 해주세요.');
-                        return;
-                    }
-
                     fetch(`${url}memo/reply/${reply.id}`, {
                         method: "DELETE",
                         credentials: "include",
                         headers: {
                             "Accept": "application/json",
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": csrfToken
+                            "Content-Type": "application/json"
                         }
                     })
                     .then(response => {
