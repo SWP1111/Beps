@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
+    # 🔹 JWT 설정 - CSRF 보호 비활성화 (전체 시스템이 JWT만 사용하므로)
+    JWT_COOKIE_CSRF_PROTECT = False  # CSRF 보호 비활성화
+
     # PostgreSQL 데이터베이스 연결 설정
     # 포맷: postgresql://username:password@hostname/database
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/beps")  # 🔹 데이터베이스 URL
