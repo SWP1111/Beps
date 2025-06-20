@@ -388,16 +388,16 @@ td:nth-child(even) {
                         const data = await response.json();
                         console.log("Memo marked as viewed successfully:", data);
                         
+                        // Define status mapping at function scope so it's always available
+                        const statusMapping = {
+                            0: "답변대기",
+                            1: "답변완료",
+                            2: "처리완료"
+                        };
+                        
                         // Update the memo status in the local data
                         if (memo.value) {
                             memo.value.status = data.status;
-                            
-                            // Update status text based on new status
-                            const statusMapping = {
-                                0: "답변대기",
-                                1: "답변완료",
-                                2: "처리완료"
-                            };
                             memo.value.status_text = statusMapping[data.status] || "알 수 없음";
                         }
                         
@@ -529,6 +529,7 @@ td:nth-child(even) {
                         fetchReplies(memo.value.id);
                         
                         // Update memo status to 1 (답변완료) since a reply was added
+                        
                         if (memo.value) {
                             memo.value.status = 1;
                             memo.value.status_text = "답변완료";
