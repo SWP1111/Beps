@@ -18,6 +18,7 @@ import services.user_summary_service as summary_service
 import traceback
 from sqlalchemy import case
 import json
+from utils.user_query_utils import get_user_ids_by_scope
 
 api_user_bp = Blueprint('user', __name__)
 
@@ -430,7 +431,7 @@ def get_top_user_duration():
                 loginSummaryAgg,
                 period_type = period_type,
                 period_value = period_value,
-                scope = 'user',
+                join_users=True,
                 group_fields=[loginSummaryAgg.user_id, Users.name]
             )
            
@@ -503,9 +504,7 @@ def get_top_department_duration():
                 loginSummaryAgg,
                 period_type = period_type,
                 period_value = period_value,
-                scope = 'department',
-                group_fields=[loginSummaryAgg.company, loginSummaryAgg.department],
-                join_users=False
+                group_fields=[loginSummaryAgg.company, loginSummaryAgg.department]
             )
             
             if summary_rows:
@@ -572,9 +571,7 @@ def get_top_company_duration():
                 loginSummaryAgg,
                 period_type= period_type,
                 period_value= period_value,
-                scope= 'company',
-                group_fields=[loginSummaryAgg.company],
-                join_users=False
+                group_fields=[loginSummaryAgg.company]
             )
             
             if summary_rows:

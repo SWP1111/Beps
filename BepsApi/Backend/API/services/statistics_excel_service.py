@@ -98,7 +98,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
                 '중분류': mid if mid != prev_mid else '',
                 '소분류': bottom,
                 '평균학습시간': avg_time,
-                '의견서 수': f'{f['memo_count']}건',
+                '의견서 수': f"{f['memo_count']}건",
                 '최종 업데이트 날짜': f['update_at'],
                 '관리자': f['manager_name'],
             }
@@ -126,7 +126,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
                 '평균학습시간': '',
                 '카테고리': u['category_name'],
                 '학습시간': u['learning_time'],
-                '의견서 수': f'{u['memo_count']}건',
+                '의견서 수': f"{u['memo_count']}건",
             }
             if (company != prev_company) or (department != prev_department) or (user_id != prev_id):
                 row['회사'] = company
@@ -157,7 +157,7 @@ def export_statistics_to_excel(path, filename, period_type, period_value, filter
                     '시작 시간': u['start_time'],
                     '종료 시간': u['end_time'],
                     '학습시간': u['stay_duration'],
-                    '의견서 작성 수': f'{u['memo_count']}건',
+                    '의견서 작성 수': f"{u['memo_count']}건",
                     'IP': u['ip_address'],
                 }
                 user_rows.append(row)
