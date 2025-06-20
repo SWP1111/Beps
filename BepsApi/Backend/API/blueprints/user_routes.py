@@ -39,7 +39,7 @@ def check_db_status():
 
 # GET /user/token_check API 토큰(쿠키) 유효 체크
 @api_user_bp.route('/token_check', methods=['GET'])
-@jwt_required(locations=['cookies'])  # JWT 검증을 먼저 수행
+@jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
 def check():
     current_user = get_jwt_identity()
     
