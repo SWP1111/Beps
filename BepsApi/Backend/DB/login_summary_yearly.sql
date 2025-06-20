@@ -10,7 +10,7 @@ BEGIN
         internal_count, external_count
     )
     SELECT
-        'year', v_period_value, 'user', company, department, user_id, user_name,
+        'year', v_period_value, company, department, user_id, user_name,
         SUM(total_duration), SUM(worktime_duration), SUM(offhour_duration),
         SUM(internal_count), SUM(external_count)
     FROM login_summary_agg

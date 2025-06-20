@@ -117,7 +117,7 @@ def get_top_user_duration_mixed(start_date, end_date):
                     summary_func,
                     period_type=period_type,
                     period_value=period_str,
-                    scope='user',
+                    join_users=True,
                     group_fields=[loginSummaryAgg.user_id, Users.name]
                 )
                 if summary_rows:
@@ -137,8 +137,8 @@ def get_top_user_duration_mixed(start_date, end_date):
                             loginSummaryDay,
                             start_date=current,
                             end_date=min(current_end, datetime.date.today() - datetime.timedelta(days=2)),
-                            scope='user',
-                            group_fields=[loginSummaryDay.user_id_key, Users.name]
+                            group_fields=[loginSummaryDay.user_id_key, Users.name],
+                            join_users=True
                         )                                        
                         update_user_duration(summary_day_rows, user_id_fields='user_id_key')
                                              
@@ -169,8 +169,8 @@ def get_top_user_duration_mixed(start_date, end_date):
                 loginSummaryDay,
                 start_date=current,
                 end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                scope='user',
-                group_fields=[loginSummaryDay.user_id_key, Users.name]
+                group_fields=[loginSummaryDay.user_id_key, Users.name],
+                join_users=True
             )          
             update_user_duration(summary_day_rows, user_id_fields='user_id_key')            
         if end_date in (datetime.date.today(), datetime.date.today() - datetime.timedelta(days=1)):
@@ -226,9 +226,7 @@ def get_top_department_duration_mixed(start_date, end_date):
                     summary_func,
                     period_type=period_type,
                     period_value=period_str,
-                    scope='department',
-                    group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key],
-                    join_users=False
+                    group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key]
                 )
                 if summary_rows:
                     used_ranges.append((p_start, p_end))
@@ -247,9 +245,7 @@ def get_top_department_duration_mixed(start_date, end_date):
                             loginSummaryDay,
                             start_date=current,
                             end_date=min(current_end, datetime.date.today() - datetime.timedelta(days=2)),
-                            scope='department',
-                            group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key],
-                            join_users=False
+                            group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key]
                         )
                         update_dept_duration(rows)
 
@@ -282,9 +278,7 @@ def get_top_department_duration_mixed(start_date, end_date):
                 loginSummaryDay,
                 start_date=current,
                 end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                scope='department',
-                group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key],
-                join_users=False
+                group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key]
             )
             update_dept_duration(rows, company_filed='company_key', department_field='department_key')
         if end_date >= datetime.date.today() - datetime.timedelta(days=1):
@@ -341,9 +335,7 @@ def get_top_company_duration_mixed(start_date, end_date):
                     summary_func,
                     period_type=period_type,
                     period_value=period_str,
-                    scope='company',
-                    group_fields=[loginSummaryAgg.company_key],
-                    join_users=False
+                    group_fields=[loginSummaryAgg.company_key]
                 )
                 if summary_rows:
                     used_ranges.append((p_start, p_end))
@@ -362,9 +354,7 @@ def get_top_company_duration_mixed(start_date, end_date):
                             loginSummaryDay,
                             start_date=current,
                             end_date=min(current_end, datetime.date.today() - datetime.timedelta(days=2)),
-                            scope='company',
-                            group_fields=[loginSummaryDay.company_key],
-                            join_users=False
+                            group_fields=[loginSummaryDay.company_key]
                         )
                         update_company_duration(rows)
 
@@ -396,9 +386,7 @@ def get_top_company_duration_mixed(start_date, end_date):
                 loginSummaryDay,
                 start_date=current,
                 end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                scope='company',
-                group_fields=[loginSummaryDay.company_key],
-                join_users=False
+                group_fields=[loginSummaryDay.company_key]
             )
             update_company_duration(rows, company_field='company_key')
         if end_date >= datetime.date.today() - datetime.timedelta(days=1):
@@ -495,24 +483,25 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
     if start_date < (datetime.date.today() - datetime.timedelta(days=1)):
         filters = [
             loginSummaryDay.period_value >= start_date,
-            loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-            loginSummaryDay.scope == scope
+            loginSummaryDay.period_value <= min(end_date, datetime.date.today() - datetime.timedelta(days=2))
         ]
+        query = db.session.query(loginSummaryDay).join(Users, Users.id == loginSummaryDay.user_id_key)
+        
         if scope == 'user' and filter_value:
             filters.append(loginSummaryDay.user_id_key == filter_value)
         elif scope == 'department' and filter_value:
             parts = filter_value.split('||', 1)
             if len(parts) == 2:
                 company_name, department_name = parts
-                filters.append(loginSummaryDay.company_key == company_name)
-                filters.append(loginSummaryDay.department_key == department_name)
+                filters.append(Users.company == company_name)
+                filters.append(Users.department == department_name)
             else:
                 department_name = parts[0]
-                filters.append(loginSummaryDay.department_key == department_name)
+                filters.append(Users.department == department_name)
         elif scope == 'company' and filter_value:
-            filters.append(loginSummaryDay.company_key == filter_value)
+            filters.append(Users.company == filter_value)
         
-        datas = loginSummaryDay.query.filter(*filters).all()
+        datas = query.filter(*filters).all()
         for data in datas:
             has_data = True
             total += data.total_duration or datetime.timedelta(0)
@@ -598,24 +587,26 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
     
     filters = [
         loginSummaryAgg.period_type == period_type,
-        loginSummaryAgg.period_value == period_value,
-        loginSummaryAgg.scope == scope
+        loginSummaryAgg.period_value == period_value
     ]
+    
+    query = db.session.query(loginSummaryAgg).join(Users, Users.id == loginSummaryAgg.user_id)
+    
     if scope == 'user' and filter_value:
         filters.append(loginSummaryAgg.user_id_key == filter_value)
     elif scope == 'department' and filter_value:
         parts = filter_value.split('||', 1)
         if len(parts) == 2:
             company_name, department_name = parts
-            filters.append(loginSummaryAgg.company_key == company_name)
-            filters.append(loginSummaryAgg.department_key == department_name)
+            filters.append(Users.company == company_name)
+            filters.append(Users.department == department_name)
         else:
             department_name = parts[0]
-            filters.append(loginSummaryAgg.department_key == department_name)
+            filters.append(Users.department == department_name)
     elif scope == 'company' and filter_value:
-        filters.append(loginSummaryAgg.company_key == filter_value)
-    
-    data = loginSummaryAgg.query.filter(*filters).first()
+        filters.append(Users.company == filter_value)
+
+    data = query.filter(*filters).first()
     
     if data:
         has_data = True
@@ -645,19 +636,18 @@ def get_connection_summary_agg(period_type, period_value, scope, filter_value=No
 
   
         
-def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, join_users = True, extra_filter=None):    
+def get_summary_rows_agg(model, period_type, period_value, group_fields, join_users=False, extra_filter=None):    
     query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
     
     if join_users:
         query = query.join(Users, Users.id == model.user_id_key)
-        
+             
     query = query.filter(
             model.period_type == period_type,
-            model.period_value == period_value,
-            model.scope == scope
+            model.period_value == period_value
         )
     
-    if extra_filter is not None:
+    if extra_filter:
         query = query.filter(*extra_filter)
         
     query = query.group_by(*group_fields)
@@ -666,7 +656,7 @@ def get_summary_rows_agg(model, period_type, period_value, scope, group_fields, 
     # logging.debug(f"[get_summary_rows_agg] {actual_query}")     
     return query.all()
 
-def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_users=True, extra_filter=None):
+def get_summary_rows_day(model, start_date, end_date, group_fields, join_users=False, extra_filter=None):
     query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
     
     if join_users:
@@ -674,8 +664,7 @@ def get_summary_rows_day(model, start_date, end_date, scope, group_fields, join_
 
     query = query.filter(
             model.period_value >= start_date,
-            model.period_value <= end_date,
-            model.scope == scope
+            model.period_value <= end_date
         )
     
     if extra_filter is not None:

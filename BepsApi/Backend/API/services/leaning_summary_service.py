@@ -8,6 +8,7 @@ from extensions import db
 from sqlalchemy import and_, func, or_
 from sqlalchemy.sql import union_all
 from sqlalchemy.orm import aliased
+from utils.user_query_utils import get_user_ids_by_scope
 
 def get_channels():
     channels = db.session.query(
@@ -23,6 +24,7 @@ def get_folder_progress(params):
     """
     카테고리별 학습 진행률을 가져오는 함수
     """
+    from services.statistics_excel_sheet_content import get_user_ids_by_scope;
     
     scope = params['filter_type']
     filter_value = params.get('filter_value')
@@ -36,6 +38,8 @@ def get_folder_progress(params):
     
     used_range = []
     
+    user_ids = get_user_ids_by_scope(scope, filter_value)
+    
     # 카테고리별 학습 진행률을 가져오는 쿼리(기간별)
     for period_func, summary_func, period_scope in [
         (user_summary_service.get_year_period_value, LearningSummaryAgg, 'year'),
@@ -48,10 +52,8 @@ def get_folder_progress(params):
                     summary_func,
                     period_type=period_scope,
                     period_value=period_str,
-                    scope=scope,
                     group_fields=[LearningSummaryAgg.channel_id, LearningSummaryAgg.channel_name],
-                    join_users=False,
-                    extra_filter=build_scope_filter(LearningSummaryAgg, scope, filter_value)
+                    extra_filter=None if scope == 'all' else [LearningSummaryAgg.user_id.in_(user_ids)]
                 )
                 if rows:
                     used_range.append((p_start, p_end))
@@ -63,12 +65,11 @@ def get_folder_progress(params):
     # 카테고리별 학습 진행률을 가져오는 쿼리(일별)
     for used_start, used_end in used_range:
         if current < used_start:
-            add_summary_day_date(current, used_start - datetime.timedelta(days=1), folder_duration_map, scope, filter_value)
+            add_summary_day_date(current, used_start - datetime.timedelta(days=1), folder_duration_map, user_ids)
         current = max(current, used_end + datetime.timedelta(days=1))
         
     if current <= end_date:
-        add_summary_day_date(current, end_date, folder_duration_map, scope, filter_value)
-        
+        add_summary_day_date(current, end_date, folder_duration_map, user_ids)
 
     return folder_duration_map    
             
@@ -96,9 +97,7 @@ def get_folder_progress_by_users(user_ids: list[str], period_type: str, period_v
                     summary_func,
                     period_type=period_scope,
                     period_value=period_str,
-                    scope='user',
                     group_fields=[LearningSummaryAgg.user_id, LearningSummaryAgg.channel_id, LearningSummaryAgg.channel_name],
-                    join_users=False,
                     extra_filter=[LearningSummaryAgg.user_id.in_(user_ids)]
                 )
                 if rows:
@@ -118,25 +117,7 @@ def get_folder_progress_by_users(user_ids: list[str], period_type: str, period_v
     if current <= end_date:
         add_summary_day_date_by_users(user_ids, current, end_date, folder_duration_by_user)
                            
-    return folder_duration_by_user
-   
-def build_scope_filter(model, scope, filter_value):
-    """
-    필터 조건을 생성하는 함수
-    """
-    if scope == 'company':
-        return [model.company_key == filter_value]
-    elif scope == 'department':
-        parts = filter_value.split('||', 1)
-        if len(parts) == 2:
-            return [model.company_key == parts[0], 
-                    model.department_key == parts[1]]
-        else:
-            return [model.company_key == parts[0]]
-    elif scope == 'user':
-        return [model.user_id == filter_value]
-    elif scope == 'all':
-        return None
+    return folder_duration_by_user 
      
 def update_folder_duration_map(folder_duration_map, rows):
     """
@@ -150,7 +131,7 @@ def update_folder_duration_map(folder_duration_map, rows):
         folder_duration_map[key] = (row.channel_name, folder_duration_map[key][1] + duration)
 
         
-def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_value):
+def add_summary_day_date(start_dt, end_dt, folder_duration_map, user_ids):
     """
     카테고리별 학습 진행률을 가져오는 쿼리(일별)
     """
@@ -168,10 +149,8 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         rows = get_learning_summary_rows_day(
             start_date=start_dt,
             end_date=summary_end_date,
-            scope=scope,
-            group_fields=[LearningSummaryDay.channel_id, LearningSummaryDay.channel_name],
-            join_users=False,
-            extra_filter=build_scope_filter(LearningSummaryDay, scope, filter_value)
+            user_ids=user_ids,
+            group_fields=[LearningSummaryDay.channel_id, LearningSummaryDay.channel_name]
         )
         update_folder_duration_map(folder_duration_map, rows)
         start_dt = summary_end_date + datetime.timedelta(days=1)
@@ -206,19 +185,9 @@ def add_summary_day_date(start_dt, end_dt, folder_duration_map, scope, filter_va
         ).filter(
             ContentViewingHistory.start_time >= utc_start_dt,
             ContentViewingHistory.end_time <= utc_end_dt,
+            ContentViewingHistory.user_id.in_(user_ids)
         )
-        
-        if scope == 'company' and filter_value:
-            query = query.filter(Users.company == filter_value)
-        elif scope == 'department' and filter_value:
-            parts = filter_value.split('||', 1)
-            if len(parts) == 2:
-                query = query.filter(Users.company == parts[0], Users.department == parts[1])
-            else:
-                query = query.filter(Users.company == parts[0])
-        elif scope == 'user' and filter_value:
-            query = query.filter(Users.id == filter_value)
-             
+           
         query = query.group_by(Channel.id, Channel.name)
         
         # logging.debug(f"[add_summary_day_date] {query.statement.compile(compile_kwargs={"literal_binds": True})}")
@@ -243,10 +212,8 @@ def add_summary_day_date_by_users(user_ids, start_dt, end_dt, folder_duration_by
         rows = get_learning_summary_rows_day(
             start_date=start_dt,
             end_date=summary_end_date,
-            scope='user',
-            group_fields=[LearningSummaryDay.user_id, LearningSummaryDay.channel_id, LearningSummaryDay.channel_name],
-            join_users=False,
-            extra_filter=[LearningSummaryDay.user_id.in_(user_ids)]
+            user_ids=user_ids,
+            group_fields=[LearningSummaryDay.user_id, LearningSummaryDay.channel_id, LearningSummaryDay.channel_name]
         )
         for row in rows:
             d = folder_duration_by_user[row.user_id][row.channel_id]                      
@@ -283,7 +250,7 @@ def add_summary_day_date_by_users(user_ids, start_dt, end_dt, folder_duration_by
         ).filter(
             ContentViewingHistory.start_time >= utc_start_dt,
             ContentViewingHistory.end_time <= utc_end_dt,
-            Users.id.in_(user_ids)
+            ContentViewingHistory.user_id.in_(user_ids)
         )
         
         query = query.group_by(ContentViewingHistory.user_id, Channel.id, Channel.name)
@@ -293,20 +260,14 @@ def add_summary_day_date_by_users(user_ids, start_dt, end_dt, folder_duration_by
             d = folder_duration_by_user[row.user_id][row.channel_id]                      
             folder_duration_by_user[row.user_id][row.channel_id] = (d[0], d[1] + row.total)          
         
-def get_learning_summary_rows_day(start_date, end_date, scope, group_fields, join_users=True, extra_filter=None):
+def get_learning_summary_rows_day(start_date, end_date, user_ids, group_fields):
     query = db.session.query(*group_fields, func.sum(LearningSummaryDay.total_duration).label('total'))
     
-    if join_users:
-        query = query.join(Users, Users.id == LearningSummaryDay.user_id_key)
-
     query = query.filter(
             LearningSummaryDay.stat_date >= start_date,
             LearningSummaryDay.stat_date <= end_date,
-            LearningSummaryDay.scope == scope
+            LearningSummaryDay.user_id.in_(user_ids)
         )
-    
-    if extra_filter is not None:
-        query = query.filter(*extra_filter)
         
     query = query.group_by(*group_fields)
     

@@ -150,6 +150,9 @@ def get_statistics_user_data(period_type, period_value, filter_value):
     return query_combined
 
 def row_to_dict(row, file_type, local_tz):
+    channel = re.sub(r'^\d+_', '', row.channel_name)
+    folder = re.sub(r'^\d+_', '', row.folder_name)
+    filename = re.sub(r'^\d+_|(\.[^./\\]+$)', '', row.file_name)
     return {
         'company': row.company,
         'department': row.department,
@@ -159,7 +162,7 @@ def row_to_dict(row, file_type, local_tz):
         'folder_name': row.folder_name,
         'file_name': row.file_name,
         'detail_name': row.detail_name if file_type == 'detail' else None,
-        'full_name': f"{re.sub(r'^\d+_', '', row.channel_name)} - {re.sub(r'^\d+_', '', row.folder_name)} - {re.sub(r'^\d+_|(\.[^./\\]+$)', '', row.file_name)}",
+        'full_name': f"{channel} - {folder} - {filename}",
         'memo_count': row.memo_count if file_type == 'page' else 0,
         'start_time': row.start_time.astimezone(local_tz).strftime('%Y-%m-%d %H:%M:%S'),
         'end_time': row.end_time.astimezone(local_tz).strftime('%Y-%m-%d %H:%M:%S'),

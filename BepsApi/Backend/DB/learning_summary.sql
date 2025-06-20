@@ -69,7 +69,7 @@ BEGIN
         period_type, period_value, company_id, company, department_id, department, user_id, user_name, channel_id, channel_name, total_duration
     )
     SELECT
-        'quarter', v_period_value, 'user', NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
+        'quarter', v_period_value, NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
     WHERE stat_date >= v_start AND stat_date < v_end
     GROUP BY company, department, user_id, user_name, channel_id, channel_name
