@@ -241,6 +241,13 @@ td:nth-child(even) {
                 const replyComment = ref('');
                 const currentUser = ref({});
                 const replies = ref([]);
+                
+                // Define status mapping at a higher scope to ensure it's always available
+                const statusMapping = {
+                    0: "답변대기",
+                    1: "답변완료",
+                    2: "처리완료"
+                };
 
                 const loadData = async () => {
                     // Load memo data from localStorage
@@ -387,13 +394,6 @@ td:nth-child(even) {
                         
                         const data = await response.json();
                         console.log("Memo marked as viewed successfully:", data);
-                        
-                        // Define status mapping at function scope so it's always available
-                        const statusMapping = {
-                            0: "답변대기",
-                            1: "답변완료",
-                            2: "처리완료"
-                        };
                         
                         // Update the memo status in the local data
                         if (memo.value) {
