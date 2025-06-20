@@ -9,7 +9,10 @@ async function checkLoginStatus() {
         if(response.ok){
             const data = await response.json();
             console.log("checkLoginStatus: ", data);
-            localStorage.setItem("username", data.user);    
+            localStorage.setItem("username", data.user); 
+            console.log("window.location.pathname: ", window.location.pathname);
+            console.log("window.location.href: ", window.location.href);   
+            console.log("window.location.serach: ", window.location.search);
             if(window.location.pathname.endsWith("main.html") == false)      
                 window.location.href = "main.html";           
         }

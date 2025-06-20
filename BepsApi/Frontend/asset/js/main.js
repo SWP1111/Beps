@@ -28,10 +28,23 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Showing manager admin button for role:", user_role);
     }
 
-    if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
-        loadContent("progress_admin.html");
-    else
-        loadContent("progress.html");
+    const params = new URLSearchParams(window.location.search);
+    console.log("search params: ", window.location.search);
+    const content = params.get("content");
+    if(content === "opinion") {
+        buttons.forEach(button =>{
+            button.classList.remove("active");
+            if(button.id == "opinion-button") 
+                button.classList.add("active");
+        }); 
+        loadContent("opinion.html");
+    }
+    else{
+	if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
+	    loadContent("progress_admin.html");
+    	else
+	    loadContent("progress.html");
+    }
 
     buttons.forEach(button => {
         button.addEventListener("click", () => {

@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', async() => {
     const id = params.get('id');
     const token = params.get('token');
 
+    console.log("search params: ", window.location.search);
+    console.log("id: ", id);
+    console.log("token: ", token);
     if(id && token){
         const response = await fetch(`${baseUrl}user/token_check`, {
             method: 'GET',
@@ -17,10 +20,14 @@ document.addEventListener('DOMContentLoaded', async() => {
         
         if(response.ok)
         {
+            await new Promise(r => setTimeout(r, 5000));
+
             console.log("Login From BEPs App: ", response);
             let responseUserInfo = await GetUserInfo(id);
             console.log("responseUserInfo: ", responseUserInfo);
             
+            await new Promise(r => setTimeout(r, 5000));
+
             if(responseUserInfo.success)
             {
                 localStorage.setItem("isLoggedIn", "true");
@@ -29,7 +36,8 @@ document.addEventListener('DOMContentLoaded', async() => {
                 const userInfo = responseUserInfo.data;
                 localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
 
-                window.location.href = "main.html";
+                window.location.href = "main.html?content=opinion";
+                console.log("window.location.href: ", window.location.href);
             }
 
             return;
