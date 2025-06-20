@@ -115,7 +115,7 @@ def get_user():
                     samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
                     expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
                 )
-                response.json['csrf_token'] = get_csrf_token(access_token) # CSRF 토큰 추가
+                #response.json['csrf_token'] = get_csrf_token(access_token) # CSRF 토큰 추가
             
             
             

@@ -204,13 +204,13 @@ document.addEventListener('DOMContentLoaded', async() => {
       let title = "";  
       let message = `학습진도율 ${pointValue}% 미만 학습자에게 보내는 메시지입니다.`;
         
-      const csrfToken = await getCookie();
+      //const csrfToken = await getCookie();
       const url = `${window.baseUrl}leaning/push/send`;
       const response = await fetch(url,{
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
+          //"X-CSRF-Token": csrfToken,
         },
         body: JSON.stringify({
           filter_type,
