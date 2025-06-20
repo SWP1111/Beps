@@ -20,14 +20,10 @@ document.addEventListener('DOMContentLoaded', async() => {
         
         if(response.ok)
         {
-            await new Promise(r => setTimeout(r, 5000));
-
             console.log("Login From BEPs App: ", response);
             let responseUserInfo = await GetUserInfo(id);
             console.log("responseUserInfo: ", responseUserInfo);
             
-            await new Promise(r => setTimeout(r, 5000));
-
             if(responseUserInfo.success)
             {
                 localStorage.setItem("isLoggedIn", "true");
@@ -37,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async() => {
                 localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
 
                 window.location.href = "main.html?content=opinion";
-                console.log("window.location.href: ", window.location.href);
             }
 
             return;
