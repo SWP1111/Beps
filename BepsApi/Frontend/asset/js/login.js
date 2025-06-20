@@ -1,7 +1,41 @@
 console.log("login.js");
 window.onload = checkLoginStatus;  // Check login status when page is loaded
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async() => {
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const token = params.get('token');
+
+    if(id && token){
+        const response = await fetch(`${baseUrl}user/token_check`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if(response.ok)
+        {
+            console.log("Login From BEPs App: ", response);
+            let responseUserInfo = await GetUserInfo(id);
+            console.log("responseUserInfo: ", responseUserInfo);
+            
+            if(responseUserInfo.success)
+            {
+                localStorage.setItem("isLoggedIn", "true");
+                localStorage.setItem("username", id);
+
+                const userInfo = responseUserInfo.data;
+                localStorage.setItem("loggedInUser", JSON.stringify(userInfo));
+
+                window.location.href = "main.html";
+            }
+
+            return;
+        }
+    }
+
     const loginButton = document.getElementById('login-button');    // Get login button
     if(loginButton)
     {
