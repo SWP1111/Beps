@@ -19,6 +19,16 @@ createApp({
         const searchStartDate = ref('');
         const searchEndDate = ref('');
         
+        // Sorting
+        const sortType = ref('date'); // Default sort by date
+        
+        // Period filters
+        const selectedYear = ref(new Date().getFullYear());
+        const isAnnualMode = ref(true);
+        const selectedHalfYear = ref('');
+        const selectedQuarter = ref('');
+        const availableYears = ref([]);
+        
         // URL params for file_id and folder_id
         const urlParams = new URLSearchParams(window.location.search);
         const fileId = urlParams.get('file_id');
@@ -108,6 +118,124 @@ createApp({
             }).replace(/\./g, '-');
         };
 
+        const sortMemoData = (data, type) => {
+            if (type === 'date') {
+                // Sort by registration date, latest first
+                return data.sort((a, b) => {
+                    const dateA = new Date(a.modified_at || a.created_at || 0);
+                    const dateB = new Date(b.modified_at || b.created_at || 0);
+                    return dateB - dateA; // Latest first
+                });
+            } else if (type === 'status') {
+                // Sort by status (low status number first), then by date (latest first)
+                return data.sort((a, b) => {
+                    const statusA = a.status || 0;
+                    const statusB = b.status || 0;
+                    
+                    if (statusA !== statusB) {
+                        return statusA - statusB; // Low status first
+                    }
+                    
+                    // Same status, sort by date (latest first)
+                    const dateA = new Date(a.modified_at || a.created_at || 0);
+                    const dateB = new Date(b.modified_at || b.created_at || 0);
+                    return dateB - dateA;
+                });
+            }
+            return data;
+        };
+
+        const sortByDate = () => {
+            sortType.value = 'date';
+            if (memoList.value.length > 0) {
+                memoList.value = sortMemoData([...memoList.value], 'date');
+            }
+        };
+
+        const sortByStatus = () => {
+            sortType.value = 'status';
+            if (memoList.value.length > 0) {
+                memoList.value = sortMemoData([...memoList.value], 'status');
+            }
+        };
+
+        const extractAvailableYears = (memos) => {
+            const years = new Set();
+            memos.forEach(memo => {
+                if (memo.modified_at || memo.created_at) {
+                    const date = new Date(memo.modified_at || memo.created_at);
+                    if (!isNaN(date.getTime())) {
+                        years.add(date.getFullYear());
+                    }
+                }
+            });
+            return Array.from(years).sort((a, b) => b - a); // Latest year first
+        };
+
+        const onYearChange = () => {
+            loadMemoData(1);
+        };
+
+        const onAnnualChange = () => {
+            if (isAnnualMode.value) {
+                selectedHalfYear.value = '';
+                selectedQuarter.value = '';
+            }
+            loadMemoData(1);
+        };
+
+        const onHalfYearChange = () => {
+            if (selectedHalfYear.value) {
+                isAnnualMode.value = false;
+                selectedQuarter.value = '';
+            }
+            loadMemoData(1);
+        };
+
+        const onQuarterChange = () => {
+            if (selectedQuarter.value) {
+                isAnnualMode.value = false;
+                selectedHalfYear.value = '';
+            }
+            loadMemoData(1);
+        };
+
+        const filterByPeriod = (memos) => {
+            if (!selectedYear.value) return memos;
+
+            return memos.filter(memo => {
+                const memoDate = new Date(memo.modified_at || memo.created_at);
+                if (isNaN(memoDate.getTime())) return false;
+
+                const memoYear = memoDate.getFullYear();
+                if (memoYear !== selectedYear.value) return false;
+
+                // If annual mode or no specific period selected
+                if (isAnnualMode.value || (!selectedHalfYear.value && !selectedQuarter.value)) {
+                    return true;
+                }
+
+                // Half-year filtering
+                if (selectedHalfYear.value) {
+                    const month = memoDate.getMonth() + 1; // 1-12
+                    if (selectedHalfYear.value === '1') {
+                        return month >= 1 && month <= 6; // 상반기
+                    } else if (selectedHalfYear.value === '2') {
+                        return month >= 7 && month <= 12; // 하반기
+                    }
+                }
+
+                // Quarter filtering
+                if (selectedQuarter.value) {
+                    const month = memoDate.getMonth() + 1; // 1-12
+                    const quarter = Math.ceil(month / 3);
+                    return quarter === parseInt(selectedQuarter.value);
+                }
+
+                return true;
+            });
+        };
+
         const loadCurrentUser = () => {
             try {
                 const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
@@ -176,8 +304,21 @@ createApp({
                 return response.json();
             })
             .then(data => {
+                // Extract available years from all data
+                const years = extractAvailableYears(data);
+                if (years.length > 0 && availableYears.value.length === 0) {
+                    availableYears.value = years;
+                    // Set default year to the latest year with data
+                    if (!selectedYear.value || !years.includes(selectedYear.value)) {
+                        selectedYear.value = years[0];
+                    }
+                }
+                
                 // Apply filters if any
                 let filteredData = data;
+                
+                // Apply period filter first
+                filteredData = filterByPeriod(filteredData);
                 
                 if (searchContent.value) {
                     filteredData = filteredData.filter(memo => 
@@ -397,7 +538,9 @@ createApp({
                 
                 // Process all user data requests
                 Promise.all(promises).then(updatedMemos => {
-                    memoList.value = updatedMemos;
+                    // Apply current sorting
+                    const sortedMemos = sortMemoData([...updatedMemos], sortType.value);
+                    memoList.value = sortedMemos;
                 });
             })
             .catch(error => {
@@ -527,12 +670,24 @@ createApp({
             searchStartDate,
             searchEndDate,
             currentUser,
+            sortType,
+            selectedYear,
+            isAnnualMode,
+            selectedHalfYear,
+            selectedQuarter,
+            availableYears,
             loadMemoData,
             replyToMemo,
             formatStatus,
             formatDate,
             formatMemoPath,
-            testStatusUpdate
+            testStatusUpdate,
+            sortByDate,
+            sortByStatus,
+            onYearChange,
+            onAnnualChange,
+            onHalfYearChange,
+            onQuarterChange
         };
     }
 }).mount("#app");

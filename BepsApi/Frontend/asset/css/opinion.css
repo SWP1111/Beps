@@ -1,5 +1,63 @@
 /* Additional styles for opinion.html */
 
+/* Period filter styles */
+.period-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.period-filter select {
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    min-width: 100px;
+}
+
+.period-filter select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.checkbox-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s, border-color 0.2s;
+    user-select: none;
+}
+
+.checkbox-button:hover {
+    background-color: #e9ecef;
+}
+
+.checkbox-button.active {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.checkbox-button input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-button span {
+    pointer-events: none;
+}
+
 .table-wrapper {
     overflow-x: auto;
     width: 100%;
@@ -20,6 +78,27 @@ th {
     background-color: #f2f2f2;
     position: sticky;
     top: 0;
+}
+
+/* Sorting button styles */
+.progress-filter button {
+    margin-left: 5px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.progress-filter button:hover {
+    background-color: #e9ecef;
+}
+
+.progress-filter button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
 }
 
 .status-badge {

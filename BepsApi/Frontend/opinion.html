@@ -12,12 +12,36 @@
 </head>
 <body>
     <div id="app" class="progress-container">
+        <div class="period-filter">
+            <select v-model="selectedYear" @change="onYearChange">
+                <option v-for="year in availableYears" :key="year" :value="year">{{ year }}년도</option>
+            </select>
+            <label class="checkbox-button" :class="{ active: isAnnualMode }">
+                <input type="checkbox" v-model="isAnnualMode" @change="onAnnualChange">
+                <span>연간</span>
+            </label>
+            <select v-model="selectedHalfYear" @change="onHalfYearChange">
+                <option value="">반기 선택</option>
+                <option value="1">상반기</option>
+                <option value="2">하반기</option>
+            </select>
+            <select v-model="selectedQuarter" @change="onQuarterChange">
+                <option value="">분기 선택</option>
+                <option value="1">1분기</option>
+                <option value="2">2분기</option>
+                <option value="3">3분기</option>
+                <option value="4">4분기</option>
+            </select>
+        </div>
+        
         <div class="progress-filter">
             <input type="text" id="searchContent" placeholder="내용 검색" v-model="searchContent">
             <input type="date" id="searchStartDate" v-model="searchStartDate">
             <span>~</span>
             <input type="date" id="searchEndDate" v-model="searchEndDate">
             <button @click="loadMemoData(1)">검색</button>
+            <button @click="sortByDate" :class="{ active: sortType === 'date' }">등록일순</button>
+            <button @click="sortByStatus" :class="{ active: sortType === 'status' }">처리상태순</button>
         </div>
 
         <div class="table-wrapper">
