@@ -594,6 +594,35 @@ class MemoReply(db.Model):
             'created_at': self.created_at,
             'modified_at': self.modified_at,
             'is_deleted': self.is_deleted,
-            'user': self.user.to_dict() if self.user else None
+            'user': self.user.to_dict() if self.user else None,
+            'attachments': [attachment.to_dict() for attachment in self.attachments] if hasattr(self, 'attachments') else []
+        }
+
+
+class MemoReplyAttachment(db.Model):
+    __tablename__ = 'memo_reply_attachments'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    memo_reply_id = db.Column(db.Integer, db.ForeignKey('memo_replies.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    object_key = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.BigInteger, default=0)
+    content_type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationship
+    reply = db.relationship('MemoReply', backref=db.backref('attachments', lazy=True))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'memo_reply_id': self.memo_reply_id,
+            'filename': self.filename,
+            'object_key': self.object_key,
+            'file_size': self.file_size,
+            'content_type': self.content_type,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
         }
 

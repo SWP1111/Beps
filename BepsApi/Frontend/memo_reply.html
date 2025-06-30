@@ -151,6 +151,69 @@ td:nth-child(even) {
             text-align: right;
             white-space: nowrap;
         }
+        .file-attachment-section {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-select-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .file-select-button:hover {
+            background-color: #1976D2;
+        }
+        .file-select-button .icon {
+            font-size: 14px;
+        }
+        .selected-file-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .attachment-list {
+            margin-top: 10px;
+        }
+        .attachment-item {
+            display: inline-block;
+            margin: 2px 5px;
+            padding: 4px 8px;
+            background-color: #e3f2fd;
+            border: 1px solid #2196F3;
+            border-radius: 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .attachment-item:hover {
+            background-color: #bbdefb;
+        }
+        .attachment-item .filename {
+            color: #1976D2;
+            text-decoration: none;
+        }
+        .attachment-item .delete-attachment {
+            margin-left: 5px;
+            color: #f44336;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .attachment-item .delete-attachment:hover {
+            color: #d32f2f;
+        }
+        .uploading-indicator {
+            color: #ff9800;
+            font-size: 0.9em;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -203,6 +266,14 @@ td:nth-child(even) {
                         {{ reply.content }}
                     </div>
                     <textarea v-if="reply.editing" v-model="reply.editContent" class="edit-textarea"></textarea>
+                    <!-- Attachment display -->
+                    <div class="attachment-list" v-if="reply.attachments && reply.attachments.length > 0">
+                        <div class="attachment-item" v-for="attachment in reply.attachments" :key="attachment.id">
+                            <span class="filename" @click="viewAttachment(attachment)">{{ attachment.filename }}</span>
+                            <span class="delete-attachment" v-if="currentUser.id === reply.user_id && !reply.editing" 
+                                  @click="deleteAttachment(attachment, reply)" title="첨부파일 삭제">×</span>
+                        </div>
+                    </div>
                     <div class="reply-actions" v-if="currentUser.id === reply.user_id && !reply.editing">
                         <button class="edit-button" @click="startEditing(reply)">수정</button>
                         <button class="delete-button" @click="deleteReply(reply)">삭제</button>
@@ -220,6 +291,20 @@ td:nth-child(even) {
                     <td class="user-info-cell" v-html="currentUser.name + ' ' + currentUser.position + '<br>(' + currentUser.id + ')'"></td>
                     <td>
                         <textarea v-model="replyComment" placeholder="답변을 입력하세요"></textarea>
+                        <!-- File attachment section -->
+                        <div class="file-attachment-section">
+                            <button class="file-select-button" @click="selectFile" type="button">
+                                <span class="icon">📎</span>파일 선택
+                            </button>
+                            <span class="selected-file-info" v-if="selectedFile">
+                                {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
+                            </span>
+                            <span class="uploading-indicator" v-if="uploadingFile">
+                                파일 업로드 중...
+                            </span>
+                        </div>
+                        <input type="file" ref="fileInput" @change="onFileSelected" style="display: none;" 
+                               accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.txt">
                     </td>
                 </tr>
             </table>
@@ -241,6 +326,8 @@ td:nth-child(even) {
                 const replyComment = ref('');
                 const currentUser = ref({});
                 const replies = ref([]);
+                const selectedFile = ref(null);
+                const uploadingFile = ref(false);
                 
                 // Define status mapping at a higher scope to ensure it's always available
                 const statusMapping = {
@@ -495,41 +582,59 @@ td:nth-child(even) {
                     return `${year}년 ${month}월 ${day}일\n${period} ${displayHours}:${displayMinutes}`;
                 };
 
-                const saveReply = () => {
+                const saveReply = async () => {
                     if (!replyComment.value.trim()) {
                         alert('답변 내용을 입력해주세요.');
                         return;
                     }
 
-                    // API call to save the reply
-                    const replyData = {
-                        memo_id: memo.value.id,
-                        content: replyComment.value,
-                        user_id: currentUser.value.id
-                    };
+                    try {
+                        // API call to save the reply
+                        const replyData = {
+                            memo_id: memo.value.id,
+                            content: replyComment.value,
+                            user_id: currentUser.value.id
+                        };
 
-                    fetch(`${url}memo/reply/`, {
-                        method: "POST",
-                        credentials: "include",
-                        headers: {
-                            "Accept": "application/json",
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(replyData)
-                    })
-                    .then(response => {
+                        const response = await fetch(`${url}memo/reply/`, {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(replyData)
+                        });
+
                         if (!response.ok) {
                             throw new Error('Failed to save reply');
                         }
-                        return response.json();
-                    })
-                    .then(data => {
-                        // Add the new reply to the list
+
+                        const data = await response.json();
+                        console.log('Reply saved:', data);
+
+                        // Upload attachment if selected
+                        if (selectedFile.value) {
+                            console.log('Uploading attachment for reply:', data.id);
+                            const attachment = await uploadAttachment(data.id);
+                            if (attachment) {
+                                console.log('Attachment uploaded successfully:', attachment.filename);
+                            }
+                        }
+
+                        // Clear form
                         replyComment.value = '';
+                        selectedFile.value = null;
+                        // Clear file input
+                        const fileInput = document.querySelector('input[type="file"]');
+                        if (fileInput) {
+                            fileInput.value = '';
+                        }
+
+                        // Refresh replies list
                         fetchReplies(memo.value.id);
                         
                         // Update memo status to 1 (답변완료) since a reply was added
-                        
                         if (memo.value) {
                             memo.value.status = 1;
                             memo.value.status_text = "답변완료";
@@ -564,11 +669,11 @@ td:nth-child(even) {
                         } catch (e) {
                             console.log('WebView2 message sending failed (probably not in WebView2 environment):', e);
                         }
-                    })
-                    .catch(error => {
+
+                    } catch (error) {
                         console.error("Error saving reply:", error);
                         alert('답변 저장 중 오류가 발생했습니다.');
-                    });
+                    }
                 };
 
                 const startEditing = (reply) => {
@@ -831,6 +936,176 @@ td:nth-child(even) {
                     }
                 };
 
+                // ======== FILE ATTACHMENT FUNCTIONS ========
+                const selectFile = () => {
+                    const fileInput = document.querySelector('input[type="file"]');
+                    fileInput.click();
+                };
+
+                const onFileSelected = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        // Check file size (50MB limit)
+                        if (file.size > 50 * 1024 * 1024) {
+                            alert('파일 크기가 너무 큽니다. 50MB 이하의 파일을 선택해주세요.');
+                            return;
+                        }
+                        
+                        selectedFile.value = file;
+                        console.log('File selected:', file.name, file.size, file.type);
+                    }
+                };
+
+                const formatFileSize = (bytes) => {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                const uploadAttachment = async (replyId) => {
+                    if (!selectedFile.value) {
+                        return null;
+                    }
+
+                    try {
+                        uploadingFile.value = true;
+                        console.log('Starting attachment upload for reply:', replyId);
+
+                        // 1단계: 백엔드에서 R2 업로드 URL 요청
+                        const urlResponse = await fetch(`${url}memo/reply/${replyId}/attachment/upload-url`, {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                filename: selectedFile.value.name,
+                                content_type: selectedFile.value.type,
+                                file_size: selectedFile.value.size
+                            })
+                        });
+
+                        if (!urlResponse.ok) {
+                            const errorData = await urlResponse.json();
+                            throw new Error(`업로드 URL 생성 실패: ${errorData.error || urlResponse.status}`);
+                        }
+
+                        const urlData = await urlResponse.json();
+                        console.log('Upload URL received:', urlData.upload_url);
+
+                        // 2단계: R2에 직접 업로드
+                        const uploadResponse = await fetch(urlData.upload_url, {
+                            method: 'PUT',
+                            body: selectedFile.value,
+                            headers: {
+                                'Content-Type': selectedFile.value.type
+                            }
+                        });
+
+                        if (!uploadResponse.ok) {
+                            const errorText = await uploadResponse.text();
+                            throw new Error(`R2 업로드 실패: ${uploadResponse.status} - ${errorText}`);
+                        }
+
+                        console.log('R2 upload completed');
+
+                        // 3단계: 백엔드에 업로드 완료 확인
+                        const confirmResponse = await fetch(`${url}memo/reply/${replyId}/attachment/confirm-upload`, {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                object_key: urlData.object_key,
+                                filename: selectedFile.value.name,
+                                content_type: selectedFile.value.type,
+                                file_size: selectedFile.value.size
+                            })
+                        });
+
+                        if (!confirmResponse.ok) {
+                            const errorData = await confirmResponse.json();
+                            throw new Error(`업로드 확인 실패: ${errorData.error || confirmResponse.status}`);
+                        }
+
+                        const confirmData = await confirmResponse.json();
+                        console.log('Upload confirmed:', confirmData);
+
+                        return confirmData.attachment;
+
+                    } catch (error) {
+                        console.error('Attachment upload error:', error);
+                        alert(`첨부파일 업로드 중 오류가 발생했습니다: ${error.message}`);
+                        return null;
+                    } finally {
+                        uploadingFile.value = false;
+                    }
+                };
+
+                const viewAttachment = async (attachment) => {
+                    try {
+                        console.log('Viewing attachment:', attachment.filename);
+                        
+                        const response = await fetch(`${url}memo/reply/attachment/${attachment.id}/url`, {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`첨부파일 URL 생성 실패: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        // Open in new window/tab
+                        window.open(data.signed_url, '_blank');
+                        
+                    } catch (error) {
+                        console.error('Error viewing attachment:', error);
+                        alert(`첨부파일을 열 수 없습니다: ${error.message}`);
+                    }
+                };
+
+                const deleteAttachment = async (attachment, reply) => {
+                    if (!confirm(`첨부파일 "${attachment.filename}"을 삭제하시겠습니까?`)) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${url}memo/reply/attachment/${attachment.id}`, {
+                            method: 'DELETE',
+                            credentials: 'include',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`첨부파일 삭제 실패: ${response.status}`);
+                        }
+
+                        // Remove attachment from reply attachments list
+                        const index = reply.attachments.findIndex(a => a.id === attachment.id);
+                        if (index !== -1) {
+                            reply.attachments.splice(index, 1);
+                        }
+
+                        console.log('Attachment deleted successfully');
+                        
+                    } catch (error) {
+                        console.error('Error deleting attachment:', error);
+                        alert(`첨부파일 삭제 중 오류가 발생했습니다: ${error.message}`);
+                    }
+                };
+
                 const showAppNotRunningMessage = () => {
                     alert("BEPs가 실행중이 아닙니다. BEPs를 실행한 후 다시 시도하세요.");
                 };
@@ -874,6 +1149,8 @@ td:nth-child(even) {
                     replyComment,
                     currentUser,
                     replies,
+                    selectedFile,
+                    uploadingFile,
                     saveReply,
                     cancelReply,
                     formatDate,
@@ -881,7 +1158,12 @@ td:nth-child(even) {
                     cancelEditing,
                     saveEditing,
                     deleteReply,
-                    handleGoToClick
+                    handleGoToClick,
+                    selectFile,
+                    onFileSelected,
+                    formatFileSize,
+                    viewAttachment,
+                    deleteAttachment
                 };
             }
         }).mount("#app");
