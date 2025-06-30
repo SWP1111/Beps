@@ -198,11 +198,14 @@ def get_r2_client():
         raise
 
 
-def generate_r2_signed_url(object_key, expires_in=3600, method='GET'):
+def generate_r2_signed_url(object_key, expires_in=3600, method='GET', bucket_name=None):
     """Generate a pre-signed URL for R2 object access"""
     try:
         r2_client = get_r2_client()
-        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        # Use provided bucket name or default to LFS bucket for attachments
+        if bucket_name is None:
+            bucket_name = current_app.config.get('R2_LFS_BUCKET_NAME', 'beps-lfs')
         
         if not bucket_name:
             raise ValueError("R2 bucket name not found in configuration")
@@ -246,8 +249,9 @@ def generate_attachment_object_key(reply_id, filename):
         # Sanitize filename
         safe_filename = os.path.basename(filename)
         
-        # Generate object key: beps-lfs/opinion-reply-attachment/YYYY/MM/DD/{reply-id}/{filename}
-        object_key = f"beps-lfs/opinion-reply-attachment/{year}/{month}/{day}/{reply_id}/{safe_filename}"
+        # Generate object key: opinion-reply-attachment/YYYY/MM/DD/{reply-id}/{filename}
+        # Note: bucket name is beps-lfs, so we don't include it in the object key
+        object_key = f"opinion-reply-attachment/{year}/{month}/{day}/{reply_id}/{safe_filename}"
         
         return object_key
     except Exception as e:
@@ -255,11 +259,14 @@ def generate_attachment_object_key(reply_id, filename):
         raise
 
 
-def check_r2_object_exists(object_key):
+def check_r2_object_exists(object_key, bucket_name=None):
     """Check if an object exists in R2 storage"""
     try:
         r2_client = get_r2_client()
-        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+        
+        # Use provided bucket name or default to LFS bucket for attachments
+        if bucket_name is None:
+            bucket_name = current_app.config.get('R2_LFS_BUCKET_NAME', 'beps-lfs')
         
         r2_client.head_object(Bucket=bucket_name, Key=object_key)
         return True

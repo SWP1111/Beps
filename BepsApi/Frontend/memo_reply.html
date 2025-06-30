@@ -157,6 +157,11 @@ td:nth-child(even) {
             align-items: center;
             gap: 10px;
         }
+        .file-attachment-icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
         .file-select-button {
             background-color: #2196F3;
             color: white;
@@ -165,15 +170,9 @@ td:nth-child(even) {
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
         .file-select-button:hover {
             background-color: #1976D2;
-        }
-        .file-select-button .icon {
-            font-size: 14px;
         }
         .selected-file-info {
             font-size: 0.9em;
@@ -293,8 +292,12 @@ td:nth-child(even) {
                         <textarea v-model="replyComment" placeholder="답변을 입력하세요"></textarea>
                         <!-- File attachment section -->
                         <div class="file-attachment-section">
+                            <svg class="file-attachment-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                <path d="M12,11L16,15H13.5V19H10.5V15H8L12,11Z"/>
+                            </svg>
                             <button class="file-select-button" @click="selectFile" type="button">
-                                <span class="icon">📎</span>파일 선택
+                                파일 선택
                             </button>
                             <span class="selected-file-info" v-if="selectedFile">
                                 {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
