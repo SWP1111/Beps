@@ -1,4 +1,5 @@
 import logging
+import os
 import log_config
 import decryption
 from flask import Blueprint, jsonify, request, make_response
@@ -19,8 +20,11 @@ import traceback
 from sqlalchemy import case
 import json
 from utils.user_query_utils import get_user_ids_by_scope
+from utils.swagger_loader import get_swag_from
 
 api_user_bp = Blueprint('user', __name__)
+
+yaml_folder = os.path.join(os.path.dirname(__file__), '..', 'docs', 'user')
 
 # 유효한 값인지 확인하는 함수, key가 data에 존재하고 '@' 또는 -1이 아닌 값이면 유효한 값으로 판단
 def is_valid(key, data):
@@ -28,7 +32,11 @@ def is_valid(key, data):
 
 #DB /user/db_status API 연결 상태 확인
 @api_user_bp.route('/db_status', methods=['GET'])
+@get_swag_from(yaml_folder, 'db_status.yaml')
 def check_db_status():
+    """
+    DB 연결 상태 확인 API
+    """
     try:
         logging.info(f"GET /db_status {db.engine.url}")
         db.session.execute(text('SELECT 1'))
@@ -40,6 +48,7 @@ def check_db_status():
 # GET /user/token_check API 토큰(쿠키) 유효 체크
 @api_user_bp.route('/token_check', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+@get_swag_from(yaml_folder, 'token_check.yaml')
 def check():
     current_user = get_jwt_identity()
     
@@ -61,6 +70,7 @@ def check():
 # GET /user/csrf_token API CSRF 토큰 조회
 @api_user_bp.route('/csrf_token', methods=['GET'])
 @jwt_required(locations=['cookies'])  # JWT 검증을 먼저 수행
+@get_swag_from(yaml_folder, 'csrf_token.yaml')
 def get_csrf_token_route():
     token = request.cookies.get('access_token_cookie')
     if not token:
@@ -74,6 +84,7 @@ def get_csrf_token_route():
 
 # POST /user/user API Users 테이블 Row 조회 API (로그인)
 @api_user_bp.route('/user', methods=['POST'])
+@get_swag_from(yaml_folder, 'user.yaml')
 def get_user():
     try:
         data = request.get_json() # JSON 데이터를 가져옴
@@ -81,6 +92,8 @@ def get_user():
         
         user_id = data.get('id').lower()
         id_address = data.get('ip_address')
+        descope_refreshJwt = data.get('descope_refresh_jwt', None)
+        save_refresh_jwt = data.get('save_refresh_jwt', False)
                 
         if not user_id:
             return jsonify({'error': 'Please provide id'}), 400 # 400: Bad Request
@@ -107,14 +120,25 @@ def get_user():
             
             # 웹에서는 쿠키 설정
             if any(browser in ua for browser in ['chrome', 'safari', 'edge', 'opr', 'firefox']):  #"web" in request.headers.get('User-Agent',"").lower():                        
+                from config import Config
+                env = Config.ENV == 'production' # 운영 환경인지 확인
                 response.set_cookie(
                     'access_token_cookie',     # 쿠키 이름
                     access_token,       # 쿠키 값
                     httponly=True,      # JS에서 쿠키 접근 금지
-                    secure=False,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
+                    secure=env,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
                     samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
                     expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
                 )
+                if save_refresh_jwt and descope_refreshJwt: # descope_refreshJwt가 True인 경우에 Descope Refresh JWT 쿠키 설정(토큰 저장)
+                    response.set_cookie(
+                        'descope_refresh_jwt',     # 쿠키 이름
+                        descope_refreshJwt,       # 쿠키 값
+                        httponly=True,      # JS에서 쿠키 접근 금지
+                        secure=env,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
+                        samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
+                        expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
+                    )
                 #response.json['csrf_token'] = get_csrf_token(access_token) # CSRF 토큰 추가
             
             
@@ -244,6 +268,7 @@ def upsert_user():
 # GET /user/logout API 사용자 로그아웃 API
 @api_user_bp.route('/logout', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+@get_swag_from(yaml_folder, 'logout.yaml')
 def logout():  
     try:
         user_id = get_jwt_identity()
@@ -754,6 +779,10 @@ def get_external_ips():
         if filter_type != 'all' and filter_value is None:
             return jsonify({'error': 'Please provide filter_value'}), 400
         
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 10, type=int)
+        offset = (page - 1) * page_size
+        
         start_date,end_date = summary_service.get_period_value(period_type, period_value)  # Validate period_value
         local_tz = datetime.datetime.now().astimezone().tzinfo
         utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
@@ -783,6 +812,8 @@ def get_external_ips():
                 query = query.filter(Users.department == filter_value)
                
         query = query.filter(
+            LoginHistory.ip_address.isnot(None),
+            LoginHistory.ip_address != '',
             ~exists().where(
                 cast(LoginHistory.ip_address, INET).between(
                     cast(IpRange.start_ip, INET),
@@ -791,10 +822,14 @@ def get_external_ips():
             )
         )
         
-        rows = query.distinct().all()
+        total = query.distinct().count()
+        rows = query.distinct().order_by(LoginHistory.login_time.desc()).offset(offset).limit(page_size).all()
         
         return jsonify({
-           'data': [
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'data': [
                 {
                     'user_id': row.user_id,
                     'ip_address': row.ip_address,

@@ -2,7 +2,6 @@ console.log("login.js");
 window.onload = checkLoginStatus;  // Check login status when page is loaded
 
 document.addEventListener('DOMContentLoaded', async() => {
-
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     const token = params.get('token');

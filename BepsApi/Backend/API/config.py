@@ -17,6 +17,8 @@ class Config:
     BACKUP_DIR = os.path.expanduser("~/BepsApi/DB/backup")  # 🔹 DB content_viewing_history 테이블 백업 폴더
     POINT_DURATION_SECONDS = int(os.getenv("POINT_DURATION_SECONDS", 30))  # 🔹 학습 포인트 적립 기준 시간(5분) 테스트용으로 30초
     UPLOAD_DIR = '/tmp/generated_excels'  # 엑셀 파일 저장 경로
+    ENV=os.getenv("ENV", "production")  # 🔹 현재 환경 (development, production 등)
+
     
     # 캐시 설정
     CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")  # 기본값은 SimpleCache (메모리 기반)
