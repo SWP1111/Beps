@@ -9,7 +9,7 @@ from extensions import db, jwt, cache
 from blueprints import register_blueprints
 import traceback
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from flasgger import Swagger
 
 def init_scheduler(app):
     try:
@@ -52,7 +52,38 @@ def create_app():
     register_blueprints(app)
     # 스케줄러 초기화
     scheduler = init_scheduler(app)
+    # swagger
+    if Config.ENV == "development" :
+        app.config['SWAGGER'] = {
+            'title':'BPEs API',
+            'uiversion': 3
+        }
+        swagger_config = {
+            "headers": [],
+            "specs": [
+                {
+                    "endpoint": 'apispec_1',
+                    "route": '/apispec_1.json',
+                    "rule_filter": lambda rule: True,
+                    "model_filter": lambda tag: True,
+                }
+            ],
+            "swagger_ui": True,
+            "specs_route": "/apidocs/",
+            "static_url_path": "/flasgger_static"
+        }
+        swagger_template = {
+            "swagger": "2.0",
+            "info": {
+                 "title":"BEPs API",
+                 "description": "BEPs API 문서입니다.",
+                 "version": "1.0.0",
+                 "termsOfService":""
+            }
+        }
+        swagger = Swagger(app, config=swagger_config, template=swagger_template)
     
+
     from services.ip_range_cache import initialize_ip_ranges
     with app.app_context():
         initialize_ip_ranges()

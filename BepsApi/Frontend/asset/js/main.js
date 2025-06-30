@@ -1,3 +1,4 @@
+console.log("search params: ", window.location.search);
 window.onload = checkLoginStatus;    // Check login status when page is loaded
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -136,6 +137,11 @@ function loadContent(page) {
             iframe.style.height = window.innerHeight + 'px';
             iframe.src = page;
             console.log("page: ", page);
+            iframe.onload = () => {
+                 if (window.location.search) {
+                     history.replaceState(null, "", "main.html"); // URL에서 content 파라미터 제거
+                 }
+            }
         })
         .catch(error => {
             contentArea.innerHTML = "페이지를 불러오는 중 오류가 발생했습니다.";

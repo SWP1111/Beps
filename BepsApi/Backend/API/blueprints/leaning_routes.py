@@ -19,8 +19,11 @@ from flask import session
 from sqlalchemy import distinct, func, tuple_
 from sqlalchemy.orm import aliased
 import traceback
+from utils.swagger_loader import get_swag_from
 
 api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
+
+yaml_folder = os.path.join(os.path.dirname(__file__), '..', 'docs', 'learning')
 
 #region 문자열 변환
 def serialize_row(row):
@@ -41,6 +44,7 @@ def serialize_row(row):
 
 # 🔹 GET /leaning/start API 시간 반환
 @api_leaning_bp.route('/start', methods=['GET'])
+@get_swag_from(yaml_folder, 'start.yaml')  # 🔹 GET /leaning/start API 문서화
 def start():
     try:
         start_time = datetime.datetime.now(timezone.utc).isoformat()
@@ -51,6 +55,7 @@ def start():
 # 🔹 POST /leaning/end API 기록 저장
 @api_leaning_bp.route('/end', methods=['POST']) # 🔹 POST /leaning/end API
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+@get_swag_from(yaml_folder, 'end.yaml')  # 🔹 POST /leaning/end API 문서화
 def end():
     try:
         data = request.get_json() # 🔹 JSON 데이터를 가져옴

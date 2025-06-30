@@ -236,7 +236,21 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
+  const loginExternalButton = document.getElementById("login-external-button");
+  if(loginExternalButton) {
+    loginExternalButton.addEventListener("click", async() => {
+      const params = new URLSearchParams({
+        period_value: period_value,
+        period_type: period_type,
+        filter_type: filter_type,
+        filter_value: filter_value
+      });
 
+      const url = `external_ip_list.html?${params.toString()}`;
+      window.open(url, 'ExternalIPList', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    });
+  } 
+  
   const pointer = document.getElementById("learning-pointer");
   const learningPointerContent = document.getElementById("learning-pointer-content");
   const learningPointerPercent = document.getElementById("learning-pointer-percent");

@@ -92,17 +92,17 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
 async function getFoldersWithPages(channelId) {
   // 폴더 조회
   const { rows: folders } = await dbPool.query(
-    `SELECT * FROM content_rel_folders WHERE channel_id = $1 AND is_deleted = false ORDER BY id`,
+    `SELECT * FROM content_rel_folders WHERE channel_id = $1 AND is_deleted = false ORDER BY CAST(substring(name FROM '^(\\d{3})_') AS INTEGER), name`,
     [channelId]
   );
 
   // 페이지 전체 조회
   const { rows: pages } = await dbPool.query(
-    `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY id`
+    `SELECT * FROM content_rel_pages WHERE is_deleted = false ORDER BY CAST(substring(name FROM '^(\\d{3})_') AS INTEGER), name`
   );
   
   // 폴더별로 묶기
-  const folderItems = folders.map(folder => {
+  let folderItems = folders.map(folder => {
     const pageItems = pages
       .filter(page => page.folder_id === folder.id)
       .map(page => ({ pageItem: page }));
@@ -114,6 +114,8 @@ async function getFoldersWithPages(channelId) {
       }
     };
   });
+
+  // 정렬 코드 제거됨
 
   return { folderItems };
 }

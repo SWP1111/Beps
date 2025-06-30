@@ -260,7 +260,7 @@ background-color: #f0f0f0;
     background-color: white; 
     border: none; 
     cursor: pointer;
-    visibility: hidden;
+    /* visibility: hidden; */
 }
 
 .learning-rate-area {
@@ -383,7 +383,7 @@ background-color: #f0f0f0;
     width: fit-content;
     width: 80px;
     gap: 2px;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: white;
 }
 
 .learning-pointer-percent {
