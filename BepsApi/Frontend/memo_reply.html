@@ -247,6 +247,35 @@ td:nth-child(even) {
             </tr>
         </table>
         
+        <!-- Edit Section -->
+        <div class="edit-section" v-if="isAuthor && !editMode" style="text-align: right; margin: 20px 0;">
+            <button @click="startMemoEditing" style="background-color: #2196F3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+                수정
+            </button>
+        </div>
+        
+        <div class="edit-section" v-if="isAuthor && editMode" style="margin: 20px 0;">
+            <h3 style="margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">메모 수정</h3>
+            <table style="margin-bottom: 15px;">
+                <tr>
+                    <td style="width: 80px; background-color: #f9f9f9; font-weight: bold; text-align: right;">제목</td>
+                    <td colspan="5">
+                        <input type="text" v-model="editTitle" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #f9f9f9; font-weight: bold; text-align: right; vertical-align: top; padding-top: 15px;">내용</td>
+                    <td colspan="5">
+                        <textarea v-model="editContent" style="width: 100%; height: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; box-sizing: border-box; white-space: pre-wrap;"></textarea>
+                    </td>
+                </tr>
+            </table>
+            <div style="text-align: right;">
+                <button @click="cancelMemoEditing" class="cancel-button" style="margin-right: 10px;">취소</button>
+                <button @click="saveMemoEditing" style="background-color: #4CAF50; color: white;">저장</button>
+            </div>
+        </div>
+        
         <div class="comment-section">
             <h3>COMMENT</h3>
             
@@ -331,6 +360,10 @@ td:nth-child(even) {
                 const replies = ref([]);
                 const selectedFile = ref(null);
                 const uploadingFile = ref(false);
+                const editMode = ref(false);
+                const editTitle = ref('');
+                const editContent = ref('');
+                const isAuthor = ref(false);
                 
                 // Define status mapping at a higher scope to ensure it's always available
                 const statusMapping = {
@@ -407,13 +440,14 @@ td:nth-child(even) {
                             console.log('Memo data loaded:', memo.value);
                             
                             // Robustly compare user IDs by converting both to strings
-                            const isAuthor = memo.value && String(memo.value.user_id) === String(currentUser.value.id);
+                            const isCurrentUserAuthor = memo.value && String(memo.value.user_id) === String(currentUser.value.id);
+                            isAuthor.value = isCurrentUserAuthor;
                             
-                            console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isAuthor}`);
+                            console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isCurrentUserAuthor}`);
                             console.log('[Status Check] Current memo status is:', memo.value?.status);
                             
                             // Proceed if the current user is the author
-                            if (isAuthor) {
+                            if (isCurrentUserAuthor) {
                                 console.log('✅ User is confirmed as memo author. Proceeding to check status...');
                                 await markMemoAsViewed(memo.value.id);
                             } else {
@@ -753,6 +787,67 @@ td:nth-child(even) {
                         console.error("Error deleting reply:", error);
                         alert('답변 삭제에 실패했습니다: ' + error.message);
                     });
+                };
+
+                const startMemoEditing = () => {
+                    editTitle.value = memo.value.title || '';
+                    editContent.value = memo.value.content || '';
+                    editMode.value = true;
+                };
+
+                const cancelMemoEditing = () => {
+                    editMode.value = false;
+                    editTitle.value = '';
+                    editContent.value = '';
+                };
+
+                const saveMemoEditing = async () => {
+                    if (!editTitle.value.trim()) {
+                        alert('제목을 입력해주세요.');
+                        return;
+                    }
+                    
+                    if (!editContent.value.trim()) {
+                        alert('내용을 입력해주세요.');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${url}memo/${memo.value.id}`, {
+                            method: "PUT",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                title: editTitle.value,
+                                content: editContent.value
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to update memo');
+                        }
+
+                        const data = await response.json();
+                        
+                        // Update the memo data
+                        memo.value.title = editTitle.value;
+                        memo.value.content = editContent.value;
+                        memo.value.modified_at = data.modified_at;
+                        
+                        // Exit edit mode
+                        editMode.value = false;
+                        editTitle.value = '';
+                        editContent.value = '';
+                        
+                        console.log('Memo updated successfully:', data);
+                        
+                    } catch (error) {
+                        console.error("Error updating memo:", error);
+                        alert('메모 수정 중 오류가 발생했습니다: ' + error.message);
+                    }
                 };
 
                 const setupWebSocket = () => {
@@ -1154,6 +1249,10 @@ td:nth-child(even) {
                     replies,
                     selectedFile,
                     uploadingFile,
+                    editMode,
+                    editTitle,
+                    editContent,
+                    isAuthor,
                     saveReply,
                     cancelReply,
                     formatDate,
@@ -1161,6 +1260,9 @@ td:nth-child(even) {
                     cancelEditing,
                     saveEditing,
                     deleteReply,
+                    startMemoEditing,
+                    cancelMemoEditing,
+                    saveMemoEditing,
                     handleGoToClick,
                     selectFile,
                     onFileSelected,
