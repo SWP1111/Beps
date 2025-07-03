@@ -1,34 +1,231 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BEPs 관리</title>
-    <link rel="stylesheet" href="asset/css/login.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="asset/js/config.js"></script>
-    <script src="asset/js/verifyCookie.js"></script>
-    <script src="asset/js/cryptoUtils.js"></script>
-    <script defer src="asset/js/login.js"></script>
+  <meta charset="UTF-8" />
+  <title>Descope Login Example</title>
+
+  <style>
+    .login-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh; /* 전체 화면 기준 가운데 정렬 */
+    }
+
+    .login-container {
+      width: 400px;
+      margin: 0 auto;
+    }
+  </style>
+  
+  <!-- Descope SDK & Web Component -->
+  <script src="https://descopecdn.com/npm/@descope/web-js-sdk@1.16.0/dist/index.umd.js"></script>
+  <script src="https://descopecdn.com/npm/@descope/web-component@3.21.0/dist/index.js"></script>
+  <script src="/asset/js/config.js"></script>
+  <script src="/asset/js/verifyCookie.js"></script>
 </head>
+
 <body>
-    <body>
-        <div class="container">
-            <h1><span>Welcome to</span><br><strong>B.E.Ps</strong></h1>
-            <form id="loginForm">
-                <div class="input-group">
-                    <button class="input-label">I'm</button>
-                    <input type="text" class="input" id="username" placeholder="아이디" autocomplete="username">
-                    <span class="icon">👤</span>
-                </div>
-                <div class="input-group">
-                    <button class="input-label">Key</button>
-                    <input type="password" class="input" id="password" placeholder="비밀번호" autocomplete="current-password">
-                    <span class="icon">🔒</span>
-                </div>
-                <button type="submit" id="login-button" class="login-button">로그인</button>
-            </form>
-        </div>
-    </body>
+  <!-- 로그인 UI -->
+   <div class="login-wrapper">
+      <div class="login-container">
+        <descope-wc 
+          project-id="P2wON5fy1K6kyia269VpeIzYP8oP" 
+          flow-id="sign-up-with-password-for-beps"
+          base-url="https://api.descope.com">
+        </descope-wc>
+    </div>  
+   </div>
+
+  <script>
+    const wcElement = document.querySelector('descope-wc');
+
+    const sdk = Descope({
+        projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
+        baseUrl: 'https://api.descope.com',
+        persistTokens: true,
+        autoRefresh: true,
+      });
+
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const token = params.get('token');
+      const refreshToken = params.get('refreshJwt');
+
+      if(params.size > 0) { // URL에 파라미터가 있는 경우 - 체크해서 로그인 SKIP
+        if(id && token && refreshToken) {
+          if(await GetUserInfoByRefreshJWT(refreshToken)){
+            window.location.href = "/main.html?content=opinion";
+          }
+        }
+      }
+      else {  // URL에 파라미터가 없는 경우 - 로그인 체크
+        const getRefreshJwt = sdk.getRefreshToken();
+        if(getRefreshJwt)
+        {
+          if(await GetUserInfoByRefreshJWT(getRefreshJwt))
+            window.location.href = "/main.html";
+        }
+      }
+    })();
+   
+    wcElement.addEventListener('success', async (e) => {
+      //const sessionToken = sdk.getSessionToken();
+      //refreshToken = sdk.getRefreshToken();
+      //output.textContent = "✅ 로그인 성공!\n\n세션 토큰:\n" + sessionToken +"\n리프레시 토큰:\n"+refreshToken;
+      
+      if(e.detail === null) // sessionToken == "" && refreshToken == "")
+      {
+        window.location.reload();
+        return;
+      }
+       
+      const {sessionJwt, refreshJwt, user} = e.detail;
+
+      const authUserInfo = await AuthUserInfo(user.customAttributes.familyUniqueKey, refreshJwt);
+        if(authUserInfo.success)
+        {
+          localStorage.setItem("isLoggedIn", "true");
+          localStorage.setItem("username", user.name);
+          localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+          
+          window.location.href = "/main.html";
+        }
+      
+      //Descope API를 사용해서 사용자 정보 조회
+      //fetch('http://172.16.10.191:20000/user/descope/get_user_info', {
+      //  method: 'GET',
+      //  headers: {
+      //    'X-Descope-Refresh-Token': refreshToken
+      //  }
+      //})
+      //.then(res => res.json())
+      //.then(async data => {
+      //  output.textContent += "\n\n사용자 정보:\n" + JSON.stringify(data, null, 2);
+      //  const authUserInfo = await AuthUserInfo(data.customAttributes.familyUniqueKey, refreshToken);
+      //  if(authUserInfo.success)
+      //  {
+      //    output.textContent += "\n\n인증된 사용자 정보:\n" + JSON.stringify(authUserInfo.data, null, 2);
+      //
+      //    localStorage.setItem("isLoggedIn", "true");
+      //    localStorage.setItem("username", data.name);
+      //    localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+      //    
+      //    window.location.href = "/main.html";
+      //  }
+      //  else
+      //  {
+      //    output.textContent += "\n\n인증된 사용자 정보 없음";
+      //  }
+      //});
+
+      //fetch('https://api.descope.com/v1/auth/me', {
+      //  headers: {Authorization: `Bearer P2wON5fy1K6kyia269VpeIzYP8oP:${refreshToken}`}
+      //}).then(res => res.json())
+      //.then(userInfo => output.textContent += "\n\n사용자 정보:\n" + JSON.stringify(userInfo, null, 2));
+    });
+
+    wcElement.addEventListener('error', (err) => {
+      output.textContent = "❌ 로그인 실패:\n" + JSON.stringify(err);
+    });
+
+    async function checkValidateToken(token) {
+      try{
+        const response = await fetch('https://api.descope.com/v1/auth/validate', {
+          method: 'POST',
+          headers: { Authorization: `Bearer P2wON5fy1K6kyia269VpeIzYP8oP:${token}` }
+        });
+
+        if(!response.ok) {
+          throw new Error("토큰 검증 실패");
+        }
+
+        const data = await response.json();
+        return true; // 토큰이 유효함
+      }
+      catch (error) {
+        return false; // 토큰이 유효하지 않음
+      }
+    }
+
+    async function AuthUserInfo(id, refreshToken) {
+      const url = `${window.baseUrl}user/user`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: id,
+          descope_refresh_jwt: refreshToken,
+          save_refresh_jwt: true
+        })
+      });
+
+      const responseJson = await response.json();
+      if(response.ok)
+      {
+        return {success: true, data: responseJson}
+      }
+      else
+      {
+        return {success: false, message: "사용자 없음"}
+      }
+    }
+ 
+    async function GetUserInfoByRefreshJWT(refreshToken){
+      const url = `${window.baseUrl}user/descope/get_user_info`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-Descope-Refresh-Token": refreshToken
+        }
+      });
+
+      const data = await response.json();  
+      if(response.ok)
+      {
+        const authUserInfo = await AuthUserInfo(data.customAttributes.familyUniqueKey, refreshToken);
+
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("username", data.name);
+        localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+
+        return true; // 사용자 정보 조회 성공
+      }
+      
+      return false; // 사용자 정보 조회 실패
+    }
+
+
+    //logoutBtn.addEventListener('click', async() => {
+    //  try{
+    //    
+    //    await checkValidateToken(refreshToken); // 로그아웃 전 토큰 검증
+    //
+    //    const logoutResponse = await fetch('https://api.descope.com/v1/auth/logout', {
+    //      method: 'POST',
+    //      headers: {
+    //        Authorization: `Bearer P2wON5fy1K6kyia269VpeIzYP8oP:${refreshToken}`
+    //      }
+    //    });
+    //
+    //    if(logoutResponse.ok) {
+    //      output.textContent = "✅ 로그아웃 성공!";
+    //      logoutBtn.style.display = 'none';
+    //
+    //      await checkValidateToken(refreshToken); // 로그아웃 후 토큰 검증
+    //    } 
+    //    else 
+    //    {
+    //      throw new Error("로그아웃 실패");
+    //    }
+    //  }
+    //  catch (error) {
+    //    output.textContent = "❌ 로그아웃 실패:\n" + error;
+    //  }
+    //})
+  </script>
 </body>
 </html>
