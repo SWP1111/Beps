@@ -21,6 +21,7 @@
   <!-- Descope SDK & Web Component -->
   <script src="https://descopecdn.com/npm/@descope/web-js-sdk@1.16.0/dist/index.umd.js"></script>
   <script src="https://descopecdn.com/npm/@descope/web-component@3.21.0/dist/index.js"></script>
+  <script src="/asset/js/config.js"></script>
 </head>
 
 <body>
@@ -29,7 +30,7 @@
       <div class="login-container">
         <descope-wc 
           project-id="P2wON5fy1K6kyia269VpeIzYP8oP" 
-          flow-id="sign-up-with-password-standard"
+          flow-id="sign-up-with-password-for-beps"
           base-url="https://api.descope.com">
         </descope-wc>
 
@@ -58,6 +59,12 @@
       const sessionToken = sdk.getSessionToken();
       refreshToken = sdk.getRefreshToken();
       output.textContent = "✅ 로그인 성공!\n\n세션 토큰:\n" + sessionToken +"\n리프레시 토큰:\n"+refreshToken;
+      
+      if(sessionToken == "" && refreshToken == "")
+      {
+        window.location.reload();
+        return;
+      }
 
       logoutBtn.style.display = 'block';
 
@@ -67,8 +74,23 @@
           'X-Descope-Refresh-Token': refreshToken
         }
       }).then(res => res.json())
-      .then(data => {
+      .then(async data => {
         output.textContent += "\n\n사용자 정보:\n" + JSON.stringify(data, null, 2);
+        const authUserInfo = await AuthUserInfo(data.customAttributes.familyUniqueKey, refreshToken);
+        if(authUserInfo.success)
+        {
+          output.textContent += "\n\n인증된 사용자 정보:\n" + JSON.stringify(authUserInfo.data, null, 2);
+
+          localStorage.setItem("isLoggedIn", "true");
+          localStorage.setItem("username", data.name);
+          localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+          
+          window.location.href = "/main.html";
+        }
+        else
+        {
+          output.textContent += "\n\n인증된 사용자 정보 없음";
+        }
       });
 
       //fetch('https://api.descope.com/v1/auth/me', {
@@ -79,6 +101,10 @@
 
     wcElement.addEventListener('error', (err) => {
       output.textContent = "❌ 로그인 실패:\n" + JSON.stringify(err);
+    });
+
+    wcElement.addEventListener('flowUpdate', (e) => {
+      console.log(e.detail);
     });
 
     logoutBtn.addEventListener('click', async() => {
@@ -128,6 +154,30 @@
       }
     }
 
+    async function AuthUserInfo(id, refreshToken) {
+      const url = `${window.baseUrl}user/user`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: id,
+          descope_refresh_jwt: refreshToken,
+          save_refresh_jwt: true
+        })
+      });
+
+      const responseJson = await response.json();
+      if(response.ok)
+      {
+        return {success: true, data: responseJson}
+      }
+      else
+      {
+        return {success: false, message: "사용자 없음"}
+      }
+    }
   </script>
 </body>
 </html>

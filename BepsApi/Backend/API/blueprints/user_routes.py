@@ -53,13 +53,15 @@ def check():
     current_user = get_jwt_identity()
     
     if current_user:
+        from config import Config
+        env = Config.ENV == 'production' # 운영 환경인지 확인
         response = jsonify({"success": True, "user": current_user})
         access_token = create_access_token(identity=current_user, expires_delta=datetime.timedelta(days=1))
         response.set_cookie(
             'access_token_cookie',     # 쿠키 이름
             access_token,       # 쿠키 값
             httponly=True,      # JS에서 쿠키 접근 금지
-            secure=False,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
+            secure=env,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
             samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
             expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
         )
@@ -93,10 +95,18 @@ def get_user():
         user_id = data.get('id').lower()
         id_address = data.get('ip_address')
         descope_refreshJwt = data.get('descope_refresh_jwt', None)
-        save_refresh_jwt = data.get('save_refresh_jwt', False)
                 
         if not user_id:
             return jsonify({'error': 'Please provide id'}), 400 # 400: Bad Request
+        if not descope_refreshJwt:
+            return jsonify({'error': 'Please provide descope_refresh_jwt'}), 400
+        
+        descope_header = {
+            'Authorization': f'Bearer P2wON5fy1K6kyia269VpeIzYP8oP:{descope_refreshJwt}' # Descope 프로젝트 ID와 Refresh JWT를 사용하여 인증
+        }
+        descope_response = requests.post('https://api.descope.com/v1/auth/validate', headers=descope_header)
+        if descope_response.status_code != 200:
+            return jsonify({'error': 'Invalid descope_refresh_jwt'}), 401 # 401: Unauthorized
         
         user = Users.query.filter_by(id=user_id).first()
         
@@ -130,18 +140,7 @@ def get_user():
                     samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
                     expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
                 )
-                if save_refresh_jwt and descope_refreshJwt: # descope_refreshJwt가 True인 경우에 Descope Refresh JWT 쿠키 설정(토큰 저장)
-                    response.set_cookie(
-                        'descope_refresh_jwt',     # 쿠키 이름
-                        descope_refreshJwt,       # 쿠키 값
-                        httponly=True,      # JS에서 쿠키 접근 금지
-                        secure=env,       # HTTPS에서만 쿠키 전송(False: HTTP에서도 전송)
-                        samesite='Lax',      # SameSite 설정(Lax: 외부 도메인으로는 쿠키 전송 안 함)
-                        expires=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)) # 1일 유효
-                    )
                 #response.json['csrf_token'] = get_csrf_token(access_token) # CSRF 토큰 추가
-            
-            
             
             return response
         else:

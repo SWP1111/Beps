@@ -117,6 +117,15 @@ async function logout(){
             cookie.replace(/^ +/, "").replace(/=.*/, `=;expires=Thu, 01 Jun 1970 00:00:00 GMP; path=/`);
         });
 
+        //descope SDK 로그아웃
+        const sdk = Descope({
+            projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
+            baseUrl: 'https://api.descope.com',
+            persistTokens: true,
+            autoRefresh: true,
+        });
+        await sdk.logout();
+
         // 로그인 페이지로 이동
         window.location.href = "login.html";
 
