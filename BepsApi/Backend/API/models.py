@@ -8,12 +8,14 @@ class Roles(db.Model):
     role_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     role_name = db.Column(db.Text)
     time_stamp = db.Column(db.BigInteger)
+    description = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
         return {
             'role_id': self.role_id,
             'role_name': self.role_name,
-            'time_stamp': self.time_stamp
+            'time_stamp': self.time_stamp,
+            'description': self.description
         }
 
 class ContentAccessGroups(db.Model):
