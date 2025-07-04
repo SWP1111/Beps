@@ -32,7 +32,8 @@
         <descope-wc 
           project-id="P2wON5fy1K6kyia269VpeIzYP8oP" 
           flow-id="sign-up-with-password-for-beps"
-          base-url="https://api.descope.com">
+          base-url="https://api.descope.com"></descope-wc>
+          <!-- form='{"email":"user@example.com"}' --> <!-- 초기값 설정 가능하네?-->
         </descope-wc>
     </div>  
    </div>
@@ -55,7 +56,7 @@
 
       if(params.size > 0) { // URL에 파라미터가 있는 경우 - 체크해서 로그인 SKIP
         if(id && token && refreshToken) {
-          if(await GetUserInfoByRefreshJWT(refreshToken)){
+          if(await GetUserInfoByRefreshJWT(id, refreshToken)){
             window.location.href = "/main.html?content=opinion";
           }
         }
@@ -174,28 +175,19 @@
       }
     }
  
-    async function GetUserInfoByRefreshJWT(refreshToken){
-      const url = `${window.baseUrl}user/descope/get_user_info`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "X-Descope-Refresh-Token": refreshToken
-        }
-      });
+    async function GetUserInfoByRefreshJWT(id, refreshToken){
+      
+      const authUserInfo = await AuthUserInfo(id, refreshToken);
 
-      const data = await response.json();  
-      if(response.ok)
+      if(authUserInfo.success == true)
       {
-        const authUserInfo = await AuthUserInfo(data.customAttributes.familyUniqueKey, refreshToken);
-
         localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("username", data.name);
+        localStorage.setItem("username", authUserInfo.data.user.name);
         localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
-
         return true; // 사용자 정보 조회 성공
       }
-      
-      return false; // 사용자 정보 조회 실패
+      else 
+        return false; // 사용자 정보 조회 실패
     }
 
 

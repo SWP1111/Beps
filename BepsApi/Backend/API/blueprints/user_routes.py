@@ -151,6 +151,7 @@ def get_user():
 # GET /user/user_info API Users 테이블 Row 조회 API (사용자 정보 조회)_인증된 사용자용
 @api_user_bp.route('/user_info', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
+@get_swag_from(yaml_folder, 'user_info.yaml')
 def get_user_info():
     try:
         user_id = request.args.get('id').lower()
@@ -170,6 +171,7 @@ def get_user_info():
 
 # GET /user/user_auth_time API User 테이블의 특정 사용자의 인증 시간 조회
 @api_user_bp.route('/user_auth_time', methods=['GET'])
+@get_swag_from(yaml_folder, 'user_auth_time.yaml')
 def get_user_auth_time():
     try:
         user_id = request.args.get('id').lower()
@@ -223,6 +225,7 @@ def verify_user():
      
 # POST /user/update_user API Users 테이블 Row Insert/Update API
 @api_user_bp.route('/update_user', methods=['POST'])
+@get_swag_from(yaml_folder, 'update_user.yaml')
 def upsert_user():
     try:
         data = request.get_json() # JSON 데이터를 가져옴
@@ -311,6 +314,7 @@ def logout():
           
 # GET /user/roles API Roles 테이블 조회
 @api_user_bp.route('/roles', methods=['GET'])
+@get_swag_from(yaml_folder, 'roles.yaml')
 def get_roles():
     try:
         roles = Roles.query.all()

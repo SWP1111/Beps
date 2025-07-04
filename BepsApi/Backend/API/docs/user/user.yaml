@@ -22,8 +22,7 @@ description: |
     body: JSON.stringify({
       id: 'user_id',
       ip_address: 'user_ip_address',
-      descope_refresh_jwt: 'refreshJWT',
-      save_refresh_jwt: false
+      descope_refresh_jwt: 'refreshJWT'
     })
   });
   ```
