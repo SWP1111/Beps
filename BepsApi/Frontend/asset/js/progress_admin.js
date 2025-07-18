@@ -15,6 +15,43 @@ document.addEventListener('DOMContentLoaded', async() => {
   let filter_type = "all";
   let filter_value = "all";
 
+  let loginUserRank;
+  let loginDepartmentRank;
+  let loginCompanyRank;
+  let loginRankType = "top"; // 초기값은 top으로 설정
+
+  const completionHorus = document.getElementById("completion-hours");
+  const completionMH = document.getElementById("completion-mh");
+  const completionZero = document.getElementById("completion-zero");
+  const completionTotalPages = document.getElementsByClassName("completion-total-pages");
+  const completionRateElement = document.getElementById("completion-rate");
+  const completionLearnedAvgPages = document.getElementById("completion-learned-avg-pages");
+
+  const loginRankPrev = document.getElementById("login-rank-prev");
+  const loginRankNext = document.getElementById("login-rank-next");
+  const loginRankTitile = document.getElementById("login-rank-title");
+
+  const loginRankTopFirst = document.getElementById("login-rank-top-first");
+  const loginRankTopSecond = document.getElementById("login-rank-top-second");
+  const loginRankTopThird = document.getElementById("login-rank-top-third");
+
+  const exportBtn = document.getElementById("export-button");
+  const pushMessageButton = document.getElementById("push-message-button");
+  const loginExternalButton = document.getElementById("login-external-button");
+
+  const pointer = document.getElementById("learning-pointer");
+  const learningPointerContent = document.getElementById("learning-pointer-content");
+  const learningPointerPercent = document.getElementById("learning-pointer-percent");
+  const MAX_LEFT = learningPointerContent.offsetWidth; 
+
+  const typeAllDiv = document.getElementById("type-all-div");
+  const typeDepartmentDiv = document.getElementById("type-department-div");
+  const typeUserDiv = document.getElementById("type-user-div");
+  const departmentSpan = document.getElementById("department-span");
+  const userSpan = document.getElementById("user-span");
+  const userPointSpan = document.getElementById("user-point-span");
+  const unitAvgSpan = document.querySelectorAll(".unit-avg-span");
+
   //기간 설정 Init
   initPeriod();
 
@@ -61,19 +98,6 @@ document.addEventListener('DOMContentLoaded', async() => {
   }
 
   getUpdatedContentsRank();
-
-  let loginUserRank;
-  let loginDepartmentRank;
-  let loginCompanyRank;
-  let loginRankType = "top"; // 초기값은 top으로 설정
-
-  const loginRankPrev = document.getElementById("login-rank-prev");
-  const loginRankNext = document.getElementById("login-rank-next");
-  const loginRankTitile = document.getElementById("login-rank-title");
-
-  const loginRankTopFirst = document.getElementById("login-rank-top-first");
-  const loginRankTopSecond = document.getElementById("login-rank-top-second");
-  const loginRankTopThird = document.getElementById("login-rank-top-third");
 
   if(loginRankPrev) {
     loginRankPrev.addEventListener("click", () => {
@@ -191,12 +215,10 @@ document.addEventListener('DOMContentLoaded', async() => {
   }, 60*60*1000); // 1시간마다 업데이트
 
 
-  const exportBtn = document.getElementById("export-button");
   exportBtn.addEventListener("click", () => {
     getStatisticsPreview();
   });
 
-  const pushMessageButton = document.getElementById("push-message-button");
   if(pushMessageButton) {
     pushMessageButton.addEventListener("click", async() => {
       const pointValue = learningPointerPercent.value;
@@ -224,6 +246,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       console.log(data);
   });
   }
+
   async function getCookie() {
     const url = `${window.baseUrl}user/csrf_token`;
     const response =  await fetch(url)
@@ -236,7 +259,6 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
-  const loginExternalButton = document.getElementById("login-external-button");
   if(loginExternalButton) {
     loginExternalButton.addEventListener("click", async() => {
       const params = new URLSearchParams({
@@ -251,10 +273,6 @@ document.addEventListener('DOMContentLoaded', async() => {
     });
   } 
   
-  const pointer = document.getElementById("learning-pointer");
-  const learningPointerContent = document.getElementById("learning-pointer-content");
-  const learningPointerPercent = document.getElementById("learning-pointer-percent");
-  const MAX_LEFT = learningPointerContent.offsetWidth; 
   if(pointer) {
     let isDragging = false;
     let startX;
@@ -265,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     });
 
     pointer.addEventListener("mousedown", (e) => {
+      if(filter_type !== "all") return; // 전체가 아닐 경우 드래그 비활성화
       isDragging = true;
       startX = e.clientX;
       startLeft = pointer.offsetLeft;
@@ -339,6 +358,38 @@ document.addEventListener('DOMContentLoaded', async() => {
     filter_type = type;
     filter_value = (type === "user") ? user.userId : (type === "department") ? `${company}||${department}` : company;
     setLoginData(period_type, period_value, filter_type, filter_value);
+
+    typeAllDiv.style.display = "none";
+    typeDepartmentDiv.style.display = "none";
+    typeUserDiv.style.display = "none";
+
+    if(filter_type === "all") {
+      typeAllDiv.style.display = "block";
+      learningPointerPercent.style.color = "blue";
+      learningPointerPercent.style.borderBottom = "2px solid blue";
+    }
+    else if(filter_type === "company" || filter_type === "department") {
+      typeDepartmentDiv.style.display = "block";
+      if(filter_type === "company")
+      {
+        departmentSpan.textContent = `${company}`;
+        departmentSpan.title = `${company}`;
+      }
+      else if(filter_type === "department")
+      {
+        departmentSpan.textContent = `${department}`;
+        departmentSpan.title = `${department}`;
+      }
+      learningPointerPercent.style.color = "#285B4A";
+      learningPointerPercent.style.borderBottom = "none";
+    }
+    else if(filter_type === "user") {
+      typeUserDiv.style.display = "block";
+      userSpan.textContent = `${user.userName}`;
+      userPointSpan.textContent = `${user.position}`;
+      learningPointerPercent.style.color = "#285B4A";
+      learningPointerPercent.style.borderBottom = "none";
+    }
 
     // getTotalPoint();
     //getRankPoint();
@@ -610,38 +661,29 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
-  
-  const completionHorus = document.getElementById("completion-hours");
-  const completionMH = document.getElementById("completion-mh");
-  const completionZero = document.getElementById("completion-zero");
-  const completionTotalPages = document.getElementsByClassName("completion-total-pages");
-  const completionRateElement = document.getElementById("completion-rate");
-  const completionLearnedAvgPages = document.getElementById("completion-learned-avg-pages");
-
-  async function getCompletionRate() {
+  async function callGetCompletionRateAPI(filtertype="all") {
     let url = `${window.baseUrl}leaning/completion-rate?period_value=${period_value}`;
     if(period_type != null)
       url += `&period_type=${period_type}`;
-    if(filter_type != null)
-      url += `&filter_type=${filter_type}`;
+    if(filtertype != null)
+      url += `&filter_type=${filtertype}`;
     if(filter_value != null)
       url += `&filter_value=${encodeURIComponent(filter_value)}`;
 
     const response = await fetch(url);
-    const data = await response.json();
+    return response;
+  }
+
+  async function getCompletionRate() {
+    let isAll = false;
+
+    if(filter_type === "all")
+      isAll = true;
+
+    let response = await callGetCompletionRateAPI();
+    let data = await response.json();
     if(response.ok)
-    {
-
-      //const completionTimes = formatMinutesToTime(data.total_pages * data.completion_threshold_minutes);
-
-      // completionHorus.textContent = `${completionTimes.hours}시간`;
-      // completionMH.textContent = `${completionTimes.minutes}분 ${completionTimes.seconds}초`;
-      //completionZero.textContent = `0 / ${data.total_pages}`;
-
-      //const completionRateTimes = formatMinutesToTime(data.total_pages * data.completion_threshold_minutes * (data.completion_rate / 100));
-      //completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br> (${completionRateTimes.hours}시간 ${completionRateTimes.minutes}분 ${completionRateTimes.seconds}초)`;
-      //completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br> (${(data.completed_pages / data.count_users).toFixed(2)} / ${data.total_pages})`;
-            
+    {            
       completionRateElement.innerHTML = `평균: ${data.completion_rate}% <br>`;
       completionLearnedAvgPages.textContent = `${(data.completed_pages / data.count_users).toFixed(2)}`;
 
@@ -652,20 +694,33 @@ document.addEventListener('DOMContentLoaded', async() => {
       }
 
       const maxLeft = document.getElementsByClassName("learning-rate-progress")[0].offsetWidth - 21;
-      const leftValue = (maxLeft * (1 - data.completion_rate / 100));
+      let leftValue = (maxLeft * (1 - data.completion_rate / 100));
       learningRateAvgArrow.style.marginLeft = leftValue + "px";
+
+      if(isAll === false)
+      {
+        response = await callGetCompletionRateAPI(filter_type);
+        data = await response.json();
+        leftValue = (maxLeft * (1 - data.completion_rate / 100));
+
+        unitAvgSpan.forEach((span) => {
+          span.textContent = `${(data.completed_pages / data.count_users).toFixed(2)}`;
+        });
+      }
+
+      if(response.ok) {        
+        if(leftValue + learningPointerContent.offsetWidth < learningPointerContent.parentElement.offsetWidth) {
+          learningPointerContent.style.marginLeft = `${leftValue}px`;
+          pointer.style.marginLeft = "0px";
+        }
+        else {
+          learningPointerContent.style.marginLeft = `${learningPointerContent.parentElement.offsetWidth - learningPointerContent.offsetWidth}px`;
+          pointer.style.marginLeft = `${leftValue - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
+        }
+
+        learningPointerPercent.value = `${Math.round((1 - leftValue / maxLeft) * 100)}`;
+      }
       
-      if(leftValue + learningPointerContent.offsetWidth < learningPointerContent.parentElement.offsetWidth) {
-        learningPointerContent.style.marginLeft = `${leftValue}px`;
-        pointer.style.marginLeft = "0px";
-      }
-      else {
-        learningPointerContent.style.marginLeft = `${learningPointerContent.parentElement.offsetWidth - learningPointerContent.offsetWidth}px`;
-        pointer.style.marginLeft = `${leftValue - (learningPointerContent.parentElement.offsetWidth- learningPointerContent.offsetWidth)}px`;
-      }
-
-      learningPointerPercent.value = `${Math.round((1 - leftValue / maxLeft) * 100)}`;
-
     }
   }
 
@@ -777,16 +832,16 @@ document.addEventListener('DOMContentLoaded', async() => {
   }
 
   function formatUTCtoLocal(utcString) {
-  const date = new Date(utcString + "Z"); // ISO 8601을 파싱함
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
+    const date = new Date(utcString + "Z"); // ISO 8601을 파싱함
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
 
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
 
 function formatUTCtoLocalDate(utcString) {
   const hasTimezone = /([+-]\d{2}:\d{2}|Z)$/.test(utcString);  // 시간대 정보 있는지 체크

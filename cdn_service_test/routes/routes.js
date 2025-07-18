@@ -38,7 +38,7 @@ router.get('/list-directories', authenticateJwtHeader, (req, res) => {
 });
 
 
-router.get(`/${service_type}/list-directories`, async (req, res) => {
+router.get(`/${service_type}/list-directories`,authenticateJwtHeader, async (req, res) => {
   try {
     const query = `
       SELECT id, name
@@ -73,7 +73,7 @@ router.get('/list-directories/*', authenticateJwtHeader, (req, res) => {
 });
 
 
-router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
+router.get(`/${service_type}/list-directories/:channelId`, authenticateJwtHeader, async (req, res) => {
   const channelId = parseInt(req.params.channelId);
   if (!channelId) {
     return res.status(400).json({ error: 'channelId를 URL 파라미터로 전달해주세요.' });
@@ -86,6 +86,38 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+// 전체 채널의 폴더와 페이지를 조회
+router.get(`/${service_type}/list-all`, authenticateJwtHeader, async (req, res) => {
+  try {
+    const query = `      SELECT id, name
+      FROM content_rel_channels
+      WHERE is_deleted = false ORDER BY name`;          
+    const resultChannels = await dbPool.query(query); 
+    // 숫자 추출 후 오름차순 정렬
+    const sortedChannels = resultChannels.rows.sort((a, b) => {
+      const numA = parseInt(a.name.split('_')[0]) || 0;
+      const numB = parseInt(b.name.split('_')[0]) || 0;
+      return numA - numB;
+    });
+    const listAll = [];
+    for (const channel of sortedChannels) {
+      const folders = await getSubFolders(null, channel.id);
+      listAll.push({
+        channelId: channel.id,
+        channelName: channel.name,
+        folders: folders
+      });
+    }
+    res.json(listAll);
+    console.log(`/${service_type}/list-all`);
+  } catch (err) {
+    res.status(500).json({ message: '채널 정보를 불러올 수 없어요.' });
+    console.error(`/${service_type}/list-all`, err);
+  }
+});
+
 
 
 // 폴더별로 하위 페이지를 포함한 구조로 반환
@@ -122,7 +154,7 @@ async function getFoldersWithPages(channelId) {
 
 
 // 해당 페이지의 상세페이지 조회
-router.get(`/${service_type}/page/:pageId`, async (req, res) => {
+router.get(`/${service_type}/page/:pageId`, authenticateJwtHeader, async (req, res) => {
   const pageId = parseInt(req.params.pageId);
   if (!pageId) {
     return res.status(400).json({ error: 'pageId를 URL 파라미터로 전달해주세요.' });
@@ -140,7 +172,7 @@ router.get(`/${service_type}/page/:pageId`, async (req, res) => {
 });
 
 
-router.put(`/${service_type}/page-detail/:id/margin`, async (req, res) => {
+router.put(`/${service_type}/page-detail/:id/margin`, authenticateJwtHeader, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { margin } = req.body;
   if (!id) {
@@ -265,7 +297,7 @@ router.get(`/${service_type}/list-directories/:channelId`, async (req, res) => {
 
 
 // 해당 페이지 보기
-router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.static(CONSTANTS.CONTENTS_DIR, {
+router.use('/contents-view', authenticateJwtHeader, validateRangeHeader, express.static(CONSTANTS.CONTENTS_DIR, {
   acceptRanges: true,
   setHeaders: (res, path, stat) => {
     res.setHeader('Accept-Ranges', 'bytes');
@@ -277,7 +309,7 @@ router.use('/contents-view', authenticateJwtQuery, validateRangeHeader, express.
 
 
 // 해당 페이지의 상세보기 정보 조회
-router.get('/view-details/*', authenticateJwtQuery, (req, res) => {
+router.get('/view-details/*', authenticateJwtHeader, (req, res) => {
   const filePath = path.join(CONSTANTS.CONTENTS_DIR, req.params[0]);
   if (!fs.existsSync(filePath) || !filePath.endsWith('DraggableButtonMargins.json'))
     return res.status(404).json({ error: 'Details file not found' });
@@ -289,7 +321,7 @@ router.get('/view-details/*', authenticateJwtQuery, (req, res) => {
 
 
 // 설치버전 다운로드
-router.use(`/${service_type}/download-installer/*`, authenticateJwtQuery, validateRangeHeader, (req, res) => {
+router.use(`/${service_type}/download-installer/*`, authenticateJwtHeader, validateRangeHeader, (req, res) => {
   const filePath = path.join(CONSTANTS.APPLICATION_DIR, req.params[0]);
 
   console.log(`filename : ${req.params[0]}`);
@@ -337,7 +369,7 @@ router.use(`/${service_type}/download-installer/*`, authenticateJwtQuery, valida
 });
 
 
-router.use(`/${service_type}/download-installer-path/:appname`, authenticateJwtQuery, validateRangeHeader, (req, res) => {
+router.use(`/${service_type}/download-installer-path/:appname`, authenticateJwtHeader, validateRangeHeader, (req, res) => {
   try {
     const filePath = path.join(CONSTANTS.APPLICATION_DIR, req.params.appname);
     const files = fs.readdirSync(filePath).filter(file => file.endsWith('.exe') || file.endsWith('.zip'));
