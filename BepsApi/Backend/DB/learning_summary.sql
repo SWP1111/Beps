@@ -71,7 +71,7 @@ BEGIN
     SELECT
         'quarter', v_period_value, NULL, company, NULL, department, user_id, user_name, channel_id, channel_name, SUM(total_duration)
     FROM learning_summary_day
-    WHERE stat_date >= v_start AND stat_date < v_end
+    WHERE stat_date >= v_start AND stat_date <= v_end
     GROUP BY company, department, user_id, user_name, channel_id, channel_name
     HAVING SUM(total_duration) > INTERVAL '0'
     ON CONFLICT (period_value, company_key, department_key, user_id_key, channel_key)

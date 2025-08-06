@@ -30,7 +30,7 @@ def get_statistics_user_data(period_type, period_value, filter_value):
             ContentViewingHistory.user_id == filter_value,
             ContentViewingHistory.file_type == 'detail',
             ContentViewingHistory.start_time >= utc_start_dt,
-            ContentViewingHistory.start_time < utc_end_dt
+            ContentViewingHistory.start_time <= utc_end_dt
         ).group_by(
             ContentViewingHistory.file_id
         ).subquery()
@@ -123,7 +123,7 @@ def get_statistics_user_data(period_type, period_value, filter_value):
             MemoData, (ContentRelPages.id == MemoData.file_id) & 
                       (MemoData.user_id == Users.id) &
                       (MemoData.modified_at >= utc_start_dt) & 
-                      (MemoData.modified_at < utc_end_dt)
+                      (MemoData.modified_at <= utc_end_dt)
         ).filter(
             Folder.parent_id == None,
             Users.id == filter_value
@@ -145,7 +145,13 @@ def get_statistics_user_data(period_type, period_value, filter_value):
     detail_rows = [row_to_dict(row, 'detail', local_tz) for row in query_dtail]
     
     query_combined = page_rows + detail_rows
-    query_combined.sort(key=lambda x: (x['channel_name'], x['folder_name'], x['file_name'], x['detail_name']))
+    query_combined.sort(key=lambda x: (
+        x.get('channel_name') or '',
+        x.get('folder_name') or '',
+        x.get('file_name') or '',
+        x.get('detail_name') or ''
+    ))
+    # query_combined.sort(key=lambda x: (x['channel_name'], x['folder_name'], x['file_name'], x['detail_name']))
     
     return query_combined
 

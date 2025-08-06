@@ -5,12 +5,13 @@ import time
 import logging
 import log_config
 import requests
+from config import Config
 
 all_clients = set()     # 모든 클라이언트 (로그인 여부와 관계없이)
 active_users = {}       # 로그인한 클라이언트 {sid: {"user_id": ID, "ip": IP, "last_active": timestamp}}
-TIMEOUT = 40           # 클라이언트 타임아웃 시간 (초)
-PING_INTERVAL = 10       # 클라이언트에게 PING 메시지를 보내는 간격 (초)
-CHECK_INTERVAL = 20      # 비활성 클라이언트 확인 간격 (초)
+TIMEOUT = Config.CLIENT_TIMEOUT           # 클라이언트 타임아웃 시간 (초)
+PING_INTERVAL = Config.PING_INTERVAL       # 클라이언트에게 PING 메시지를 보내는 간격 (초)
+CHECK_INTERVAL = Config.CHECK_INTERVAL      # 비활성 클라이언트 확인 간격 (초)
 
 async def broadcast_user_count():
     """모든 클라이언트에게 현재 접속자 수를 전송"""
@@ -67,7 +68,7 @@ async def websocket_handler(websocket, path=""):
                 continue
             
             elif data.get("type") == "add_user":    # 사용자 추가
-                user_id = data.get("user_id")  
+                user_id = data.get("user_id").lower()  
                 token = data.get("token")                       
                 logging.info(f"👤 사용자 추가: {user_id} (SID: {sid})")
                 print(f"👤 사용자 추가: {user_id} (SID: {sid})")
@@ -109,7 +110,8 @@ async def websocket_handler(websocket, path=""):
             if "logout" not in active_users[sid]:
                 # 클라이언트가 비정상 종료한 경우 API 호출
                 headers = {"Authorization":f"Bearer {active_users[sid]['token']}"}
-                response = requests.get("http://172.16.10.191:20000/user/logout", headers=headers)
+                logout_url = f"{Config.API_BASE_URL}/user/logout"
+                response = requests.get(logout_url, headers=headers)
                 if response.status_code == 200:
                     logging.info(f"❌ 클라이언트 연결 해제(비정상 종료) API 호출 성공: {sid}")
                 else:
@@ -120,10 +122,19 @@ async def websocket_handler(websocket, path=""):
                                       
 async def start_websocket_server():
     """WebSocket 서버 실행"""
-    server = await websockets.serve(websocket_handler,"0.0.0.0",2002, max_size=2**20, max_queue=32, ping_interval=10, ping_timeout=20, backlog=100)   
+    server = await websockets.serve(
+        websocket_handler,
+        Config.WEBSOCKET_HOST,
+        Config.WEBSOCKET_PORT, 
+        max_size=Config.MAX_SIZE, 
+        max_queue=Config.MAX_QUEUE, 
+        ping_interval=Config.PING_INTERVAL, 
+        ping_timeout=Config.PING_TIMEOUT, 
+        backlog=Config.BACKLOG
+    )   
     
-    logging.info("🚀 WebSocket 서버가 2002번 포트에서 실행 중...")
-    print("🚀 WebSocket 서버가 2002번 포트에서 실행 중...")
+    logging.info(f"🚀 WebSocket 서버가 {Config.WEBSOCKET_HOST}:{Config.WEBSOCKET_PORT}번 포트에서 실행 중...")
+    print(f"🚀 WebSocket 서버가 {Config.WEBSOCKET_HOST}:{Config.WEBSOCKET_PORT}번 포트에서 실행 중...")
     
     await server.wait_closed()
 

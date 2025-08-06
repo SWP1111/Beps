@@ -15,14 +15,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const buttons = document.querySelectorAll(".nav-button");
     const contentArea = document.getElementById("content-area");
 
-    if(user_role == 5 || user_role == 6 || user_role == null) { // 일반사용자 또는 외부사용자
+    if(user_role != 2 && user_role != 999) { //기획 요청으로 숨김(2025-07-14) 개발자만 표시
+    //(user_role == 5 || user_role == 6 || user_role == null) { // 일반사용자 또는 외부사용자
         document.getElementById("contents-button").style.display = "none"; // 학습 버튼 숨김
         //document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
     }
 
     // 담당자 관리 버튼은 role_id가 1 또는 999일 때만 표시
+    // 기획 요청으로 role_id가일단 1(관리자)일때 숨김 2(개발 관리자)(2025-07-14)
     console.log("User role:", user_role);
-    if(user_role != 1 && user_role != 999) {
+    if(user_role != 2 && user_role != 999) {
         console.log("Hiding manager admin button for role:", user_role);
         document.getElementById("manager-admin-button").style.display = "none";
     } else {
@@ -44,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
 	    loadContent("progress_admin.html");
     	else
-	    loadContent("progress.html");
+	    loadContent("progress_user.html");
     }
 
     buttons.forEach(button => {

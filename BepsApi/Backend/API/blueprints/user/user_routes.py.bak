@@ -690,7 +690,7 @@ def get_user_by_org():
             else_=99  # 미정의 직급은 가장 뒤로
         )
         
-        query = db.session.query(Users).filter(Users.company == company)                       
+        query = db.session.query(Users).filter(Users.company == company, Users.is_deleted == False)                       
         if department:            
             query = query.filter(Users.department == department)
         

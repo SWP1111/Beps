@@ -1,3 +1,4 @@
+from datetime import datetime, date, time, timezone
 import logging
 import log_config
 import re
@@ -110,6 +111,13 @@ def get_avg_learning_time_per_file(start_dt, end_dt, scope, filter_value):
     """
     user_ids = get_user_ids_by_scope(scope, filter_value) if scope != 'all' else None
     
+    local_tz = datetime.now().astimezone().tzinfo
+    if isinstance(start_dt, date) and not isinstance(start_dt, datetime):
+        start_dt = datetime.combine(start_dt, time.min, tzinfo=local_tz).astimezone(timezone.utc)
+
+    if isinstance(end_dt, date) and not isinstance(end_dt, datetime):
+        end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)
+
     avg_seconds_expr = func.avg(func.extract('epoch', ContentViewingHistory.stay_duration))
     
     query = db.session.query(
@@ -117,7 +125,7 @@ def get_avg_learning_time_per_file(start_dt, end_dt, scope, filter_value):
         avg_seconds_expr.label('avg_stay_duration')
     ).filter(
         ContentViewingHistory.start_time >= start_dt,
-        ContentViewingHistory.start_time < end_dt
+        ContentViewingHistory.start_time <= end_dt
     )
     
     if user_ids:
@@ -135,7 +143,7 @@ def get_memo_count_per_file(start_dt, end_dt, scope, filter_value):
         func.count(MemoData.id).label('memo_count')
     ).filter(
         MemoData.modified_at >= start_dt,
-        MemoData.modified_at < end_dt
+        MemoData.modified_at <= end_dt
     )
     
     if user_ids:

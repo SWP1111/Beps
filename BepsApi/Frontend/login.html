@@ -65,24 +65,30 @@
         const getRefreshJwt = sdk.getRefreshToken();
         if(getRefreshJwt)
         {
-          if(await GetUserInfoByRefreshJWT(getRefreshJwt))
+          const id = await GetAuthMeByRefreshJWT(getRefreshJwt);
+          if(id != null && await GetUserInfoByRefreshJWT(id, getRefreshJwt))
             window.location.href = "/main.html";
         }
       }
     })();
    
     wcElement.addEventListener('success', async (e) => {
-      //const sessionToken = sdk.getSessionToken();
-      //refreshToken = sdk.getRefreshToken();
-      //output.textContent = "✅ 로그인 성공!\n\n세션 토큰:\n" + sessionToken +"\n리프레시 토큰:\n"+refreshToken;
       
-      if(e.detail === null) // sessionToken == "" && refreshToken == "")
+      if(e.detail === null)
       {
         window.location.reload();
         return;
       }
        
       const {sessionJwt, refreshJwt, user} = e.detail;
+
+      await InsertUser(user.customAttributes.familyUniqueKey, 
+                      user.customAttributes.familyCompany, 
+                      user.customAttributes.team, 
+                      user.customAttributes.position, 
+                      user.name,
+                      user.email,
+                      user.phone);
 
       const authUserInfo = await AuthUserInfo(user.customAttributes.familyUniqueKey, refreshJwt);
         if(authUserInfo.success)
@@ -93,38 +99,6 @@
           
           window.location.href = "/main.html";
         }
-      
-      //Descope API를 사용해서 사용자 정보 조회
-      //fetch('http://172.16.10.191:20000/user/descope/get_user_info', {
-      //  method: 'GET',
-      //  headers: {
-      //    'X-Descope-Refresh-Token': refreshToken
-      //  }
-      //})
-      //.then(res => res.json())
-      //.then(async data => {
-      //  output.textContent += "\n\n사용자 정보:\n" + JSON.stringify(data, null, 2);
-      //  const authUserInfo = await AuthUserInfo(data.customAttributes.familyUniqueKey, refreshToken);
-      //  if(authUserInfo.success)
-      //  {
-      //    output.textContent += "\n\n인증된 사용자 정보:\n" + JSON.stringify(authUserInfo.data, null, 2);
-      //
-      //    localStorage.setItem("isLoggedIn", "true");
-      //    localStorage.setItem("username", data.name);
-      //    localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
-      //    
-      //    window.location.href = "/main.html";
-      //  }
-      //  else
-      //  {
-      //    output.textContent += "\n\n인증된 사용자 정보 없음";
-      //  }
-      //});
-
-      //fetch('https://api.descope.com/v1/auth/me', {
-      //  headers: {Authorization: `Bearer P2wON5fy1K6kyia269VpeIzYP8oP:${refreshToken}`}
-      //}).then(res => res.json())
-      //.then(userInfo => output.textContent += "\n\n사용자 정보:\n" + JSON.stringify(userInfo, null, 2));
     });
 
     wcElement.addEventListener('error', (err) => {
@@ -190,34 +164,59 @@
         return false; // 사용자 정보 조회 실패
     }
 
+    async function GetAuthMeByRefreshJWT(refreshJwt) {
+      const response = await fetch(`${window.baseUrl}user/descope/get_user_info`, {
+        method: "GET",
+        headers: {
+          "X-Descope-Refresh-Token": refreshJwt
+        }
+      });
+      const data = await response.json();
 
-    //logoutBtn.addEventListener('click', async() => {
-    //  try{
-    //    
-    //    await checkValidateToken(refreshToken); // 로그아웃 전 토큰 검증
-    //
-    //    const logoutResponse = await fetch('https://api.descope.com/v1/auth/logout', {
-    //      method: 'POST',
-    //      headers: {
-    //        Authorization: `Bearer P2wON5fy1K6kyia269VpeIzYP8oP:${refreshToken}`
-    //      }
-    //    });
-    //
-    //    if(logoutResponse.ok) {
-    //      output.textContent = "✅ 로그아웃 성공!";
-    //      logoutBtn.style.display = 'none';
-    //
-    //      await checkValidateToken(refreshToken); // 로그아웃 후 토큰 검증
-    //    } 
-    //    else 
-    //    {
-    //      throw new Error("로그아웃 실패");
-    //    }
-    //  }
-    //  catch (error) {
-    //    output.textContent = "❌ 로그아웃 실패:\n" + error;
-    //  }
-    //})
+      if(response.ok) {
+        return data.customAttributes.familyUniqueKey;
+      }
+      return null; // 사용자 정보 조회 실패
+    }
+
+    async function InsertUser(id, company, department, position, name, email, phone)
+    {
+        try{
+
+            url = `${baseUrl}user/update_user`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    id: id,
+                    company : company,
+                    department : department,
+                    position : position,
+                    name : name,
+                    email : email,
+                    phone : phone
+                })
+            });
+
+            const responseText = await response.text();
+            console.log("InsertUser 서버 응답: ", responseText);
+
+            if((await response).ok)
+            {
+                return {success: true, data: responseText}
+            }
+            else
+            {
+                return {success: false, message: "사용자 추가 실패"};
+            }
+
+        }catch(error){
+            console.error(error);
+        }
+    }
+
   </script>
 </body>
 </html>

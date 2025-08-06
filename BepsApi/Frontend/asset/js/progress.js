@@ -137,7 +137,7 @@ createApp({
             .catch(error => console.error(error));
         };
 
-        const formatDate = date => new Date(date).toISOString().split("T")[0];  // YYYY-MM-DD 형식 변환
+        const formatDate = date => new Date(date).toLocaleDateString('sv-SE');  // YYYY-MM-DD 형식 변환
         const formatDateTime = dateTime => dateTime ? new Date(dateTime).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-";
         const formatDuration = duration => {
             const [time, millis] = duration.split('.'); // "시간:분:초.밀리세컨드"에서 밀리세컨드 분리

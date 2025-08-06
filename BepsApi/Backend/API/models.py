@@ -2,7 +2,7 @@ from sqlalchemy import CheckConstraint
 from extensions import db
 from sqlalchemy.sql import func, text
 from sqlalchemy.dialects.postgresql import JSONB
-
+from datetime import datetime, timezone
 class Roles(db.Model):
     __tablename__ = 'roles'
     role_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -331,8 +331,8 @@ class ContentRelChannels(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    created_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = db.Column(db.Boolean, default=False)
     
     def to_dict(self):
@@ -352,8 +352,8 @@ class ContentRelFolders(db.Model):
     channel_id = db.Column(db.Integer, db.ForeignKey('content_rel_channels.id'))
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    created_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = db.Column(db.Boolean, default=False)
     
     def to_dict(self):
@@ -375,8 +375,8 @@ class ContentRelPages(db.Model):
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
     object_id = db.Column(db.String, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    created_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = db.Column(db.Boolean, default=False)
     
     def check_r2_content_exists(self, use_cache=True):
@@ -420,8 +420,8 @@ class ContentRelPageDetails(db.Model):
     description = db.Column(db.Text)
     object_id = db.Column(db.String, nullable=True)
     # has_content = db.Column(db.Boolean, default=False)  # Temporarily commented until DB migration
-    created_at = db.Column(db.DateTime(timezone=False), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=False), server_default=func.now(), onupdate=func.now())
+    created_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=False), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = db.Column(db.Boolean, default=False)
     
     def check_r2_content_exists(self, use_cache=True):
@@ -532,7 +532,7 @@ class MemoData(db.Model):
     world_position_y = db.Column(db.Float, nullable=False)  # double in C#
     world_position_z = db.Column(db.Float, nullable=False)  # double in C#
     status = db.Column(db.Integer, nullable=False)  # uint in C#
-    type = db.Column(db.Integer, nullable=False, default=0)  # 0: 독후감, 1: 제안, 2: 질문
+    type = db.Column(db.Integer, nullable=False, default=0)  # 0: ���İ�, 1: ����, 2: ����
 
     user = db.relationship('Users', backref=db.backref('memos', lazy=True))
     file = db.relationship('ContentRelPages', backref=db.backref('memos', lazy=True))
@@ -541,15 +541,15 @@ class MemoData(db.Model):
     def to_dict(self):
         # Convert type int to string
         type_mapping = {
-            0: "질문",
-            1: "의견", 
+            0: "����",
+            1: "�ǰ�", 
         }
         
         # Convert status int to string
         status_mapping = {
-            0: "답변대기",
-            1: "답변완료",
-            2: "처리완료"
+            0: "�亯���",
+            1: "�亯�Ϸ�",
+            2: "ó���Ϸ�"
         }
         
         return {
@@ -567,9 +567,9 @@ class MemoData(db.Model):
             'worldPositionY': self.world_position_y,  # Match C# JsonPropertyName
             'worldPositionZ': self.world_position_z,  # Match C# JsonPropertyName
             'status': self.status,  # Match C# JsonPropertyName
-            'status_text': status_mapping.get(self.status, "알 수 없음"),
+            'status_text': status_mapping.get(self.status, "�� �� ����"),
             'type': self.type,
-            'type_text': type_mapping.get(self.type, "알 수 없음")
+            'type_text': type_mapping.get(self.type, "�� �� ����")
         }
 
 class MemoReply(db.Model):

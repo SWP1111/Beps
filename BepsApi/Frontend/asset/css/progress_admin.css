@@ -170,21 +170,20 @@ background-color: #f0f0f0;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 5px;
+    gap: 0px;
 }
-.datepicker span{
-    font-family: NotosansKR;
-    font-weight: 700;
-    font-size: 15px;
-    margin-right: 5px;
-}
+
 .datepicker input{
-    width: 100px;
-      
     font-family: NotosansKR;
     font-weight: 700;
     font-size: 15px;
+    text-align: center;
+    border: none;
+    outline: none;
+    color: #525252;
+    margin-top: 5px;
 }
+
 .apply-button {
     font-family: NotosansKR;
     font-weight: 700;
@@ -378,12 +377,12 @@ background-color: #f0f0f0;
 }
 
 .learning-pointer-content {    
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     width: fit-content;
-    width: 80px;
+    max-width: 100px;
     gap: 2px;
-    background-color: white;
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
 .learning-pointer-percent {
@@ -480,11 +479,34 @@ background-color: #f0f0f0;
     cursor: pointer;
 }
 
+.login-rank-item > div {
+  flex-shrink: 0;
+}
+.login-rank-main {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .login-rank-item {
-    text-align: center; 
-    display: flex; 
-    align-items: center;
-    font-size: 15px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 33%;
+  width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  overflow: hidden;
+  text-align: center; 
+  font-size: 15px;
+}
+
+.login-rank-item span {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 .login-rank-item-area {

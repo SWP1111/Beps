@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()  # gevent를 사용하기 위해 필요한 패치
+
 import atexit
 import time
 import logging
