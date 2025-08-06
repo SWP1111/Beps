@@ -5,7 +5,7 @@ import datetime
 from datetime import timezone
 from datetime import timedelta
 from extensions import db
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from models import (Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, LearningCompletionHistory
                     , ContentManager, ContentRelFolders, ContentRelChannels)
 from sqlalchemy.exc import OperationalError
@@ -20,10 +20,7 @@ from sqlalchemy import distinct, func, tuple_
 from sqlalchemy.orm import aliased
 import traceback
 from utils.swagger_loader import get_swag_from
-
-api_leaning_bp = Blueprint('leaning', __name__) # 🔹 블루프린트 생성
-
-yaml_folder = os.path.join(os.path.dirname(__file__), '..', 'docs', 'learning')
+from . import api_leaning_bp, yaml_folder
 
 #region 문자열 변환
 def serialize_row(row):
@@ -158,7 +155,7 @@ def add_comletion_history(user_id, page_id, duration, end_time):
         return False
     return True
 
-# 🔹 GET /leaning/data API 기록 조회
+# 🔹 GET /leaning/data API 기록 조회(이건 Date UTC로 받네..)
 @api_leaning_bp.route('/data', methods=['GET']) # 🔹 GET /leaning/data API
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
 def data():
@@ -217,7 +214,7 @@ def data():
             filters.append("v.start_time >= :start_date")
             params['start_date'] = f"{start_date} 00:00:00"
         if end_date:
-            filters.append("v.end_time <= :end_date")
+            filters.append("v.start_time <= :end_date")
             params['end_date'] = f"{end_date} 23:59:59"
         
         if filters:
@@ -246,6 +243,80 @@ def data():
             'data': db_data
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 🔹 GET /leaning/date_per_channels API 채널별 기록 조회
+@api_leaning_bp.route('/date_per_channels', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
+def date_per_channels():
+    try:
+        user_id = request.args.get('user_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        channel_id = request.args.get('channel_id')
+        
+        if not user_id:
+            user_id = get_jwt_identity()  # JWT에서 사용자 ID 가져오기
+        
+        base_query = """
+            SELECT v.id, v.user_id, COALESCE(u.name,'[삭제된 사용자]') AS name,
+            v.file_id, c.id, c.name AS channel_name,
+            COALESCE(
+                CASE
+                    WHEN v.file_type='page' THEN p.name
+                    ELSE NULL
+                END,
+                '[삭제된 파일]'
+                ) As file_name,
+            v.start_time, v.end_time, v.stay_duration, v.ip_address
+            FROM content_viewing_history v
+            LEFT JOIN users u ON v.user_id = u.id
+            LEFT JOIN content_rel_pages p ON v.file_type='page' AND v.file_id = p.id
+            LEFT JOIN content_rel_folders f ON p.folder_id = f.id
+            LEFT JOIN content_rel_channels c ON f.channel_id = c.id
+            WHERE v.user_id = :user_id
+            """
+        
+        filters = []
+        params = {'user_id': user_id}
+        
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        if start_date:
+            start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+            utc_start_date = datetime.datetime.combine(start_date_obj, datetime.time.min, tzinfo=local_tz).astimezone(timezone.utc)
+            filters.append("v.start_time >= :start_date")
+            params['start_date'] = utc_start_date
+        
+        if end_date:
+            end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            utc_end_date = datetime.datetime.combine(end_date_obj, datetime.time.max, tzinfo=local_tz).astimezone(timezone.utc)
+            filters.append("v.start_time <= :end_date")
+            params['end_date'] = utc_end_date
+
+        if channel_id:
+            filters.append("c.id = :channel_id")
+            params['channel_id'] = channel_id
+            
+        if filters:
+            base_query += " AND " + " AND ".join(filters)
+        base_query += " ORDER BY p.id"
+        
+        data = db.session.execute(text(base_query), params).fetchall()
+        
+        return jsonify({
+            'data': [
+                {
+                    'channel_name': row.channel_name,
+                    'file_name': row.file_name,
+                    'start_time': row.start_time.isoformat() if row.start_time else None,
+                    'end_time': row.end_time.isoformat() if row.end_time else None,
+                    'stay_duration': str(row.stay_duration) if row.stay_duration else None,
+                    'ip_address': row.ip_address
+                } for row in data
+            ]
+        }), 200  # 200: OK
+    except Exception as e:
+        logging.error(f"Error in date_per_channels: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # 🔹 GET /leaning/point API 포인트 조회       
@@ -331,202 +402,7 @@ def point():
       
     except Exception as e:
         return jsonify({'[point] error': str(e)}), 500
-
-
-# 🔹 GET /leaning/point/rank API 포인트 랭킹 조회
-@api_leaning_bp.route('/point/rank', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
-def point_rank():
-    import services.user_summary_service as user_summary_service
-    try:
-        period_type = request.args.get('period_type', 'year')
-        period_value = request.args.get('period_value')
-        filter_type = request.args.get('filter_type', 'all')
-        
-        if period_type != 'year' and period_type is None:
-            return jsonify({'error': 'Please provide period_type'}), 400    # 400: Bad Request
-        
-        if filter_type in ['all','company', 'department'] is False:
-            return jsonify({'error': 'Please provide filter_type'}), 400    # 400: Bad Request
-        
-        start_date, end_date = user_summary_service.get_period_value(period_type, period_value)
-        local_tz = datetime.datetime.now().astimezone().tzinfo
-        utc_start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-        utc_end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-        
-        filters = {'start_date': utc_start_date, 'end_date': utc_end_date}
-        
-        if filter_type == 'all':
-            select_field = 'u.id, COALESCE(u.name,\'[삭제된 사용자]\') AS name'
-            group_by_field = 'u.id, u.name'
-        elif filter_type == 'company':
-            select_field = 'u.company'
-            group_by_field = 'u.company'
-        elif filter_type == 'department':
-            select_field = 'u.company, u.department'
-            group_by_field = 'u.company, u.department'
-        else:
-            return jsonify({'error': 'Invalid filter_type'}), 400    # 400: Bad Request
-        
-        rank_sql = f"""
-            SELECT {select_field}, COALESCE(SUM(
-                CASE
-                    WHEN earned_time IS NOT NULL
-                            AND earned_time::timestamp BETWEEN :start_date AND :end_date
-                    THEN cpr.point
-                    ELSE 0
-                END), 0) AS total_points
-            FROM users u
-            LEFT JOIN content_point_record cpr ON u.id = cpr.user_id
-            LEFT JOIN LATERAL jsonb_array_elements_text(cpr.earned_times) AS earned_time ON TRUE
-            GROUP BY {group_by_field}
-        """
-        
-        all_rows = db.session.execute(text(rank_sql), filters).mappings().all()
-        sorted_rows = sorted(all_rows, key=lambda x: x['total_points'], reverse=True)   
-        
-         # 상위, 하위 점수 찾기
-        top_score = sorted_rows[0]['total_points']
-        bottom_score = sorted_rows[-1]['total_points']
-        
-        # 상위/하위 동점자 모두 추출
-        top_list = [dict(row) for row in sorted_rows if row['total_points'] == top_score]
-        bottom_list = [dict(row) for row in sorted_rows if row['total_points'] == bottom_score]
-        
-        return jsonify({
-            'top': top_list,
-            'bottom': bottom_list,
-        }), 200  # 200: OK
-        
-    except Exception as e:
-        return jsonify({'[point/rank] error': str(e)}), 500
-        
-#🔹 GET /leaning/category_progress API 카테고리별 학습 진행률 조회       
-@api_leaning_bp.route('/category_progress', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
-def category_progress():
-    from services.leaning_summary_service import get_folder_progress
-    try:
-        filter_type = request.args.get('filter_type', 'all')
-        filter_value = request.args.get('filter_value')
-        period_type = request.args.get('period_type', 'year')
-        period_value = request.args.get('period_value')
-        
-        if not period_type or not period_value:
-            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
-        
-        params = {
-            'filter_type': filter_type,
-            'filter_value': filter_value,
-            'period_type': period_type,
-            'period_value': period_value
-        }
-        
-        folder_duration_map = get_folder_progress(params)
-        
-        if not folder_duration_map:
-            return jsonify({'error': 'No data found'}), 404
-        
-        total_duration = sum((duration for _, duration in folder_duration_map.values()), datetime.timedelta(0))
-        total_seconds = total_duration.total_seconds()
-        if total_seconds == 0:
-            total_seconds = 1  # Avoid division by zero
-        
-        result = []
-        for channel_id, (channel_name, duration) in folder_duration_map.items():
-            duration_seconds = duration.total_seconds() if duration else 0
-            percentage = round(duration_seconds / total_seconds * 100, 1)
-            hour = duration_seconds // 3600
-            minute = (duration_seconds % 3600) // 60
-            second = duration_seconds % 60
-            result.append({
-                'channel_id': channel_id,
-                'channel_name': channel_name,
-                'duration': f"{int(hour):02}:{int(minute):02}:{int(second):02}",
-                'percentage': percentage
-            })
-            
-        return jsonify({'progress': result}), 200  # 200: OK
-    
-    except Exception as e:
-        logging.error(f"[category_progress] error: {str(e)}, {traceback.format_exc()}")
-        return jsonify({'[category_progress] error': str(e)}), 500
- 
-# 🔹 GET /leaning/top_viewd_pages API 상위 조회 페이지 조회
-@api_leaning_bp.route('/top_viewed_pages', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행   
-def get_top_viewd_pages():
-    from services.user_summary_service import get_period_value
-    try:
-        filter_type = request.args.get('filter_type', 'all')
-        filter_value = request.args.get('filter_value')
-        period_type = request.args.get('period_type', 'year')
-        period_value = request.args.get('period_value')
-        
-        if not period_type or not period_value:
-            return jsonify({'error': 'Please provide scope, period_type, and period_value'}), 400
-        
-        start_dt, end_dt = get_period_value(period_type, period_value)
-        local_tz = datetime.datetime.now().astimezone().tzinfo
-        utc_start_date = datetime.datetime.combine(start_dt, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-        utc_end_date = datetime.datetime.combine(end_dt, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
-
-        query = db.session.query(
-            ContentViewingHistory.file_id,
-            func.coalesce(ContentRelPages.name, '[삭제된 파일]').label('file_name'),
-            func.coalesce(ContentRelFolders.name, '[삭제된 폴더]').label('folder_name'),
-            func.coalesce(ContentRelChannels.name, '[삭제된 채널]').label('channel_name'),
-            ContentRelPages.updated_at,
-            func.count().label('view_count')
-        )
-        
-        if filter_type in ('company','department','user'):
-            query = query.join(Users, ContentViewingHistory.user_id == Users.id)
-            
-        query = query.outerjoin(
-            ContentRelPages, ContentViewingHistory.file_id == ContentRelPages.id
-            ).outerjoin(
-                ContentRelFolders, ContentRelPages.folder_id == ContentRelFolders.id
-            ).outerjoin(
-                ContentRelChannels, ContentRelFolders.channel_id == ContentRelChannels.id
-            ).filter(
-                ContentViewingHistory.start_time >= utc_start_date,
-                ContentViewingHistory.start_time < utc_end_date
-            )     
-        
-        if filter_type == 'company' and filter_value:
-            query = query.filter(Users.company == filter_value)
-        elif filter_type == 'department' and filter_value:
-            parts = filter_value.split('||', 1)
-            if len(parts) == 2:
-                query = query.filter(Users.company == parts[0], Users.department == parts[1])
-            else:
-                query = query.filter(Users.company == filter_value)
-        elif filter_type == 'user' and filter_value:
-            query = query.filter(Users.id == filter_value)
-
-        query = query.group_by(ContentViewingHistory.file_id, ContentRelPages.name, ContentRelFolders.name, ContentRelChannels.name, ContentRelPages.updated_at).order_by(func.count().desc())
-        query = query.limit(5)  # 🔹 상위 5개 조회
-        
-        rows = query.all()
-        
-        return jsonify({
-            'top_viewd_pages': [
-                {
-                    'file_id': row.file_id,
-                    'file_name': row.file_name,
-                    'folder_name': row.folder_name,
-                    'channel_name': row.channel_name,
-                    'view_count': row.view_count,
-                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
-                } for row in rows
-            ]
-        }), 200  # 200: OK
-        
-    except Exception as e:
-        logging.error(f"[get_top_viewd_pages] error: {str(e)}, {traceback.format_exc()}")
-        return jsonify({'[get_top_viewd_pages] error': str(e)}), 500
- 
+       
 # 🔹 GET /leaning/completion-rate API 학습 완료율 조회   
 @api_leaning_bp.route('/completion-rate', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
@@ -592,68 +468,3 @@ def get_completion_rate():
         logging.error(f"[get_completion_rate] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[get_completion_rate] error': str(e)}), 500
 
-# 🔹 GET /leaning/rank-update-contents API 최근 업데이트된 콘텐츠 랭킹 조회
-@api_leaning_bp.route('/rank-update-contents', methods=['GET'])
-@jwt_required(locations=['headers','cookies'])  # 🔹 JWT 검증을 먼저 수행
-def rank_update_contents():
-    try:
-
-        cm = aliased(ContentManager)
-        u = aliased(Users)
-        
-        top_rows = db.session.query(
-                ContentRelPages.id,
-                ContentRelPages.name,
-                ContentRelPages.updated_at,
-                cm.user_id.label('manager_id'),
-                u.name.label('manager_name')
-            ).outerjoin(
-                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
-            ).outerjoin(
-                u, u.id == cm.user_id
-            ).filter(
-                ContentRelPages.is_deleted == False
-            ).order_by(
-                ContentRelPages.updated_at.desc()
-            ).limit(5).all()  # 상위 5개만 조회
-            
-        bottom_rows = db.session.query(
-                ContentRelPages.id,
-                ContentRelPages.name,
-                ContentRelPages.updated_at,
-                cm.user_id.label('manager_id'),
-                u.name.label('manager_name')
-            ).outerjoin(
-                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
-            ).outerjoin(
-                u, u.id == cm.user_id
-            ).filter(
-                ContentRelPages.is_deleted == False
-            ).order_by(
-                ContentRelPages.updated_at.asc()
-            ).limit(5).all()  # 하위 5개만 조회
-
-        return jsonify({
-            'top': [
-                {
-                    'id': row.id,
-                    'name': row.name,
-                    'updated_at': row.updated_at.isoformat() if row.updated_at else None,
-                    'manager_id': row.manager_id,
-                    'manager_name': row.manager_name
-                } for row in top_rows
-            ],
-            'bottom': [
-                {
-                    'id': row.id,
-                    'name': row.name,
-                    'updated_at': row.updated_at.isoformat() if row.updated_at else None,
-                    'manager_id': row.manager_id,
-                    'manager_name': row.manager_name    
-                } for row in bottom_rows
-            ]
-        }), 200  # 200: OK
-        
-    except Exception as e:
-        logging.error(f"[rank_update_contents] error: {str(e)}, {traceback.format_exc()}")
-        return jsonify({'[rank_update_contents] error': str(e)}), 500

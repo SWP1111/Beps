@@ -665,7 +665,7 @@ class ContentHierarchyService:
             # Create new channel in ContentRelChannels table
             channel = ContentRelChannels(
                 name=name,
-                created_at=datetime.datetime.now()
+                created_at=datetime.datetime.now(datetime.timezone.utc),
             )
             
             db.session.add(channel)
@@ -739,7 +739,7 @@ class ContentHierarchyService:
                 name=name,
                 channel_id=channel_id,
                 parent_id=parent_id,
-                created_at=datetime.datetime.now()
+                created_at=datetime.datetime.now(datetime.timezone.utc)
             )
             
             db.session.add(folder)
@@ -860,7 +860,7 @@ class ContentHierarchyService:
                         name="Files",
                         channel_id=channel_id,
                         parent_id=None,
-                        created_at=datetime.datetime.now()
+                        created_at=datetime.datetime.now(datetime.timezone.utc)
                     )
                     
                     db.session.add(folder)
@@ -874,7 +874,7 @@ class ContentHierarchyService:
                 name=name,
                 folder_id=folder_id,
                 object_id=str(uuid.uuid4()),  # Generate UUID for object_id
-                created_at=datetime.datetime.now()
+                created_at=datetime.datetime.now(datetime.timezone.utc)
             )
             
             db.session.add(page)
@@ -981,7 +981,7 @@ class ContentHierarchyService:
                 name=name,
                 description=description,
                 object_id=object_id,
-                created_at=datetime.datetime.now()
+                created_at=datetime.datetime.now(datetime.timezone.utc)
             )
             
             db.session.add(page_detail)

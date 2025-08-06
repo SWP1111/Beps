@@ -17,7 +17,7 @@ export function initPeriod()
 {
     const currentYear = new Date().getFullYear();
     const yearStart = `${new Date().getFullYear()}-01-01`;
-    let today = new Date().toISOString().split('T')[0];
+    let today = new Date().toLocaleDateString('sv-SE');
 
     let period_type = "year";
     let period_value = `${currentYear}`;
@@ -127,8 +127,8 @@ export function initPeriod()
     period_type = "year";
     period_value = dropdownLabelYear.textContent.replace("년도", "").trim();
     selectedPeriod.textContent = `전체 (${period_value}년)`;
-    const startDate = new Date(`${period_value}-01-01`);
-    const endDate = new Date(`${period_value}-12-31`);
+    const startDate = new Date(parseInt(period_value), 0, 1); //1월 1일
+    const endDate = new Date(parseInt(period_value), 11, 31);   //12월 31일
     fp.setDate([startDate, endDate]);
     fp.input.value = `${period_value.substring(2)}-01-01 ~ ${period_value.substring(2)}-12-31`;
 
@@ -141,8 +141,8 @@ export function initPeriod()
         period_type = "year";
         period_value = dropdownLabelYear.textContent.replace("년도","").trim();
 
-        const startDate = new Date(`${period_value}-01-01`);
-        const endDate = new Date(`${period_value}-12-31`);
+        const startDate = new Date(parseInt(period_value), 0, 1);   // 1월 1일
+        const endDate = new Date(parseInt(period_value), 11, 31);   // 12월 31일
         fp.setDate([startDate, endDate]);
         fp.input.value = `${period_value.substring(2)}-01-01 ~ ${period_value.substring(2)}-12-31`;
 
@@ -186,9 +186,9 @@ export function initPeriod()
             if(dropdownLabel.textContent === "상반기")
             {
                 period_value += '-H1';
-                
-                const startDate = new Date(`${selectedYear}-01-01`);
-                const endDate = new Date(`${selectedYear}-06-30`);
+
+                const startDate = new Date(parseInt(selectedYear), 0, 1);   // 1월 1일
+                const endDate = new Date(parseInt(selectedYear), 5, 30);    // 6월 30일
                 fp.setDate([startDate, endDate]);
                 fp.input.value = `${selectedYear.substring(2)}-01-01 ~ ${selectedYear.substring(2)}-06-30`;
             }
@@ -196,8 +196,8 @@ export function initPeriod()
             {
                 period_value += '-H2';
 
-                const startDate = new Date(`${selectedYear}-07-01`);
-                const endDate = new Date(`${selectedYear}-12-31`);
+                const startDate = new Date(parseInt(selectedYear), 6, 1);   // 7월 1일
+                const endDate = new Date(parseInt(selectedYear), 11, 31);   // 12월 31일
                 fp.setDate([startDate, endDate]);
                 fp.input.value = `${selectedYear.substring(2)}-07-01 ~ ${selectedYear.substring(2)}-12-31`;
             }
@@ -231,32 +231,32 @@ export function initPeriod()
             if(dropdownLabelQuarter.textContent === "1분기") {
                 period_value += '-Q1';
 
-                const startDate = new Date(`${selectedYear}-01-01`);
-                const endDate = new Date(`${selectedYear}-03-31`);
-                fp.setDate([startDate, endDate]);
+                const startDate = new Date(parseInt(selectedYear), 0, 1);   // 1월 1일
+                const endDate = new Date(parseInt(selectedYear), 2, 31);   // 3월 31일
+                fp.setDate([startDate, endDate]);   
                 fp.input.value = `${selectedYear.substring(2)}-01-01 ~ ${selectedYear.substring(2)}-03-31`;
             }
             else if(dropdownLabelQuarter.textContent === "2분기") {
                 period_value += '-Q2';
 
-                const startDate = new Date(`${selectedYear}-04-01`);
-                const endDate = new Date(`${selectedYear}-06-30`);
+                const startDate = new Date(parseInt(selectedYear), 3, 1);   // 4월 1일
+                const endDate = new Date(parseInt(selectedYear), 5, 30);   // 6월 30일
                 fp.setDate([startDate, endDate]);
                 fp.input.value = `${selectedYear.substring(2)}-04-01 ~ ${selectedYear.substring(2)}-06-30`;
             }
             else if(dropdownLabelQuarter.textContent === "3분기") {
                 period_value += '-Q3';
 
-                const startDate = new Date(`${selectedYear}-07-01`);
-                const endDate = new Date(`${selectedYear}-09-30`);
+                const startDate = new Date(parseInt(selectedYear), 6, 1);   // 7월 1일
+                const endDate = new Date(parseInt(selectedYear), 8, 30);   // 9월 30일
                 fp.setDate([startDate, endDate]);
                 fp.input.value = `${selectedYear.substring(2)}-07-01 ~ ${selectedYear.substring(2)}-09-30`;
             }
             else if(dropdownLabelQuarter.textContent === "4분기") {
                 period_value += '-Q4';
 
-                const startDate = new Date(`${selectedYear}-10-01`);
-                const endDate = new Date(`${selectedYear}-12-31`);
+                const startDate = new Date(parseInt(selectedYear), 9, 1);   // 10월 1일
+                const endDate = new Date(parseInt(selectedYear), 11, 31);   // 12월 31일
                 fp.setDate([startDate, endDate]);
                 fp.input.value = `${selectedYear.substring(2)}-10-01 ~ ${selectedYear.substring(2)}-12-31`;
             }

@@ -1,25 +1,23 @@
-const userName = document.getElementById("user-name");
+import './progress_user_summary.js';
+import { configureContentsProgress} from './progress_user_status.js';
+import { getTopUserConnectionDuration, getTopDepartmentConnectionDuration, getTopCompanyConnectionDuration} from './progress_admin_active_user.js'
+
+const userNames = document.querySelectorAll(".user-name");
 const updateList = document.getElementById("update-list");
-const dayIconContainer = document.getElementById("day-icon-container");
-const chartContainer = document.getElementById("chart-container");
-
-const myAvgLearningMinutes = document.querySelectorAll(".my-avg-learning-minutes");
-const percentChangeValue = document.getElementById("percent-change-value");
-const percentChangeText = document.getElementById("percent-change-text");
-const allAvgLearningMinutes = document.getElementById("all-avg-learning-minutes");
-const comparePercentValue = document.getElementById("compare-percent-value");
-const comparePercentText = document.getElementById("compare-percent-text");
-
-const contentsProgressContainer = document.getElementById("contents-progress-container");
-
-const summaryCalendarButton = document.getElementById("summary-calendar-button");
-const contentsDataButton = document.getElementById("contents-data-button");
-const [start, end] = getWeekRange(new Date());
 
 const updateContentsUnviewedCount = document.getElementById("update-contents-unviewed-count");
 const pushMessageContainer = document.getElementById("push-message-container");
 const pushMessageCount = document.getElementById("push-message-count");
 const updateListBtn = document.getElementById('update-list-btn');
+const latestLoginTime = document.getElementById("latest-login-time");
+const emptyLearningDays = document.getElementById("empty-learning-days");
+
+const lowerLearningChannelCount = document.getElementById("lower-learning-channel_count");
+const lowerLearningChannels = document.getElementById("lower-learning-channels");
+
+const firstCompany = document.getElementById("first-company");
+const firstDepartment = document.getElementById("first-department");
+const firstUser = document.getElementById("first-user");
 
 let userInfoMemoValueCount;
 let userInfoLevelValueLevel;
@@ -28,58 +26,26 @@ let userInfoProgressValueProgress;
 
 let updateContentsData = null; // 업데이트 콘텐츠 데이터를 저장할 전역 변수
 let updateContentsWindow = null; // 업데이트 창 참조를 저장할 전역 변수
+
 let pushMessageData = null;
 let pushMessageWindow = null; // 푸시 메시지 창 참조를 저장할 전역 변수
 
-const fpSummary = flatpickr("#summary-date", {
-    mode: "range",
-    dateFormat: "y-m-d",
-    locale: "ko",
-    defaultDate: [start, end],  // ✅ 이번 주 기본 선택
-    onChange: function(selectedDates, dateStr, instance) {
-        if (selectedDates.length === 1) {
-            const [start, end] = getWeekRange(selectedDates[0]);
-
-            // 프로그램적으로 range 선택
-            instance.setDate([start, end], true);
-             // 달력 닫기!
-            instance.close();
-
-            (async() => {
-                const learningData = await getLearningTimeByWeek(start, end);
-    
-                // 지난 주 날짜 계산 (원본 날짜를 변경하지 않도록 새로운 Date 객체 생성)
-                const lastWeekStart = new Date(start);
-                lastWeekStart.setDate(start.getDate() - 7);
-                const lastWeekEnd = new Date(end);
-                lastWeekEnd.setDate(end.getDate() - 7);
-                const lastLearningData = await getLearningTimeByWeek(lastWeekStart, lastWeekEnd);    // 지난 주간의 학습 시간 데이터
-
-                await configureLearningDays(start, end, learningData);
-                await configureLearningChart(learningData);
-            })();
-        }
-    }
-});
-
-const fpContents = flatpickr("#contents-date", {
-    mode: "range",
-    dateFormat: "y-m-d",
-    locale: "ko",
-    defaultDate: [start, end],  // ✅ 이번 주 기본 선택
-    onChange: function(selectedDates, dateStr, instance) {
-        if (selectedDates.length === 1) {
-            const [start, end] = getWeekRange(selectedDates[0]);
-
-            // 프로그램적으로 range 선택
-            instance.setDate([start, end], true);
-             // 달력 닫기!
-            instance.close();
-        }
-    }
-});
+let userLearningChannelData = null; // 사용자 학습 채널 데이터를 저장할 전역 변수 
 
 const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
+// 자식 창들을 닫는 공통 함수
+function closeChildWindows() {
+    if (pushMessageWindow && !pushMessageWindow.closed) {
+        pushMessageWindow.close();
+    }
+    if (updateContentsWindow && !updateContentsWindow.closed) {
+        updateContentsWindow.close();
+    }
+}
+
+// 페이지 종료 시 자식 창들을 닫기
+window.addEventListener('beforeunload', closeChildWindows);
 
 pushMessageContainer.addEventListener("click", () => {
     // 데이터가 없으면 먼저 로드
@@ -88,26 +54,30 @@ pushMessageContainer.addEventListener("click", () => {
         return;
     }
     
-    // 이미 열린 창이 있고 닫히지 않았다면 포커스만 주기
+    // 이미 열린 창이 있고 닫히지 않았다면 포커스만 주고 데이터 업데이트
     if (pushMessageWindow && !pushMessageWindow.closed) {
         pushMessageWindow.focus();
+        // 데이터 업데이트
+        if (pushMessageWindow.setPushMessageData) {
+            pushMessageWindow.setPushMessageData(pushMessageData);
+        }
         return;
     }
     
     // 새 창 열기
-    pushMessageWindow = window.open('push_message_list.html', '_blank', 'width=500,height=400,scrollbars=yes,resizable=yes');
+    pushMessageWindow = window.open('push_message_list.html', 'pushMessageWindow', 'width=500,height=400,scrollbars=yes,resizable=yes');
+    
+    // 창이 성공적으로 열렸는지 확인
+    if (!pushMessageWindow) {
+        return;
+    }
     
     // 새 창이 로드된 후 데이터 전달
     pushMessageWindow.addEventListener('load', function() {
         // 새 창의 전역 함수 호출하여 데이터 전달
-        if (pushMessageWindow.setPushMessageData) {
+        if (pushMessageWindow && pushMessageWindow.setPushMessageData) {
             pushMessageWindow.setPushMessageData(pushMessageData);
         }
-    });
-    
-    // 창이 닫힐 때 참조 정리
-    pushMessageWindow.addEventListener('beforeunload', function() {
-        pushMessageWindow = null;
     });
 });
 
@@ -120,70 +90,93 @@ if (updateListBtn) {
             return;
         }
         
-        // 이미 열린 창이 있고 닫히지 않았다면 포커스만 주기
+        // 이미 열린 창이 있고 닫히지 않았다면 포커스만 주고 데이터 업데이트
         if (updateContentsWindow && !updateContentsWindow.closed) {
             updateContentsWindow.focus();
+            // 데이터 업데이트
+            if (updateContentsWindow.setUpdateContentsData) {
+                updateContentsWindow.setUpdateContentsData(updateContentsData);
+            }
             return;
         }
         
         // 새 창 열기
-        updateContentsWindow = window.open('update_contents_list.html', '_blank', 'width=500,height=435,scrollbars=yes,resizable=yes');
+        updateContentsWindow = window.open('update_contents_list.html', 'updateContentsWindow', 'width=500,height=435,scrollbars=yes,resizable=no');
+        
+        // 창이 성공적으로 열렸는지 확인
+        if (!updateContentsWindow) {
+            return;
+        }
         
         // 새 창이 로드된 후 데이터 전달
         updateContentsWindow.addEventListener('load', function() {
             // 새 창의 전역 함수 호출하여 데이터 전달
-            if (updateContentsWindow.setUpdateContentsData) {
+            if (updateContentsWindow && updateContentsWindow.setUpdateContentsData) {
                 updateContentsWindow.setUpdateContentsData(updateContentsData);
             }
-        });
-        
-        // 창이 닫힐 때 참조 정리
-        updateContentsWindow.addEventListener('beforeunload', function() {
-            updateContentsWindow = null;
         });
     });
 }
 
 if(loggedInUser !== null)
-    userName.textContent = loggedInUser.user.name;
+    userNames.forEach(userName => {
+        userName.textContent = loggedInUser.user.name;
+    });
 
 (async() =>
 {
-    await configureUserLearningStatus();
-    
-    // 오늘 날짜를 YYYY-MM-DD 형식으로 생성
-    const today = new Date();
-    const todayStr = formatDate(today);
-    
-    await configureContinuousLearningDays(todayStr);
-
-    // 학습 데이터를 한 번만 가져와서 여러 함수에서 사용
-    const learningData = await getLearningTimeByWeek(start, end);   //선택한 주간의 학습 시간 데이터
-    
-    // 지난 주 날짜 계산 (원본 날짜를 변경하지 않도록 새로운 Date 객체 생성)
-    const lastWeekStart = new Date(start);
-    lastWeekStart.setDate(start.getDate() - 7);
-    const lastWeekEnd = new Date(end);
-    lastWeekEnd.setDate(end.getDate() - 7);
-    const lastLearningData = await getLearningTimeByWeek(lastWeekStart, lastWeekEnd);    // 지난 주간의 학습 시간 데이터
-    
-    await configureLearningDays(start, end, learningData);
-    await configureLearningChart(learningData);
-    updateLearningSummary(lastLearningData, learningData, start, end);
-
-    await configureContentsProgress();
-
+    await configureUserLearningStatus(); 
     await getUpdateContents();
+
     await loadPushMessage();
+
+    await getLatestLoginTime();
+
+    const {count, channels} = await compareLearningRateWithTotalAvg();
+    lowerLearningChannelCount.textContent = `${count}개 콘텐츠`;
+    lowerLearningChannels.textContent = `(${channels.join(", ")})`;
+
+
+    const topCompanyInfo = await getTopCompanyConnectionDuration('day', `2025-01-01~${new Date().toLocaleDateString('sv-SE')}`); // 현재 날짜를 'yyyy-MM-dd' 형식으로 변환하여 사용
+    firstCompany.textContent = `${topCompanyInfo?.data?.top?.[0]?.[0] ?? '없음'}`;
+    const topDepartmentInfo = await getTopDepartmentConnectionDuration('day', `2025-01-01~${new Date().toLocaleDateString('sv-SE')}`); // 현재 날짜를 'yyyy-MM-dd' 형식으로 변환하여 사용
+    firstDepartment.textContent = `${topDepartmentInfo?.data?.top?.[0]?.[1] ?? '없음'}`;
+    const topUserInfo = await getTopUserConnectionDuration('day', `2025-01-01~${new Date().toLocaleDateString('sv-SE')}`); // 현재 날짜를 'yyyy-MM-dd' 형식으로 변환하여 사용
+    firstUser.textContent = `${topUserInfo?.data?.top?.[0]?.[1] ?? '없음'}`;
+
+    await configureContentsProgress(userLearningChannelData);
+
+    setupPushNotification();
+    // let isLoading = false;
+    // setInterval(async() => {
+    //     if(isLoading) return;
+    //     isLoading = true;
+    //     await loadPushMessage()
+    //     isLoading = false;
+    // }, 60000); // 1분마다 푸시 메시지 새로고침
+
+
+
+    setInterval(async() => {
+        await getLatestLoginTime();
+    }, 900000); // 15분마다 마지막 접속 기록 갱신
+
 })();
 
-summaryCalendarButton.addEventListener("click", () => {
-    fpSummary.open();
-});
+function setupPushNotification() {
+    const eventSource = new EventSource(`${window.baseUrl}leaning/push/events`);
+    eventSource.onmessage = async function(event) {
+        console.log('Push notification received:', event.data);
+        // 서버로부터 새로운 푸시 메시지가 있다는 알림을 받았습니다.
+        // 메시지 목록을 다시 로드합니다.
+        await loadPushMessage();
+    };
 
-contentsDataButton.addEventListener("click", () => {
-    fpContents.open();
-});
+    eventSource.onerror = function(event) {
+        console.error("EventSource error:", event);
+        eventSource.close(); // 오류 발생 시 연결 종료
+    }
+}
 
 /**
  * 사용자 학습 상태 정보 구성(의견서 개수, 레벨 등등)
@@ -262,572 +255,6 @@ async function configureUserLearningStatus()
 }
 
 /**
- * 연속 학습일 구성
- * @param {string} referenceData 
- */
-async function configureContinuousLearningDays(referenceData) {
-    try {
-        const response = await fetch(`${window.baseUrl}leaning/continuous_learning_days?reference_date=${referenceData}`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            // 성공시 연속 학습일 표시 업데이트
-            const continueLearningDaysElement = document.getElementById("continue-learning-days");
-            if (continueLearningDaysElement) {
-                continueLearningDaysElement.textContent = `${data.continuous_days || 0}일`;
-            }
-            console.log(`Continuous learning days: ${data.continuous_days} (reference: ${referenceData})`);
-        } else {
-            console.error("Error fetching continuous learning days:", data.error);
-            // 에러시 기본값으로 0일 표시
-            const continueLearningDaysElement = document.getElementById("continue-learning-days");
-            if (continueLearningDaysElement) {
-                continueLearningDaysElement.textContent = "0일";
-            }
-        }
-    } catch (e) {
-        console.error("Error in configureContinuousLearningDays:", e);
-        // 에러시 기본값으로 0일 표시
-        const continueLearningDaysElement = document.getElementById("continue-learning-days");
-        if (continueLearningDaysElement) {
-            continueLearningDaysElement.textContent = "0일";
-        }
-    }
-}
-
-/**
- * 사용자의 학습 요일 아이콘 구성
- */
-async function configureLearningDays(start, end, learningData)
-{
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // 시간 초기화
-
-    // 오늘 날짜를 YYYY-MM-DD 형식으로 생성
-    const todayStr = formatDate(today);
-
-    let todayIndex = null;
-    if (today >= start && today <= end) {
-        const day = today.getDay();
-        todayIndex = day === 0 ? 6 : day - 1; // 일요일(0)이면 6, 그 외는 (day - 1)
-    }
-
-    // 사용자의 학습한 날짜들을 Set으로 저장
-    const learningDates = new Set();
-    if (learningData && learningData.user_daily_total) {
-        learningData.user_daily_total.forEach(item => {
-            if (item.total_duration_minutes > 0) {
-                learningDates.add(item.date);
-            }
-        });
-    }
-
-    const days = [
-        { day: "월", active: false },
-        { day: "화", active: false },
-        { day: "수", active: false },
-        { day: "목", active: false },
-        { day: "금", active: false },
-        { day: "토", active: false },
-        { day: "일", active: false }
-    ];
-
-    // 주간 날짜별로 학습 여부 확인하여 active 설정
-    console.log('Week range:', start, 'to', end);
-    console.log('Learning dates found:', Array.from(learningDates));
-    for (let i = 0; i < 7; i++) {
-        const currentDate = new Date(start);
-        currentDate.setDate(start.getDate() + i);
-        // 로컬 날짜 문자열 사용 (UTC 변환 방지)
-        const dateStr = formatDate(currentDate);
-        
-        console.log(`Day ${i} (${['월','화','수','목','금','토','일'][i]}): ${dateStr}, has learning: ${learningDates.has(dateStr)}`);
-        
-        if (learningDates.has(dateStr)) {
-            days[i].active = true;
-            
-            if(dateStr === todayStr){
-                const todayLearningTime = learningData.user_daily_total.find(item => item.date === dateStr)?.total_duration_minutes || 0;
-                document.getElementById("learning-time-today").textContent = Math.round(todayLearningTime);
-            }
-        }
-    }
-
-    dayIconContainer.innerHTML = ""; // 기존 아이콘 제거
-    
-    days.forEach((day, index) => {
-        const wrapper = document.createElement("div");
-        wrapper.style.display = "flex";
-        wrapper.style.flexDirection = "column";
-        wrapper.style.alignItems = "center";
-        wrapper.style.position = "relative";
-
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("width", "44");
-        svg.setAttribute("height", "44");
-
-        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        const symbolId = day.active ? "enabled-fire" : "disabled-fire";
-        use.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `asset/images/images.svg#${symbolId}`);
-        svg.appendChild(use);
-
-        const label = document.createElement("span");
-        label.textContent = day.day;
-        label.style.fontSize = "12px";
-        label.style.color = index === todayIndex ? "#FF7700" : "#000";
-
-        if(todayIndex !== null && index === todayIndex) {
-            const svgCircle = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svgCircle.setAttribute("width", "7");
-            svgCircle.setAttribute("height", "7");
-            svgCircle.style.position = "absolute";
-            svgCircle.style.top = "0";
-            svgCircle.style.left = "85%";
-
-            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            circle.setAttribute("cx", "3.5");
-            circle.setAttribute("cy", "3.5");
-            circle.setAttribute("r", "3.5");
-            circle.style.fill = "#FF7700";
-
-            svgCircle.appendChild(circle);
-            wrapper.appendChild(svgCircle);
-        }
-        wrapper.appendChild(svg);
-        wrapper.appendChild(label);
-
-        dayIconContainer.appendChild(wrapper);
-    });
-}
-
-/**
- * 학습 차트 구성
- */
-async function configureLearningChart(learningData = null)
-{
-    var myChart = echarts.init(chartContainer, null, {
-      renderer: 'canvas',
-      useDirtyRect: false
-    });
-
-    // 기본값 설정 (데이터가 없을 때)
-    let myData = [0, 0, 0, 0, 0, 0, 0];
-    let averageData = [0, 0, 0, 0, 0, 0, 0];
-
-    // 학습 데이터가 있을 때 차트 데이터 구성
-    if (learningData) {
-        console.log('Learning data received:', learningData);
-        
-        // 데이터 초기화
-        myData = [0, 0, 0, 0, 0, 0, 0];
-        averageData = [0, 0, 0, 0, 0, 0, 0];
-
-        // 현재 선택된 주간 범위 가져오기
-        const startDate = fpSummary.selectedDates[0];
-        const endDate = fpSummary.selectedDates[1];
-        
-        if (startDate && endDate) {
-            // 사용자 데이터를 날짜별로 매핑
-            const userDataMap = {};
-            if (learningData.user_daily_total) {
-                console.log('Raw user_daily_total:', learningData.user_daily_total);
-                learningData.user_daily_total.forEach(item => {
-                    console.log('Processing user item:', item);
-                    userDataMap[item.date] = item.total_duration_minutes || 0;
-                });
-            }
-            
-            // 전체 사용자 평균 데이터를 날짜별로 매핑
-            const avgDataMap = {};
-            if (learningData.all_users_daily_average) {
-                console.log('Raw all_users_daily_average:', learningData.all_users_daily_average);
-                learningData.all_users_daily_average.forEach(item => {
-                    console.log('Processing avg item:', item);
-                    avgDataMap[item.date] = item.avg_duration_minutes || 0;
-                });
-            }
-            
-            console.log('=== CHART DATA MAPPING DEBUG ===');
-            console.log('Selected week range:', 
-                       formatDate(startDate), 
-                       'to', 
-                       formatDate(endDate));
-            console.log('User data map:', userDataMap);
-            console.log('Average data map:', avgDataMap);
-            
-            // 주간 범위의 각 날짜를 요일별로 매핑
-            for (let i = 0; i < 7; i++) {
-                const currentDate = new Date(startDate);
-                currentDate.setDate(startDate.getDate() + i);
-                const dateStr = formatDate(currentDate);
-                
-                const userValue = userDataMap[dateStr] || 0;
-                const avgValue = avgDataMap[dateStr] || 0;
-                
-                myData[i] = Math.round(userValue);
-                averageData[i] = Math.round(avgValue);
-                
-                console.log(`Chart Day ${i} (${['월','화','수','목','금','토','일'][i]}): ${dateStr} -> User: ${userValue}, Avg: ${avgValue}`);
-            }
-        }
-        
-        console.log('Chart myData:', myData);
-        console.log('Chart averageData:', averageData);
-    }
-
-    // 동적 Y축 최대값 계산
-    const allData = [...myData, ...averageData];
-    const maxValue = Math.max(...allData);
-    const dynamicMax = Math.max(60, Math.ceil(maxValue / 10) * 10); // 최소 60, 10의 배수로 올림
-    console.log('Chart dynamic max:', dynamicMax, 'from max data:', maxValue);
-
-    var option = {
-        grid: {
-            top: 30,
-            bottom: 50,
-        },
-        xAxis: {
-            type: 'category',
-            data: ['월', '화', '수', '목', '금', '토', '일']
-        },
-        yAxis: {
-            type: 'value',
-            interval: 10,
-            min: 0,
-            max: dynamicMax  // 동적 최대값
-        },
-        legend: {
-            data: ['나의 학습시간', '전체 학습자 평균 학습시간'],
-            bottom: 0,  // 💡 아래쪽에 고정
-            icon: 'circle',
-            left: '8%',
-        },
-        series: [
-            {
-                name: '나의 학습시간',
-                data: myData,
-                barWidth: 30,
-                type: 'bar',
-                itemStyle: {
-                    color: '#3CB043',
-                    barBorderRadius:[40,40,40,40]
-                },
-                label: {
-                    show: true,
-                    position: 'inside',
-                    fontWeight: 'bold',
-                    formatter: function(params) {
-                        return params.value === 0? '' : params.value;
-                    }
-                }
-            },
-            {
-                name: '전체 학습자 평균 학습시간',
-                data: averageData,
-                type: 'bar',
-                barWidth: 30,
-                itemStyle: {
-                    color: '#FFCC66',
-                    barBorderRadius:[40,40,40,40]
-                },
-                label: {
-                    show: true,
-                    position: 'inside',
-                    fontWeight: 'bold',
-                    formatter: function(params) {
-                        return params.value === 0? '' : params.value;
-                    }
-                }
-            }
-        ]
-    };
-
-    myChart.setOption(option);
-
-    window.addEventListener('resize', function() {
-        myChart.resize();
-    });
-}
-
-/**
- * 학습 통계 요약 업데이트 함수
- */
-async function updateLearningSummary(lastWeekData, currentWeekData, start, end) {
-    
-    // 현재 주 나의 학습 데이터에서 하루 평균 학습시간 계산
-    let totalMinutes = 0;
-    let totalDays = 0;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // 현재 주의 각 날짜를 확인하여 계산
-    for (let i = 0; i < 7; i++) {
-        const currentDate = new Date(start);
-        currentDate.setDate(start.getDate() + i);
-        
-        // 오늘 이후의 날짜는 제외
-        if (currentDate > today) {
-            break;
-        }
-        
-        totalDays++; // 실제 지나간 날 수 카운트
-        
-        const dateStr = formatDate(currentDate);
-        
-        // 해당 날짜의 학습 시간 찾기
-        let dailyMinutes = 0;
-        if (currentWeekData && currentWeekData.user_daily_total) {
-            const dayData = currentWeekData.user_daily_total.find(item => item.date === dateStr);
-            if (dayData && dayData.total_duration_minutes > 0) {
-                dailyMinutes = dayData.total_duration_minutes;
-            }
-        }
-        totalMinutes += dailyMinutes; // 학습시간이 0인 날도 0으로 포함
-    }
-    
-    // 하루 평균 학습시간 (분 단위) - 지나간 모든 날로 나누기
-    const avgMinutesPerDay = totalDays > 0 ? Math.round(totalMinutes / totalDays) : 0;
-    
-    // 모든 .my-avg-learning-minutes 요소에 평균 학습시간 설정
-    myAvgLearningMinutes.forEach(span => {
-        span.textContent = avgMinutesPerDay.toString().padStart(2, '0');
-    });
-
-    percentChangeValue.textContent = "00";
-    percentChangeText.textContent = "% 내렸습니다.";
-
-    allAvgLearningMinutes.textContent = "00";
-    comparePercentValue.textContent = "00";
-    comparePercentText.textContent = "% 높습니다.";
-}
-
-/**
- * 콘텐츠 진도율 구성
- */
-async function configureContentsProgress() {
-    const categories = [
-        { title: "A_BIM/DX", progress: 0, total: 23 },
-        { title: "B_천지인", progress: 0, total: 7 },
-        { title: "C_설계도서 검토", progress: 0, total: 41 },
-        { title: "D_모델제작과 OBS", progress: 0, total: 17 },
-        { title: "E_시공상세도", progress: 0, total: 13 },
-        { title: "F_공사관리", progress: 0, total: 1 },
-        { title: "G_안전관리", progress: 0, total: 8 },
-        { title: "H_품질 및 환경관리", progress: 0, total: 7 },
-        { title: "I_공정 및 기성관리", progress: 0, total: 5 },
-        { title: "J_보상 및 민원", progress: 0, total: 3 },
-        { title: "K_준공 및 운영", progress: 0, total: 13 },
-        { title: "L_DfMA", progress: 0, total: 2 }
-    ];
-
-    const categoryDetails = {
-        "A_BIM/DX": [
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "개요", start: "2025. 3. 6. 오전 10:59:58", end: "2025. 3. 6. 오전 11:00:26", duration: "27초", ip: "172.16.8.127" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "DX 목표/실행요건", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "정부 건설정책 추진 현황", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "국내의 BIM/DX 실태", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "외부 제시의견", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },
-            { page: "전면 BIM설계 도입의 한계", start: "2025. 3. 6. 오전 11:01:00", end: "2025. 3. 6. 오전 11:02:00", duration: "1분", ip: "192.168.0.1" },           
-        ],
-        "B_천지인": [
-            { page: "개요", start: "2025. 3. 7. 오전 9:00:00", end: "2025. 3. 7. 오전 9:30:00", duration: "30분", ip: "192.168.0.2" }
-        ]
-    }
-
-    categories.forEach(category => {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.flexDirection = "row";
-        row.style.padding = "17px";
-        row.style.alignItems = "center";
-
-        // 제목
-        const titleSpan = document.createElement("span");
-        titleSpan.className = "contents-title-flex";
-        titleSpan.textContent = category.title;
-
-        // 진행률 바
-        const progressBar = document.createElement("div");
-        progressBar.className = "progress-bar";
-        progressBar.style.marginLeft = "50px";
-        progressBar.style.marginRight = "50px";
-
-        const progressFill = document.createElement("div");
-        progressFill.className = "progress-fill";
-
-        const percent = Math.round((category.progress / category.total) * 100);
-        progressFill.style.width = `${percent}%`;
-
-        const progressText = document.createElement("span");
-        progressText.className = "progress-text";
-        progressText.textContent = `${category.progress} / ${category.total}`;
-
-        progressBar.appendChild(progressFill);
-        progressBar.appendChild(progressText);
-
-        // 퍼센트 span
-        const percentSpan = document.createElement("span");
-        percentSpan.textContent = `${percent}%`;
-
-        row.appendChild(titleSpan);
-        row.appendChild(progressBar);
-        row.appendChild(percentSpan);
-
-        contentsProgressContainer.appendChild(row);
-
-        row.addEventListener("click", () =>
-        {
-            const next = row.nextElementSibling;
-            
-            // 이미 열려있으면 (즉, row 바로 뒤에 expander-container가 있으면)
-            if (next && next.classList.contains("expander-container")) {
-                next.remove();
-                return; // ✅ 여기서 끝 → 다시 클릭 시 닫힘
-            }
-
-            const existing = document.querySelector(".expander-container");
-            if (existing) existing.remove();
-
-            const details = categoryDetails[category.title];
-            if (!details || details.length === 0) return;
-
-            const expander = document.createElement("div");
-            expander.className = "expander-container";
-            expander.style.width = "98%";
-            expander.style.margin = "0 0 0 0";
-            expander.style.border = "none";
-
-            expander.appendChild(createDetailTable(details));
-
-            row.insertAdjacentElement("afterend", expander);
-        });
-    });
-}
-
-// ✅ 테이블 생성 함수
-function createDetailTable(data) {
-    const table = document.createElement("table");
-    table.className = "my-table";
-
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>페이지</th>
-                <th>시작 시간</th>
-                <th>종료 시간</th>
-                <th>학습 시간</th>
-                <th>IP</th>
-            </tr>
-        </thead>
-    `;
-
-    const tbody = document.createElement("tbody");
-
-    const grouped = {};
-    data.forEach(item => {
-        if (!grouped[item.page]) {
-            grouped[item.page] = [];
-        }
-        grouped[item.page].push(item);
-    });
-
-    Object.keys(grouped).forEach(pageName => {
-        const items = grouped[pageName];
-        items.forEach((item, idx) => {
-            const tr = document.createElement("tr");
-
-            if (idx === 0) {
-                const tdPage = document.createElement("td");
-                tdPage.innerText = pageName;
-                tdPage.rowSpan = items.length;
-                tdPage.className = "page-cell";
-                tr.appendChild(tdPage);
-            }
-
-            const tdStart = document.createElement("td");
-            tdStart.innerText = item.start;
-
-            const tdEnd = document.createElement("td");
-            tdEnd.innerText = item.end;
-
-            const tdDuration = document.createElement("td");
-            tdDuration.innerText = item.duration;
-
-            const tdIp = document.createElement("td");
-            tdIp.innerText = item.ip;
-
-            tr.appendChild(tdStart);
-            tr.appendChild(tdEnd);
-            tr.appendChild(tdDuration);
-            tr.appendChild(tdIp);
-
-            tbody.appendChild(tr);
-        });
-    });
-
-    table.appendChild(tbody);
-    return table;
-}
-
-/**
  * 사용자의 의견서 개수를 가져오는 함수  
  * @param {string} userId - 사번
  * @returns {Promise<number>} - 의견서 개수
@@ -889,25 +316,12 @@ async function getUserLearningRate(id) {
     return 0;
 }
 
-async function getLearningTimeByWeek(start_date, end_date) {
-    try {
-        
-        const startDateStr = formatDate(start_date);
-        const endDateStr = formatDate(end_date);
 
-        const response = await fetch(`${window.baseUrl}leaning/learning_time_by_week?start_date=${startDateStr}&end_date=${endDateStr}`);
-        const data = await response.json();
 
-        if(response.ok) {
-            return data;
-        }
-    }
-    catch(e) {
-        console.error("Error fetching learning time by week:", e);
-    }
-    return [];
-}
-
+/**
+ * 최근 업데이트된 콘텐츠를 가져오는 함수
+ * @param {number} daysAgo - 최근 업데이트된 콘텐츠를 가져올 기간 (일)
+ */
 async function getUpdateContents(daysAgo = 14) {
     try {
         const response = await fetch(`${window.baseUrl}leaning/get_updated_contents?days=${daysAgo}`);
@@ -973,36 +387,125 @@ async function getUpdateContents(daysAgo = 14) {
     }
 }
 
+/**
+ * 푸시 메시지를 불러오는 함수
+ * @returns {Promise<void>} 
+ */
 async function loadPushMessage() {
     const response = await fetch(`${window.baseUrl}leaning/push/load`);
     const data = await response.json();
     if (response.ok) {
         pushMessageCount.textContent = data.messages.length || 0; // 메시지 개수 표시
-
-        if(pushMessageData === null)
-            pushMessageData = data.messages; // 메시지 데이터 저장
-        else
-            pushMessageData.push(...data.messages); // 기존 데이터에 추가
+        pushMessageData = data.messages; // 메시지 데이터 저장
     } else {
         console.error("Failed to load push messages:", data.error);
     }
     
 }
 
-// ✅ 공통 함수로 분리
-function getWeekRange(date) {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0); // 시간 초기화
+/**
+ * 최신 로그인 시간을 가져오는 함수
+ * @returns {Promise<void>}
+ */
+async function getLatestLoginTime() {
+    const response = await fetch(`${window.baseUrl}user/get_latest_login_time`);
+    const data = await response.json();
+    if (response.ok) {
+        const date = new Date(data.latest_login_time);
+        const today = new Date();
 
-    const day = start.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    start.setDate(start.getDate() + diff);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
 
-    const end = new Date(start);
-    end.setHours(23, 59, 59, 999); // 시간 초기화
-    end.setDate(start.getDate() + 6);
+        latestLoginTime.textContent = `${hours}시${minutes}분${seconds}초로` || "정보 없음으로"; // 최신 로그인 시간 표시
 
-    return [start, end];
+        // 오늘 날짜와 비교하여 학습하지 않은 날 수 계산(날짜 비교_시간제외)
+        today.setHours(0, 0, 0, 0);
+        date.setHours(0, 0, 0, 0);
+        const diff = today.getTime() - date.getTime();
+        const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        emptyLearningDays.textContent = diffDays || 0;
+
+    } else {
+        console.error("Failed to load latest login time:", data.error);
+        emptyLearningDays.textContent = "0";
+        latestLoginTime.textContent = "없습니다.";
+    }
+}
+
+/**
+ * 사용자의 학습률을 전체 평균 학습률과 비교하여, 전체 평균보다 낮은 사용자 학습률을 가진 채널 목록을 반환하는 함수
+ * @returns {Promise<{count: number, channels: string[]}>} - 전체 평균 학습률보다 낮은 사용자 학습률을 가진 채널 목록
+ */
+async function compareLearningRateWithTotalAvg() {
+    try {
+        const totalAvgData = await getLearningRatePerCategory('all'); // 전체 평균 학습률 가져오기
+        userLearningChannelData = await getLearningRatePerCategory('user'); // 사용자별 학습률 가져오기
+
+        if(!totalAvgData || totalAvgData.length === 0 || !userLearningChannelData)
+        {
+            return {count: 0, channels: []}; // 전체 평균 데이터가 없으면 빈 배열 반환
+        }
+
+        const userMap = new Map(userLearningChannelData.map(item => [item.channel_id, Number(item.progress_rate) || 0])); // 사용자 학습률을 Map으로 변환
+
+        const lowerChannels = totalAvgData.filter(avgItem =>
+        {
+            const userRate = userMap.get(avgItem.channel_id) ?? 0; // 사용자 학습률이 없으면 0으로 처리
+            return userRate < avgItem.progress_rate; // 사용자 학습률이 전체 평균보다 낮은 경우
+        }).map(avgItem => avgItem.channel_name); // 채널 이름만 추출
+
+        return {
+            count: lowerChannels.length, // 전체 평균보다 낮은 학습률을 가진 채널 개수
+            channels: convertChannelNames(lowerChannels) // 채널 이름 배열
+        }
+       
+    } catch (error) {
+        console.error("Error comparing learning rate with total average:", error);
+    }
+
+    return {count: 0, channels: []}; // 오류 발생 시 빈 배열 반환
+}
+
+/**
+ * 사용자의 학습률을 카테고리별로 가져오는 함수
+ * @param {string} type 
+ * @returns 
+ */
+async function getLearningRatePerCategory(type = 'user') {
+    try {
+        const response = await fetch(`${window.baseUrl}leaning/get_learning_rate_per_category?type=${type}`);
+        const data = await response.json();
+        if (response.ok) {
+            // 데이터 처리
+            return data;
+        } else {
+            console.error("Failed to load learning rate per category:", data.error);
+        }
+    } catch (error) {
+        console.error("Error fetching learning rate per category:", error);
+    }
+
+    return null; // 오류 발생 시 null 반환
+}
+
+/* * 채널 이름을 변환하는 함수
+ * @param {string[]} channels - 채널 이름 배열
+ * @returns {string[]} - 변환된 채널 이름 배열
+ */
+function convertChannelNames(channels) {
+    return channels.map(name =>{
+        const match = name.match(/^(\d{3})_(.+)$/);
+        if (!match) return name;
+
+        const num = parseInt(match[1], 10);
+        if (num < 1 || num > 26) return name; // A~Z까지만
+        const letter = String.fromCharCode(64 + num); // 1 → A, 2 → B ...
+
+        return `${letter}.${match[2]}`;
+    });
 }
 
 /**
@@ -1014,32 +517,4 @@ function formatDate(date) {
     return date.getFullYear() + '-' + 
            String(date.getMonth() + 1).padStart(2, '0') + '-' + 
            String(date.getDate()).padStart(2, '0');
-}
-
-/**
- * 오늘을 기준으로 연속 학습일 계산
- * @param {Set} learningDates - 학습한 날짜들의 Set (YYYY-MM-DD 형식)
- * @returns {number} - 연속 학습일 수
- */
-function calculateContinuousLearningDays(learningDates) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let continuousDays = 0;
-    let currentDate = new Date(today);
-    
-    // 오늘부터 거꾸로 확인하여 연속 학습일 계산
-    while (true) {
-        const dateStr = formatDate(currentDate);
-        
-        if (learningDates.has(dateStr)) {
-            continuousDays++;
-            // 하루 전으로 이동
-            currentDate.setDate(currentDate.getDate() - 1);
-        } else {
-            break;
-        }
-    }
-    
-    return continuousDays;
 }

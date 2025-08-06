@@ -86,12 +86,16 @@ def get_period_value(period_type: str, period_value: str):
     else:
         raise ValueError(f"Invalid period_type: {period_type}")
 
-def get_top_user_duration_mixed(start_date, end_date):
+def get_top_user_duration_mixed(start_date, end_date, filter_is_deleted = False):
     """주어진 기간 동안의 사용자별 총 로그인 시간 중 제일 높은 시간 정보를 반환합니다."""
     user_duration_map = {}
     used_ranges = []
 
-    all_users = db.session.query(Users.id, Users.name).all()
+    all_users = db.session.query(Users.id, Users.name)
+    if filter_is_deleted:
+        all_users = all_users.filter(Users.is_deleted == False)
+    all_users = all_users.all()
+    
     for user in all_users:
         user_duration_map[user.id.lower()] = (user.name, 0)
     
@@ -200,11 +204,15 @@ def get_top_user_duration_mixed(start_date, end_date):
             'duration': 0
         }
 
-def get_top_department_duration_mixed(start_date, end_date):
+def get_top_department_duration_mixed(start_date, end_date, filter_is_deleted = False):
     dept_duration_map = {}
     used_ranges = []
     
-    all_departments = db.session.query(Users.company, Users.department).distinct().all()
+    all_departments = db.session.query(Users.company, Users.department).distinct()
+    if filter_is_deleted:
+        all_departments = all_departments.filter(Users.is_deleted == False)
+    all_departments = all_departments.all()
+    
     for company, department in all_departments:
         dept_duration_map[(company, department)] = 0
     
@@ -309,11 +317,15 @@ def get_top_department_duration_mixed(start_date, end_date):
             'duration': 0
         }
 
-def get_top_company_duration_mixed(start_date, end_date):
+def get_top_company_duration_mixed(start_date, end_date, filter_is_deleted = False):
     company_duaration_map = {}
     used_ranges = []
     
-    all_companies = db.session.query(Users.company).distinct().all()
+    all_companies = db.session.query(Users.company)
+    if filter_is_deleted:
+        all_companies = all_companies.filter(Users.is_deleted == False)
+    all_companies = all_companies.distinct().all()
+    
     for (company,) in all_companies:
         company_duaration_map[company] = 0
     

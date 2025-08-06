@@ -170,7 +170,7 @@ def get_memo_count_per_category(period_type, period_value, filter_type, filter_v
         JOIN users u ON m.user_id = u.id
         WHERE {user_filter}
             AND m.modified_at >= :start_dt
-            AND m.modified_at < :end_dt
+            AND m.modified_at <= :end_dt
         GROUP BY c.id, c.name
         ORDER BY fc.folder_name
     """
@@ -227,7 +227,7 @@ def get_memo_count_per_category_by_users(user_ids, period_type, period_value):
         JOIN users u ON m.user_id = u.id
         WHERE m.user_id = ANY(:user_ids)
             AND m.modified_at >= :start_dt
-            AND m.modified_at < :end_dt
+            AND m.modified_at <= :end_dt
         GROUP BY u.id, c.id, c.name
         ORDER BY c.name
     """

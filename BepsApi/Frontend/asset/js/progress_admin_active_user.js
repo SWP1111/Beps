@@ -58,7 +58,7 @@ export async function activeUser(period_type, period_value)
                     .filter(user => !currentUserMap.has(user.user_id))
                     .map(async user => {
                     const info = await getUserInfo(user);
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = new Date().toLocaleDateString('sv-SE');
                     //const userDuration = await getUserConnectionDuration(period_type, period_value, 'user', user.user_id);
                     const completionRate = await getCompletionRate('day', `2025-01-01~${today}`, 'user', user.user_id);
                     //const userDurationSec = userDuration.total_duration;

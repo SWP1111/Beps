@@ -8,8 +8,8 @@ import { setLoginData, formatSecondsToHHMMSS } from "./progress_admin_login.js";
 document.addEventListener('DOMContentLoaded', async() => {
   
   const yearStart = new Date().getFullYear();
-  const today = new Date().toISOString().split('T')[0];
-  
+  const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD 형식으로 변환
+
   let period_type = "year";
   let period_value = `${yearStart}`;
   let filter_type = "all";
@@ -777,22 +777,31 @@ document.addEventListener('DOMContentLoaded', async() => {
       if(rankTitle === "개인 순위")
         {        
           loginRankTopFirst.textContent = `${loginUserRank.data.top[0][1]}`;
+          loginRankTopFirst.title = `${loginUserRank.data.top[0][1]}`;
           loginRankTopSecond.textContent = `${loginUserRank.data.top[1][1]}`;
+          loginRankTopSecond.title = `${loginUserRank.data.top[1][1]}`;
           loginRankTopThird.textContent = `${loginUserRank.data.top[2][1]}`;
+          loginRankTopThird.title = `${loginUserRank.data.top[2][1]}`;
 
         }
         else if(rankTitle === "팀 순위")
         {      
           loginRankTopFirst.textContent = `${loginDepartmentRank.data.top[0][1]}`;
+          loginRankTopFirst.title = `${loginDepartmentRank.data.top[0][1]}`;
           loginRankTopSecond.textContent = `${loginDepartmentRank.data.top[1][1]}`;
+          loginRankTopSecond.title = `${loginDepartmentRank.data.top[1][1]}`;
           loginRankTopThird.textContent = `${loginDepartmentRank.data.top[2][1]}`;
+          loginRankTopThird.title = `${loginDepartmentRank.data.top[2][1]}`;
 
         }
         else if(rankTitle === "회사 순위")
         { 
           loginRankTopFirst.textContent = `${loginCompanyRank.data.top[0][0]}`;
+          loginRankTopFirst.title = `${loginCompanyRank.data.top[0][0]}`;
           loginRankTopSecond.textContent = `${loginCompanyRank.data.top[1][0]}`;
+          loginRankTopSecond.title = `${loginCompanyRank.data.top[1][0]}`;
           loginRankTopThird.textContent = `${loginCompanyRank.data.top[2][0]}`;
+          loginRankTopThird.title = `${loginCompanyRank.data.top[2][0]}`;
         }
     }
     else
@@ -800,22 +809,31 @@ document.addEventListener('DOMContentLoaded', async() => {
       if(rankTitle === "개인 순위")
         {        
           loginRankTopFirst.textContent = `${loginUserRank.data.bottom[0][1]}`;
+          loginRankTopFirst.title = `${loginUserRank.data.bottom[0][1]}`;
           loginRankTopSecond.textContent = `${loginUserRank.data.bottom[1][1]}`;
+          loginRankTopSecond.title = `${loginUserRank.data.bottom[1][1]}`;
           loginRankTopThird.textContent = `${loginUserRank.data.bottom[2][1]}`;
+          loginRankTopThird.title = `${loginUserRank.data.bottom[2][1]}`;
 
         }
         else if(rankTitle === "팀 순위")
         {      
           loginRankTopFirst.textContent = `${loginDepartmentRank.data.bottom[0][1]}`;
+          loginRankTopFirst.title = `${loginDepartmentRank.data.bottom[0][1]}`;
           loginRankTopSecond.textContent = `${loginDepartmentRank.data.bottom[1][1]}`;
+          loginRankTopSecond.title = `${loginDepartmentRank.data.bottom[1][1]}`;
           loginRankTopThird.textContent = `${loginDepartmentRank.data.bottom[2][1]}`;
+          loginRankTopThird.title = `${loginDepartmentRank.data.bottom[2][1]}`;
 
         }
         else if(rankTitle === "회사 순위")
         { 
           loginRankTopFirst.textContent = `${loginCompanyRank.data.bottom[0][0]}`;
+          loginRankTopFirst.title = `${loginCompanyRank.data.bottom[0][0]}`;
           loginRankTopSecond.textContent = `${loginCompanyRank.data.bottom[1][0]}`;
+          loginRankTopSecond.title = `${loginCompanyRank.data.bottom[1][0]}`;
           loginRankTopThird.textContent = `${loginCompanyRank.data.bottom[2][0]}`;
+          loginRankTopThird.title = `${loginCompanyRank.data.bottom[2][0]}`;
         }
     }
   }

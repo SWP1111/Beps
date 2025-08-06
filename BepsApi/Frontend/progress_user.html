@@ -11,7 +11,7 @@
         <script src="asset/js/ko.js"></script>
         <script type="text/javascript" src="asset/js/echarts.min.js"></script>
         <script src="asset/js/config.js"></script>
-        <script src="asset/js/progress_user.js" defer></script>
+        <script type="module" src="asset/js/progress_user.js"></script>
     </head>
     <body style="height: 100%; font-family:'Noto Sans KR'; font-weight: 700;">
         <div style="display: flex; height:100%; flex-direction: row; gap: 1rem; justify-content: center;">
@@ -29,7 +29,7 @@
                     </svg>
                 </div>
                 <div style="display: flex; margin-top: 1rem; justify-content: center; font-size: 20px; font-weight: bold; font-family: 'Noto Sans KR';">
-                    <span id="user-name">홍길동</span>
+                    <span class="user-name">홍길동</span>
                     <span style="font-weight: 500;">님</span>
                 </div>
                 <div id="user-info-rect-top" style="display: flex; flex-direction: row; margin-top: 1rem;">
@@ -68,7 +68,7 @@
                 </div>
             </div>
 
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem; ">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
                 <div class="frame" style="flex: 0.7;" >
                     <div style="display: flex; flex-direction: row; border-bottom: 1px solid #000; padding: 10px 10px 3px 10px;">
                         <span>나의 학습분석</span>
@@ -153,7 +153,7 @@
                     </div>
                 </div>
 
-                <div class="frame" style="flex: 0.3;" >
+                <div class="frame" style="flex: 0.3;  overflow-y: auto; scrollbar-gutter: stable;" >
                     <div style="display: flex; flex-direction: row; border-bottom: 1px solid #000; padding: 10px 10px 3px 10px;">
                         <span>학습 가이드</span>
                     </div>
@@ -165,14 +165,10 @@
                                 </svg>
                                 <span>&nbsp;마지막 접속 기록</span>
                             </div>
-                            <div style="display:flex; flex-direction:column; font-weight: 500; font-size: 13px; margin-top: 10px;">
-                                <div>
-                                    <span>김신지님의 마지막 접속 시간은</span>
-                                    <span>00시00분00초로</span>
-                                </div>
-                                <div>
-                                    <span>1</span><span>일동안 학습 기록이 없습니다.</span>
-                                </div>
+                            <div style="font-weight: 500; font-size: 13px; margin-top: 5px;">
+                                <span class="user-name">김신지</span><span>님의 마지막 접속 시간은</span>
+                                <span id="latest-login-time">00시00분00초로</span>
+                                <span id="empty-learning-days">1</span><span>일동안 학습 기록이 없습니다.</span>
                             </div>
                         </div>
                         <div class="grid-guide-container__item"  style="margin-top: 10px;">
@@ -182,9 +178,9 @@
                                 </svg>
                                 <span>&nbsp;진도율이 낮은 콘텐츠</span>
                             </div>
-                            <div style="font-weight: 500; font-size: 13px; margin-top: 10px;">
+                            <div style="font-weight: 500; font-size: 13px; margin-top: 5px;">
                                 <span>전체 학습자의 평균 진도율과 비교했을 때,</span>
-                                <span>4개 콘텐츠(B.천지인, C.설계도서 검토, E. 시공상세도, F.공사관리)</span>
+                                <span id="lower-learning-channel_count">4개 콘텐츠</span><span id="lower-learning-channels" style="font-weight: 500; font-size: 11px;">(B.천지인, C.설계도서 검토, E. 시공상세도, F.공사관리)</span>
                                 <span>의 진도율이 낮습니다.</span>
                             </div>
                         </div>
@@ -195,7 +191,7 @@
                                 </svg>
                                 <span>&nbsp;문제 해결 & 지원</span>
                             </div>
-                            <div style="font-weight: 500; font-size: 13px; margin-top: 10px;">
+                            <div style="font-weight: 500; font-size: 13px; margin-top: 5px;">
                                 <span>계정 관련, 학습 진행, 기술 문제 등 도움이 필요하신 경우에는 김혜인선임 연구원(B22027)님께 문의 바랍니다.</span>
                             </div>
                         </div>
@@ -206,8 +202,8 @@
                                 </svg>
                                 <span>&nbsp;회사·팀·개인별 최다 접속자</span>
                             </div>
-                            <div style="font-weight: 500; font-size: 13px; margin-top: 10px;">
-                                <span>현재 접속 랭킹 1위는 회사 : 삼안, 팀: 기술기획팀, 개인: 정나래 입니다.</span>
+                            <div style="font-weight: 500; font-size: 13px; margin-top: 5px;">
+                                <span>현재 접속 랭킹 1위는 회사 : </span><span id="first-company">삼안</span><span>, 팀: </span><span id="first-department">기술기획팀</span><span>, 개인: </span><span id="first-user">정나래</span><span> 입니다.</span>
                             </div>
                         </div>
                     </div>

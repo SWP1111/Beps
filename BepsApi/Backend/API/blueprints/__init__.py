@@ -2,15 +2,14 @@ from flask import Blueprint
 
 # 🔹 블루프린트 생성
 def register_blueprints(app):
-    from blueprints.user_routes import api_user_bp
-    from blueprints.leaning_routes import api_leaning_bp
+    from blueprints.user import api_user_bp
+    from blueprints.leaning import api_leaning_bp
     from blueprints.contents_routes import api_contents_bp
     from blueprints.memo_routes import api_memo_bp
     from blueprints.memo_reply_routes import api_memo_reply_bp
     from blueprints.statistics_routes import api_statistics_bp
     from blueprints.push_routes import api_push_bp
     from blueprints.descope_api_routes import api_descope_bp
-    import blueprints.leaning_routes_part2
     
     app.register_blueprint(api_user_bp, url_prefix='/user')
     app.register_blueprint(api_leaning_bp, url_prefix='/leaning')

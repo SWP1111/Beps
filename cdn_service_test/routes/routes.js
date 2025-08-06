@@ -14,7 +14,6 @@ const dbPool = require('../config/db');
 const router = express.Router();
 const service_type = "cdn";
 
-
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (password === CONSTANTS.PASSWORD) {
@@ -439,8 +438,13 @@ router.get(`/${service_type}/get-installer-version`, (req, res) => {
   res.json({ version });
 });
 
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: 유저 추가 수정 삭제 조회
+ */
 
-// latest 버전 조회
 router.get(`/${service_type}/get-exe-version`, (req, res) => {
   const exePath = path.join(CONSTANTS.APPLICATION_DIR, "bepsapp.exe");
   if (!fs.existsSync(exePath)) return res.status(404).json({ error: 'File not found' });

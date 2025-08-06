@@ -5,6 +5,11 @@ const routes = require('./routes/routes');
 const app = express();
 const port = 3001;
 
+app.use("/cdn/api", routes)
+
+const { swaggerUi, specs } = require("./swagger/swagger")
+app.use("/cdn/api-docs", swaggerUi.serve, swaggerUi.setup(specs))
+
 app.use(bodyParser.json());
 app.use('/', routes);
 

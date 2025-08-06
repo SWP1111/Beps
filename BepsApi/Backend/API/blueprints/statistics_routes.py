@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import log_config
 import os
@@ -19,6 +20,11 @@ def preview_statistics():
     filter_type = request.args.get('filter_type')
     filter_value = request.args.get('filter_value')
     
+    local_tz = datetime.now().astimezone().tzinfo
+    local_tz_name = local_tz.tzname(None)
+    if local_tz_name == 'KST':
+        local_tz_name = 'Asia/Seoul'
+            
     # start_date, end_date = get_period_value(period_type, period_value)
     filename = str(uuid.uuid4()) 
     result = export_statistics_to_excel(Config.UPLOAD_DIR, filename, period_type, period_value, filter_type, filter_value)  # 엑셀 파일 생성
@@ -27,6 +33,7 @@ def preview_statistics():
         'content_html_name': f"statistics/preview/html/{result['html_content_name']}",
         'org_html_name': f"statistics/preview/html/{result['html_org_name']}",
         'user_html_name': f"statistics/preview/html/{result['html_user_name']}" if result['html_user_name'] is not None else None,
+        'timezone': local_tz_name
     })
     
 @api_statistics_bp.route('/preview/html/<path:filename>', methods=['GET'])

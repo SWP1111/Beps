@@ -479,11 +479,34 @@ background-color: #f0f0f0;
     cursor: pointer;
 }
 
+.login-rank-item > div {
+  flex-shrink: 0;
+}
+.login-rank-main {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .login-rank-item {
-    text-align: center; 
-    display: flex; 
-    align-items: center;
-    font-size: 15px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 33%;
+  width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  overflow: hidden;
+  text-align: center; 
+  font-size: 15px;
+}
+
+.login-rank-item span {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 .login-rank-item-area {

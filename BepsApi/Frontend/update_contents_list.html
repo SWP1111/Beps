@@ -258,10 +258,32 @@
             pagination.appendChild(nextBtn);
         }
         
+        // 부모창 상태 확인 및 창 닫기
+        function checkAndCloseIfParentClosed() {
+            if (!window.opener || window.opener.closed) {
+                window.close();
+            }
+        }
+        
         // 페이지 로드 시 기본 상태 표시
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('updateTableBody').innerHTML = 
                 '<tr><td colspan="3" class="loading">데이터를 받는 중...</td></tr>';
+            
+            // 부모창 상태 먼저 확인
+            if (checkParentWindow()) {
+                return;
+            }
+            
+            console.log('Update contents window loaded, opener:', window.opener);
+        });
+        
+        // 창이 포커스를 받을 때 부모창 상태 확인 및 데이터 업데이트
+        window.addEventListener('focus', () => {
+            checkAndCloseIfParentClosed();
+            if (window.opener && window.opener.updateContentsData) {
+                setUpdateContentsData(window.opener.updateContentsData);
+            }
         });
     </script>
 </body>

@@ -17,6 +17,7 @@
             background-color: #fff;
             color: #333;
             padding: 15px;
+            margin: 0;
         }
 
         .header {
@@ -36,10 +37,6 @@
             color: #000;
             margin-bottom: 10px;
             text-align: left;
-        }
-
-        .message-container {
-            overflow-y: hidden;
         }
 
         .message-item {
@@ -126,8 +123,11 @@
             countElement.textContent = `총 ${messageData.length}건`;
             countElement.style.display = 'block';
 
+            // 순서 뒤집기 (오래된 순 -> 최근 순)
+            const reversedMessages = [...messageData].reverse();
+
             // 최대 5개까지만 표시
-            const messagesToShow = messageData.slice(0, maxMessages);
+            const messagesToShow = reversedMessages.slice(0, maxMessages);
 
             // 메시지 표시
             container.innerHTML = '';
@@ -146,14 +146,39 @@
                     <use href="asset/images/images.svg#blackbell" />
                 </svg>
                 <div class="message-content">${message.message || message.content || '메시지 내용이 없습니다.'}</div>
+                <div class="message-action" onclick="handleMessageClick(this)" style="cursor: pointer; font-size: 12px; margin-top: 8px; text-align: center;">[BEPs로 바로가기]</div>
             `;
             
             return div;
         }
 
+        // 메시지 클릭 이벤트 핸들러
+        function handleMessageClick(element) {
+            window.location.href = 'beps://'; // BEPs로 이동하는 링크 설정
+        }
+
+        // 부모창 상태 확인 및 창 닫기
+        function checkAndCloseIfParentClosed() {
+            if (!window.opener || window.opener.closed) {
+                window.close();
+            }
+        }
+        
         // 창이 로드될 때 부모 창에서 데이터가 전달되기를 기다림
         window.addEventListener('load', () => {
+            checkAndCloseIfParentClosed();
+            
             // opener가 있고 데이터가 있다면 바로 표시
+            if (window.opener && window.opener.pushMessageData) {
+                setPushMessageData(window.opener.pushMessageData);
+            }
+            
+            console.log('Push message window loaded, opener:', window.opener);
+        });
+        
+        // 창이 포커스를 받을 때 부모창 상태 확인 및 데이터 업데이트
+        window.addEventListener('focus', () => {
+            checkAndCloseIfParentClosed();
             if (window.opener && window.opener.pushMessageData) {
                 setPushMessageData(window.opener.pushMessageData);
             }
