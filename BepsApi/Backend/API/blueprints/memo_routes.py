@@ -86,39 +86,50 @@ def get_all_memos():
         if folder_id:
             query = query.filter(MemoData.folder_id == folder_id)
             
-        # If role_id is null, user can see only their own memos
+        # Role-based access control
         if user.role_id is None:
+            # Regular users can see only their own memos
+            logger.info(f"Regular user {jwt_user_id} can see only their own memos")
             query = query.filter(MemoData.user_id == jwt_user_id)
-        else:
-            # If role_id is not null (user is a manager)
+        elif user.role_id in [1, 2]:
+            # Full managers (role_id 1,2) can see all memos
+            logger.info(f"Full manager user {jwt_user_id} (role_id: {user.role_id}) can see all memos")
+            # No additional filtering - managers see everything
+        elif user.role_id in [3, 4]:
+            # Content managers (role_id 3,4) can see memos they manage
+            logger.info(f"Content manager user {jwt_user_id} (role_id: {user.role_id}) - applying content-based filtering")
             try:
+                # Complex query to handle both file-level and folder-level permissions
                 managed_memos_query = """
-                    SELECT m.id
+                    SELECT DISTINCT m.id
                     FROM memos m
-                    JOIN content_manager cm ON 
-                        (cm.type = 'file' AND cm.file_id = m.file_id AND m.file_id IS NOT NULL) OR 
-                        (cm.type = 'folder' AND cm.folder_id = m.folder_id AND m.folder_id IS NOT NULL)
-                    WHERE cm.user_id = :user_id
+                    LEFT JOIN content_manager cm_file ON (cm_file.user_id = :user_id AND cm_file.file_id = m.file_id AND cm_file.file_id IS NOT NULL)
+                    LEFT JOIN content_rel_pages crp ON (m.file_id = crp.id)
+                    LEFT JOIN content_manager cm_folder ON (cm_folder.user_id = :user_id AND cm_folder.folder_id = crp.folder_id AND cm_folder.folder_id IS NOT NULL)
+                    WHERE m.user_id = :user_id 
+                       OR cm_file.file_id IS NOT NULL 
+                       OR cm_folder.folder_id IS NOT NULL
                 """
                 
                 logger.info(f"Executing content_manager query for user_id: {jwt_user_id}")
                 managed_memos = db.session.execute(text(managed_memos_query), {"user_id": jwt_user_id}).all()
                 managed_memo_ids = [memo[0] for memo in managed_memos]
-                logger.info(f"Found {len(managed_memo_ids)} managed memos for user_id: {jwt_user_id}")
+                logger.info(f"Found {len(managed_memo_ids)} accessible memos for content manager user_id: {jwt_user_id}")
                 
-                # Combine user's own memos and managed memos
                 if managed_memo_ids:
-                    query = query.filter(
-                        (MemoData.user_id == jwt_user_id) | 
-                        (MemoData.id.in_(managed_memo_ids))
-                    )
+                    query = query.filter(MemoData.id.in_(managed_memo_ids))
                 else:
                     # If no managed memos, just show user's own memos
+                    logger.info(f"No managed content found for user {jwt_user_id}, showing only own memos")
                     query = query.filter(MemoData.user_id == jwt_user_id)
             except Exception as e:
-                logger.error(f"Error querying content_manager: {str(e)}")
+                logger.error(f"Error querying content_manager for user {jwt_user_id}: {str(e)}")
                 # If the query fails, fall back to showing only the user's own memos
                 query = query.filter(MemoData.user_id == jwt_user_id)
+        else:
+            # Unknown role_id, fall back to own memos only
+            logger.warning(f"Unknown role_id {user.role_id} for user {jwt_user_id}, showing only own memos")
+            query = query.filter(MemoData.user_id == jwt_user_id)
         
         # Initialize memos as empty list
         memos = []
