@@ -20,7 +20,7 @@ createApp({
         const searchEndDate = ref('');
         
         // Sorting
-        const sortType = ref('date'); // Default sort by date
+        const sortType = ref('id'); // Default sort by ID in descending order
         
         // Period filters
         const selectedYear = ref(new Date().getFullYear());
@@ -141,6 +141,13 @@ createApp({
                     const dateB = new Date(b.modified_at || b.created_at || 0);
                     return dateB - dateA;
                 });
+            } else if (type === 'id') {
+                // Sort by ID in descending order (highest ID first)
+                return data.sort((a, b) => {
+                    const idA = parseInt(a.id) || 0;
+                    const idB = parseInt(b.id) || 0;
+                    return idB - idA; // Descending order
+                });
             }
             return data;
         };
@@ -159,6 +166,13 @@ createApp({
             }
         };
 
+        const sortById = () => {
+            sortType.value = 'id';
+            if (memoList.value.length > 0) {
+                memoList.value = sortMemoData([...memoList.value], 'id');
+            }
+        };
+
         const extractAvailableYears = (memos) => {
             const years = new Set();
             memos.forEach(memo => {
@@ -173,6 +187,7 @@ createApp({
         };
 
         const onYearChange = () => {
+            sortType.value = 'id'; // Sort by ID when year changes
             loadMemoData(1);
         };
 
@@ -181,6 +196,7 @@ createApp({
                 selectedHalfYear.value = '';
                 selectedQuarter.value = '';
             }
+            sortType.value = 'id'; // Sort by ID when annual mode changes
             loadMemoData(1);
         };
 
@@ -189,6 +205,7 @@ createApp({
                 isAnnualMode.value = false;
                 selectedQuarter.value = '';
             }
+            sortType.value = 'id'; // Sort by ID when half-year changes
             loadMemoData(1);
         };
 
@@ -197,6 +214,7 @@ createApp({
                 isAnnualMode.value = false;
                 selectedHalfYear.value = '';
             }
+            sortType.value = 'id'; // Sort by ID when quarter changes
             loadMemoData(1);
         };
 
@@ -340,6 +358,9 @@ createApp({
                         memo.modified_at && new Date(memo.modified_at) <= endDate
                     );
                 }
+                
+                // Apply sorting to the entire filtered dataset BEFORE pagination
+                filteredData = sortMemoData([...filteredData], sortType.value);
                 
                 // Since the backend returns an array directly, we need to handle pagination on the client side
                 totalPages.value = Math.ceil(filteredData.length / pageSize);
@@ -538,9 +559,8 @@ createApp({
                 
                 // Process all user data requests
                 Promise.all(promises).then(updatedMemos => {
-                    // Apply current sorting
-                    const sortedMemos = sortMemoData([...updatedMemos], sortType.value);
-                    memoList.value = sortedMemos;
+                    // Memos are already sorted before pagination, just assign them
+                    memoList.value = updatedMemos;
                 });
             })
             .catch(error => {
@@ -684,6 +704,7 @@ createApp({
             testStatusUpdate,
             sortByDate,
             sortByStatus,
+            sortById,
             onYearChange,
             onAnnualChange,
             onHalfYearChange,
