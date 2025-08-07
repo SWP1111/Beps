@@ -410,7 +410,7 @@ td:nth-child(even) {
                     // Load current user data
                     try {
                         console.log('Attempting to load user data from localStorage...');
-                        const loggedInUserString = localStorage.getItem("loggedInUser");
+                        const loggedInUserString = sessionStorage.getItem("loggedInUser");
                         console.log('Raw loggedInUser string from localStorage:', loggedInUserString);
                         const loggedInUser = JSON.parse(loggedInUserString);
                         console.log('Parsed loggedInUser object:', loggedInUser);

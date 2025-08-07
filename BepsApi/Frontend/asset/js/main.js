@@ -3,13 +3,13 @@ window.onload = checkLoginStatus;    // Check login status when page is loaded
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    const loggedInUser = localStorage.getItem("username");
+    const loggedInUser = sessionStorage.getItem("username");
     if(loggedInUser)
         document.getElementById("user_name").textContent = loggedInUser;
     else
         window.location.href = "login.html";
 
-    const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
+    const userInfo = JSON.parse(sessionStorage.getItem("loggedInUser"));
     const user_role = userInfo && userInfo.user ? userInfo.user.role_id : null;
 
     const buttons = document.querySelectorAll(".nav-button");
@@ -108,10 +108,10 @@ async function logout(){
             },
         });
 
-        // localStorage 초기화
-        localStorage.removeItem("username");
-        localStorage.removeItem("loggedInUser");
-        localStorage.removeItem("isLoggedIn");
+        // sessionStorage 초기화
+        sessionStorage.removeItem("username");
+        sessionStorage.removeItem("loggedInUser");
+        sessionStorage.removeItem("isLoggedIn");
 
         // 쿠키 삭제
         document.cookie.split(";").forEach(cookie => {
@@ -119,14 +119,17 @@ async function logout(){
             cookie.replace(/^ +/, "").replace(/=.*/, `=;expires=Thu, 01 Jun 1970 00:00:00 GMP; path=/`);
         });
 
-        //descope SDK 로그아웃
-        const sdk = Descope({
-            projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
-            baseUrl: 'https://api.descope.com',
-            persistTokens: true,
-            autoRefresh: true,
-        });
-        await sdk.logout();
+        // //descope SDK 로그아웃
+        // const sdk = Descope({
+        //     projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
+        //     baseUrl: 'https://api.descope.com',
+        //     persistTokens: true,
+        //     autoRefresh: true,
+        // });
+        // await sdk.logout();
+
+        localStorage.clear(); // localStorage 초기화
+        sessionStorage.clear(); // sessionStorage 초기화
 
         // 로그인 페이지로 이동
         window.location.href = "login.html";

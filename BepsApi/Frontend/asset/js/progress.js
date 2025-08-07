@@ -17,7 +17,7 @@ createApp({
         const csvDataCount = ref(0);
 
         const isAdmin = computed(() => {
-            const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
+            const userInfo = JSON.parse(sessionStorage.getItem("loggedInUser"));
             return userInfo.user.role_id == 1;// || userInfo.user.role_id == null;
         });
 
@@ -85,7 +85,7 @@ createApp({
             // 사용자 검색
             let userQuery ="";
             if(isAdmin.value ==  false){
-                userQuery = `&user_id=${JSON.parse(localStorage.getItem("loggedInUser")).user.id}`;
+                userQuery = `&user_id=${JSON.parse(sessionStorage.getItem("loggedInUser")).user.id}`;
             }
             else if(searchUserType.value != "all" && searchUserId.value.trim())
                 userQuery = `&${searchUserType.value}=${encodeURIComponent(searchUserId.value)}`;
@@ -109,6 +109,7 @@ createApp({
             .then(response => {
                 if(!response.ok) {
                     if(response.status == 401){
+                        alert("Progress.js 111 로그인 정보가 없습니다. 로그인 페이지로 이동합니다.");
                         window.top.location.href = "login.html";
                         throw new Error("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
                     }

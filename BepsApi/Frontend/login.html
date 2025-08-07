@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Descope Login Example</title>
+  <title>BEPs 로그인</title>
 
   <style>
     .login-wrapper {
@@ -41,12 +41,12 @@
   <script>
     const wcElement = document.querySelector('descope-wc');
 
-    const sdk = Descope({
-        projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
-        baseUrl: 'https://api.descope.com',
-        persistTokens: true,
-        autoRefresh: true,
-      });
+    //const sdk = Descope({
+    //    projectId: 'P2wON5fy1K6kyia269VpeIzYP8oP',
+    //    baseUrl: 'https://api.descope.com',
+    //    persistTokens: true,
+    //    autoRefresh: true,
+    //  });
 
     (async () => {
       const params = new URLSearchParams(window.location.search);
@@ -62,7 +62,7 @@
         }
       }
       else {  // URL에 파라미터가 없는 경우 - 로그인 체크
-        const getRefreshJwt = sdk.getRefreshToken();
+        const getRefreshJwt = null;//sdk.getRefreshToken();
         if(getRefreshJwt)
         {
           const id = await GetAuthMeByRefreshJWT(getRefreshJwt);
@@ -93,10 +93,10 @@
       const authUserInfo = await AuthUserInfo(user.customAttributes.familyUniqueKey, refreshJwt);
         if(authUserInfo.success)
         {
-          localStorage.setItem("isLoggedIn", "true");
-          localStorage.setItem("username", user.name);
-          localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
-          
+          sessionStorage.setItem("isLoggedIn", "true");
+          sessionStorage.setItem("username", user.name);
+          sessionStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+
           window.location.href = "/main.html";
         }
     });
@@ -155,9 +155,9 @@
 
       if(authUserInfo.success == true)
       {
-        localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("username", authUserInfo.data.user.name);
-        localStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
+        sessionStorage.setItem("isLoggedIn", "true");
+        sessionStorage.setItem("username", authUserInfo.data.user.name);
+        sessionStorage.setItem("loggedInUser", JSON.stringify(authUserInfo.data));
         return true; // 사용자 정보 조회 성공
       }
       else 
@@ -217,6 +217,19 @@
         }
     }
 
+    async function GetAPITokenCheck()
+    {
+      const response = await fetch(`${window.baseUrl}user/token_check`, {
+        method: "GET",
+        credentials: 'include'
+      });
+
+      if(response.ok) {
+        return true; // API 토큰 조회 성공
+      }
+      return false; // API 토큰 조회 실패
+    }
+    
   </script>
 </body>
 </html>

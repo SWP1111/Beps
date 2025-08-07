@@ -32,7 +32,7 @@ let pushMessageWindow = null; // 푸시 메시지 창 참조를 저장할 전역
 
 let userLearningChannelData = null; // 사용자 학습 채널 데이터를 저장할 전역 변수 
 
-const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+const loggedInUser = JSON.parse(sessionStorage.getItem("loggedInUser"));
 
 // 자식 창들을 닫는 공통 함수
 function closeChildWindows() {
@@ -50,7 +50,7 @@ window.addEventListener('beforeunload', closeChildWindows);
 pushMessageContainer.addEventListener("click", () => {
     // 데이터가 없으면 먼저 로드
     if (!pushMessageData || pushMessageData.length === 0) {
-        alert('메시지 데이터를 먼저 불러오고 있습니다. 잠시 후 다시 시도해주세요.');
+        //alert('메시지 데이터를 먼저 불러오고 있습니다. 잠시 후 다시 시도해주세요.');
         return;
     }
     
@@ -183,7 +183,7 @@ function setupPushNotification() {
  */
 async function configureUserLearningStatus()
 {
-    const user = JSON.parse(localStorage.getItem("loggedInUser"));
+    const user = JSON.parse(sessionStorage.getItem("loggedInUser"));
 
     let memoCount = 0;
     let level = 0;
@@ -349,14 +349,29 @@ async function getUpdateContents(daysAgo = 14) {
                     const textColor = content.viewed_after_update ? "#000" : "#007bff";
                     unviewedCount += content.viewed_after_update ? 0 : 1;
 
-                    tr.innerHTML = `
-                        <td style="padding: 8px; font-size: 13px; color: ${textColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cleanedName}">
-                            ${cleanedName}
-                        </td>
-                        <td style="padding: 8px; font-size: 13px; color: ${textColor}; text-align: center;">
-                            ${dateStr}
-                        </td>
-                    `;
+                    // innerHTML은 XSS 공격에 취약하므로, textContent를 사용하여 안전하게 설정
+                    // 제목(td) 생성
+                    const titleCell = document.createElement('td');
+                    titleCell.style.padding = "8px";
+                    titleCell.style.fontSize = "13px";
+                    titleCell.style.color = textColor;
+                    titleCell.style.whiteSpace = "nowrap";
+                    titleCell.style.overflow = "hidden";
+                    titleCell.style.textOverflow = "ellipsis";
+                    titleCell.title = cleanedName; // 툴팁에 전체 이름 표시
+                    titleCell.textContent = cleanedName;
+                    
+                    // 날짜(td) 생성
+                    const dateCell = document.createElement('td');
+                    dateCell.style.padding = "8px";
+                    dateCell.style.fontSize = "13px";
+                    dateCell.style.color = textColor;
+                    dateCell.style.textAlign = "center";
+                    dateCell.textContent = dateStr;
+                    
+                    // tr에 td 추가
+                    tr.appendChild(titleCell);
+                    tr.appendChild(dateCell);
                     
                     updateList.appendChild(tr);
 

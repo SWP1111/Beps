@@ -9,7 +9,7 @@ async function checkLoginStatus() {
         if(response.ok){
             const data = await response.json();
             console.log("checkLoginStatus: ", data);
-            localStorage.setItem("username", data.user);    
+            sessionStorage.setItem("username", data.user);    
 
             const params = new URLSearchParams(window.location.search);
 

@@ -39,7 +39,7 @@ createApp({
         const currentUser = ref({});
 
         const isAdmin = computed(() => {
-            const userInfo = JSON.parse(localStorage.getItem("loggedInUser"));
+            const userInfo = JSON.parse(sessionStorage.getItem("loggedInUser"));
             return userInfo.user.role_id == 1;
         });
 
@@ -238,7 +238,7 @@ createApp({
 
         const loadCurrentUser = () => {
             try {
-                const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+                const loggedInUser = JSON.parse(sessionStorage.getItem("loggedInUser"));
                 if (loggedInUser && loggedInUser.user) {
                     currentUser.value = {
                         id: loggedInUser.user.id,
@@ -458,7 +458,7 @@ createApp({
                             }
                             
                             // Check if it's the current user
-                            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+                            const loggedInUser = JSON.parse(sessionStorage.getItem("loggedInUser"));
                             if (loggedInUser && loggedInUser.user && loggedInUser.user.id === memo.user_id) {
                                 userCache[memo.user_id] = {
                                     company: loggedInUser.user.company || '-',
