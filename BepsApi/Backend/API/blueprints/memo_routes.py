@@ -25,6 +25,7 @@ def create_memo():
         memo = MemoData(
             modified_at=modified_at,  # Explicitly set modified_at to current time
             user_id=data.get('user_id'),
+            type=data.get('type'),
             title=data.get('title'),
             content=data.get('content', ''),
             path=data.get('path'),
