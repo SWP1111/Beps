@@ -18,6 +18,10 @@ logger = get_memo_logger()
 def create_memo():
     try:
         data = request.json
+        if not data:
+            logger.error("No JSON data provided in request")
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         logger.info(f"Received POST request to /memo with data: {data}")
         
         modified_at = datetime.now(timezone.utc)
@@ -25,7 +29,7 @@ def create_memo():
         memo = MemoData(
             modified_at=modified_at,  # Explicitly set modified_at to current time
             user_id=data.get('user_id'),
-            type=data.get('type'),
+            type=int(data.get('type', 0)),  # Convert to int with default 0
             title=data.get('title'),
             content=data.get('content', ''),
             path=data.get('path'),
@@ -177,6 +181,10 @@ def update_memo(id):
     try:
         memo = MemoData.query.get_or_404(id)
         data = request.json
+        if not data:
+            logger.error("No JSON data provided in request")
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         logger.info(f"Received PUT request to /memo/{id} with data: {data}")
         
         # Update fields matching the JSON case
@@ -192,7 +200,10 @@ def update_memo(id):
         memo.world_position_y = data.get('worldPositionY', memo.world_position_y)
         memo.world_position_z = data.get('worldPositionZ', memo.world_position_z)
         memo.status = data.get('status', memo.status)
-        memo.type = data.get('type', memo.type)
+        
+        # Handle type field with proper integer conversion
+        if 'type' in data:
+            memo.type = int(data['type'])
         
         # Update modified_at timestamp
         memo.modified_at = datetime.now(timezone.utc)
