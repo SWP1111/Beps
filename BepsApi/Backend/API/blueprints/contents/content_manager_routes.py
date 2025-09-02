@@ -98,15 +98,14 @@ def register_content_manager_routes(api_contents_bp):
                 if not channel:
                     return jsonify({'error': f'Channel with ID {channel_id} not found'}), 404
                 
-                # Check for duplicate
+                # Check for duplicate - only one manager per content allowed
                 duplicate = ContentManager.query.filter_by(
-                    assignee_id=assignee.id,
                     type='channel',
                     channel_id=channel_id
                 ).first()
                 
                 if duplicate:
-                    return jsonify({'error': f'User {user_id} already has channel manager permission for this channel'}), 409
+                    return jsonify({'error': f'This channel already has a manager assigned'}), 409
                 
                 # Create new manager entry
                 manager = ContentManager(
@@ -123,15 +122,14 @@ def register_content_manager_routes(api_contents_bp):
                 if not folder:
                     return jsonify({'error': f'Folder with ID {folder_id} not found'}), 404
                 
-                # Check for duplicate
+                # Check for duplicate - only one manager per content allowed
                 duplicate = ContentManager.query.filter_by(
-                    assignee_id=assignee.id,
                     type='folder',
                     folder_id=folder_id
                 ).first()
                 
                 if duplicate:
-                    return jsonify({'error': f'User {user_id} already has folder manager permission for this folder'}), 409
+                    return jsonify({'error': f'This folder already has a manager assigned'}), 409
                 
                 # Create new manager entry
                 manager = ContentManager(
@@ -148,15 +146,14 @@ def register_content_manager_routes(api_contents_bp):
                 if not file:
                     return jsonify({'error': f'File with ID {file_id} not found'}), 404
                 
-                # Check for duplicate
+                # Check for duplicate - only one manager per content allowed
                 duplicate = ContentManager.query.filter_by(
-                    assignee_id=assignee.id,
                     type='file',
                     file_id=file_id
                 ).first()
                 
                 if duplicate:
-                    return jsonify({'error': f'User {user_id} already has file manager permission for this file'}), 409
+                    return jsonify({'error': f'This file already has a manager assigned'}), 409
                 
                 # Create new manager entry
                 manager = ContentManager(
@@ -291,15 +288,14 @@ def register_content_manager_routes(api_contents_bp):
                     if not channel:
                         return jsonify({'error': f'Channel with ID {channel_id} not found'}), 404
                     
-                    # Check for duplicates, but ignore if it's the same record being updated
+                    # Check for duplicates - only one manager per content allowed, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        assignee_id=assignee_id,
                         type='channel',
                         channel_id=channel_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'Assignee {assignee_id} already has channel manager permission for this channel'}), 409
+                        return jsonify({'error': f'This channel already has a manager assigned'}), 409
                     
                     manager.channel_id = channel_id
                 
@@ -311,15 +307,14 @@ def register_content_manager_routes(api_contents_bp):
                     if not folder:
                         return jsonify({'error': f'Folder with ID {folder_id} not found'}), 404
                     
-                    # Check for duplicates, but ignore if it's the same record being updated
+                    # Check for duplicates - only one manager per content allowed, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        assignee_id=assignee_id,
                         type='folder',
                         folder_id=folder_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'Assignee {assignee_id} already has folder manager permission for this folder'}), 409
+                        return jsonify({'error': f'This folder already has a manager assigned'}), 409
                     
                     manager.folder_id = folder_id
                 
@@ -331,15 +326,14 @@ def register_content_manager_routes(api_contents_bp):
                     if not file:
                         return jsonify({'error': f'File with ID {file_id} not found'}), 404
                     
-                    # Check for duplicates, but ignore if it's the same record being updated
+                    # Check for duplicates - only one manager per content allowed, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        assignee_id=assignee_id,
                         type='file',
                         file_id=file_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'Assignee {assignee_id} already has file manager permission for this file'}), 409
+                        return jsonify({'error': f'This file already has a manager assigned'}), 409
                     
                     manager.file_id = file_id
                 
@@ -353,33 +347,30 @@ def register_content_manager_routes(api_contents_bp):
                     # Current settings
                     if manager.type == 'channel' and manager.channel_id:
                         duplicate = ContentManager.query.filter_by(
-                            assignee_id=assignee_id,
                             type='channel',
                             channel_id=manager.channel_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'Assignee {assignee_id} already has channel manager permission for this channel'}), 409
+                            return jsonify({'error': f'This channel already has a manager assigned'}), 409
                     
                     elif manager.type == 'folder' and manager.folder_id:
                         duplicate = ContentManager.query.filter_by(
-                            assignee_id=assignee_id,
                             type='folder',
                             folder_id=manager.folder_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'Assignee {assignee_id} already has folder manager permission for this folder'}), 409
+                            return jsonify({'error': f'This folder already has a manager assigned'}), 409
                     
                     elif manager.type == 'file' and manager.file_id:
                         duplicate = ContentManager.query.filter_by(
-                            assignee_id=assignee_id,
                             type='file',
                             file_id=manager.file_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'Assignee {assignee_id} already has file manager permission for this file'}), 409
+                            return jsonify({'error': f'This file already has a manager assigned'}), 409
             
             # Save to database
             db.session.commit()
