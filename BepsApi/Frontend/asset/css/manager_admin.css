@@ -405,6 +405,151 @@ th:not(.hidden), td:not(.hidden) {
 }
 
 /* Update Manager Modal Styles */
+#update-manager-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1002;
+}
+
+#update-manager-modal .modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+#update-manager-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+}
+
+#update-manager-modal .modal-header h2 {
+    margin: 0;
+    color: #285B4A;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+#update-manager-modal .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+#update-manager-modal .modal-close:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+#update-manager-modal .modal-body {
+    padding: 20px 25px;
+    flex: 1;
+}
+
+#update-manager-modal .content-info,
+#update-manager-modal .current-info,
+#update-manager-modal .new-manager-section {
+    margin-bottom: 25px;
+}
+
+#update-manager-modal .content-info h3,
+#update-manager-modal .current-info h3,
+#update-manager-modal .new-manager-section h3 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 5px;
+}
+
+#update-manager-modal .target-content-info,
+#update-manager-modal .current-manager-info {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #285B4A;
+}
+
+#update-manager-modal .target-content-info p,
+#update-manager-modal .current-manager-info p {
+    margin: 5px 0;
+    color: #495057;
+}
+
+#update-manager-modal .target-content-info strong,
+#update-manager-modal .current-manager-info strong {
+    color: #285B4A;
+}
+
+#update-manager-modal .modal-footer {
+    padding: 15px 25px 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    background: #f8f9fa;
+}
+
+#update-manager-modal .cancel-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+#update-manager-modal .cancel-btn:hover {
+    background-color: #5a6268;
+}
+
+#update-manager-modal .modal-message {
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+#update-manager-modal .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+#update-manager-modal .success-message {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+/* Update Manager Modal Styles */
 #update-manager-modal .modal-content {
     width: 90%;
     max-width: 800px;

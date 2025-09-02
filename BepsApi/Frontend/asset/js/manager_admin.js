@@ -1846,10 +1846,44 @@ let currentUpdateManagerId = null;
 function openUpdateManagerModal(dataset) {
     const modal = document.getElementById('update-manager-modal');
     const overlay = document.getElementById('modal-overlay');
+    const targetContentInfo = document.getElementById('target-content-info');
     const currentManagerInfo = document.getElementById('current-manager-info');
     
     // Store the permission ID for updating
     currentUpdateManagerId = dataset.id;
+    
+    // Get content information based on type
+    const contentType = dataset.type;
+    const contentId = dataset.contentId;
+    let contentPath = '';
+    let contentName = '';
+    
+    try {
+        if (contentType === 'channel') {
+            const channel = contentHierarchy?.channels?.find(c => c.id == contentId);
+            contentName = channel ? channel.name : `채널 ID: ${contentId}`;
+            contentPath = `채널: ${contentName}`;
+        } else if (contentType === 'folder') {
+            contentPath = getPathInHierarchy(contentType, contentId);
+            contentName = contentPath.split('/').pop() || `폴더 ID: ${contentId}`;
+            contentPath = `폴더: ${contentPath}`;
+        } else if (contentType === 'file') {
+            contentPath = getPathInHierarchy(contentType, contentId);
+            contentName = contentPath.split('/').pop() || `파일 ID: ${contentId}`;
+            contentPath = `페이지: ${contentPath}`;
+        }
+    } catch (error) {
+        console.error('Error getting content information:', error);
+        contentPath = `${contentType} ID: ${contentId}`;
+    }
+    
+    // Display target content information
+    targetContentInfo.innerHTML = `
+        <div class="target-content-details">
+            <p><strong>권한 범위:</strong> ${contentType === 'channel' ? '채널' : contentType === 'folder' ? '폴더' : '페이지'}</p>
+            <p><strong>대상 콘텐츠:</strong> ${contentPath}</p>
+        </div>
+    `;
     
     // Display current manager information
     currentManagerInfo.innerHTML = `
