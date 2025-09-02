@@ -699,6 +699,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch user details
     function fetchUserDetails(userId) {
+        // Handle null, undefined, or empty user IDs
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            return Promise.resolve({ exists: false });
+        }
+        
         return fetch(`${baseApiUrl}/user/user_info?id=${userId}`, {
             method: 'GET',
             credentials: 'include',
@@ -836,25 +841,32 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get hierarchy information for this permission
         const { folderParts, fileName } = getHierarchyInfo(permission);
         
-        // Get detailed user information
-        const userData =  await fetchUserDetails(permission.assignee.user_id)
+        // Get detailed user information - handle null assignee
+        let userData = { exists: false };
+        if (permission.assignee && permission.assignee.user_id) {
+            userData = await fetchUserDetails(permission.assignee.user_id);
+        }
+        
         try{    
             // Get user details
             let company = '';
             let department = '';
             let position = '';
             let name = '';
+            let userId = '';
             
             if (userData && userData.exists && userData.user) {
                 company = userData.user.company || '';
                 department = userData.user.department || '';
                 position = userData.user.position || '';
                 name = userData.user.name || '';
+                userId = userData.user.id || '';
             }
-            else
+            else if (permission.assignee)
             {
                 position = permission.assignee.position || '';
                 name = permission.assignee.name || '';
+                userId = permission.assignee.user_id || '';
             }
 
             // Translate permission type to Korean
@@ -885,9 +897,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="department-col">${department || '-'}</td>
                 <td class="position-col">${position || '-'}</td>
                 <td class="name-col">${name || '-'}</td>
-                <td class="id-col">${permission.assignee.user_id || '-'}</td>
+                <td class="id-col">${userId || '-'}</td>
                 <td class="action-col">
-                    <button class="edit-btn" data-id="${permission.id}" data-type="${permission.type}" data-content-id="${permission.type === 'channel' ? permission.channel_id : permission.type === 'folder' ? permission.folder_id : permission.file_id}" data-current-user="${permission.assignee.user_id}" data-current-name="${name || ''}" data-current-company="${company || ''}" data-current-department="${department || ''}" data-current-position="${position || ''}">수정</button>
+                    <button class="edit-btn" data-id="${permission.id}" data-type="${permission.type}" data-content-id="${permission.type === 'channel' ? permission.channel_id : permission.type === 'folder' ? permission.folder_id : permission.file_id}" data-current-user="${userId || ''}" data-current-name="${name || ''}" data-current-company="${company || ''}" data-current-department="${department || ''}" data-current-position="${position || ''}">수정</button>
                     <button class="delete-btn" data-id="${permission.id}">삭제</button>
                 </td>
             `;
@@ -2172,10 +2184,19 @@ function updateManager() {
         updateSuccessMessage.style.display = 'block';
         updateErrorMessage.style.display = 'none';
         
-        // Refresh the permissions list
+        // Refresh the permissions list by triggering refresh button
         setTimeout(() => {
             closeUpdateManagerModal();
-            loadPermissions();
+            
+            // Trigger refresh to reload permissions
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.click();
+            } else {
+                // Fallback: try to reload the page if refresh button not found
+                console.warn('Refresh button not found, attempting manual reload');
+                window.location.reload();
+            }
         }, 1500);
     })
     .catch(error => {
