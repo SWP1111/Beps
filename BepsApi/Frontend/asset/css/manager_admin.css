@@ -159,6 +159,10 @@ th:not(.hidden), td:not(.hidden) {
     width: 45px;
     display: inline-block;
     vertical-align: top;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
 }
 
 #permissions-table .edit-btn {
@@ -398,4 +402,112 @@ th:not(.hidden), td:not(.hidden) {
 #permissions-table th,
 #permissions-table td {
     font-size: 13px;
+}
+
+/* Update Manager Modal Styles */
+#update-manager-modal .modal-content {
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+#update-manager-modal .current-manager-info {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+}
+
+#update-manager-modal .current-manager-details p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+#update-manager-modal .new-manager-section {
+    margin-top: 20px;
+}
+
+#update-manager-modal .manager-selection {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+#update-manager-modal .manager-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+#update-manager-modal .user-comboboxes {
+    flex-wrap: wrap;
+}
+
+#update-manager-modal .user-combobox {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+#update-manager-modal #update-manager-input {
+    flex: 2;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#update-manager-modal #update-btn {
+    padding: 8px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+#update-manager-modal #update-btn:hover {
+    background-color: #218838;
+}
+
+#update-manager-modal .validation-message {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+}
+
+#update-manager-modal .validation-message.success {
+    color: #28a745;
+}
+
+#update-manager-modal .validation-message.error {
+    color: #dc3545;
+}
+
+#update-manager-modal .modal-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#update-manager-modal .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+#update-manager-modal .success-message {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
 } 

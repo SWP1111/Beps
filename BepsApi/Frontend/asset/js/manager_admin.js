@@ -881,12 +881,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="name-col">${name || '-'}</td>
                 <td class="id-col">${permission.assignee.user_id || '-'}</td>
                 <td class="action-col">
+                    <button class="edit-btn" data-id="${permission.id}" data-type="${permission.type}" data-content-id="${permission.type === 'channel' ? permission.channel_id : permission.type === 'folder' ? permission.folder_id : permission.file_id}" data-current-user="${permission.assignee.user_id}" data-current-name="${name || ''}" data-current-company="${company || ''}" data-current-department="${department || ''}" data-current-position="${position || ''}">수정</button>
                     <button class="delete-btn" data-id="${permission.id}">삭제</button>
                 </td>
             `;
             
             // Add row to table
             permissionsListBody.appendChild(row);
+            
+            // Add event listener to edit button
+            row.querySelector('.edit-btn').addEventListener('click', function() {
+                openUpdateManagerModal(this.dataset);
+            });
             
             // Add event listener to delete button
             row.querySelector('.delete-btn').addEventListener('click', function() {
@@ -1273,6 +1279,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize view
     fetchContentHierarchy(); // This will load channel options and permissions after hierarchy is loaded
     loadCompanyOptions();
+    
+    // Update manager modal event listeners
+    const updateManagerInput = document.getElementById('update-manager-input');
+    const updateBtn = document.getElementById('update-btn');
+    const updateModalCloseBtn = document.getElementById('update-modal-close-btn');
+    const updateCancelBtn = document.getElementById('update-cancel-btn');
+    
+    if (updateManagerInput) {
+        updateManagerInput.addEventListener('input', function() {
+            validateUpdateUserID(this.value);
+        });
+    }
+    
+    if (updateBtn) {
+        updateBtn.addEventListener('click', updateManager);
+    }
+    
+    if (updateModalCloseBtn) {
+        updateModalCloseBtn.addEventListener('click', closeUpdateManagerModal);
+    }
+    
+    if (updateCancelBtn) {
+        updateCancelBtn.addEventListener('click', closeUpdateManagerModal);
+    }
+    
+    // Close update manager modal when clicking overlay
+    const modalOverlay = document.getElementById('modal-overlay');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === modalOverlay) {
+                // Check if update manager modal is open
+                const updateModal = document.getElementById('update-manager-modal');
+                if (updateModal && updateModal.style.display === 'block') {
+                    closeUpdateManagerModal();
+                }
+            }
+        });
+    }
 });
 
 // Add event listener to open the manager admin popup from main page
@@ -1788,4 +1832,316 @@ function getHierarchyInfo(permission) {
     }
     
     return { folderParts, fileName };
+}
+
+// Update Manager Modal functionality
+let currentUpdateManagerId = null;
+
+function openUpdateManagerModal(dataset) {
+    const modal = document.getElementById('update-manager-modal');
+    const overlay = document.getElementById('modal-overlay');
+    const currentManagerInfo = document.getElementById('current-manager-info');
+    
+    // Store the permission ID for updating
+    currentUpdateManagerId = dataset.id;
+    
+    // Display current manager information
+    currentManagerInfo.innerHTML = `
+        <div class="current-manager-details">
+            <p><strong>현재 담당자:</strong> ${dataset.currentName || '-'}</p>
+            <p><strong>사번:</strong> ${dataset.currentUser || '-'}</p>
+            <p><strong>회사:</strong> ${dataset.currentCompany || '-'}</p>
+            <p><strong>부서:</strong> ${dataset.currentDepartment || '-'}</p>
+            <p><strong>직책:</strong> ${dataset.currentPosition || '-'}</p>
+        </div>
+    `;
+    
+    // Reset form
+    resetUpdateManagerForm();
+    
+    // Load user data for comboboxes
+    loadUpdateUserComboboxes();
+    
+    // Show modal
+    modal.style.display = 'block';
+    overlay.style.display = 'block';
+}
+
+function closeUpdateManagerModal() {
+    const modal = document.getElementById('update-manager-modal');
+    const overlay = document.getElementById('modal-overlay');
+    
+    modal.style.display = 'none';
+    overlay.style.display = 'none';
+    currentUpdateManagerId = null;
+    resetUpdateManagerForm();
+}
+
+function resetUpdateManagerForm() {
+    document.getElementById('update-manager-input').value = '';
+    document.getElementById('update-validation-message').textContent = '새 담당자 ID를 입력하거나 소속 정보를 통해 선택하세요';
+    document.getElementById('update-validation-message').className = 'validation-message';
+    
+    // Clear error/success messages
+    document.getElementById('update-error-message').style.display = 'none';
+    document.getElementById('update-success-message').style.display = 'none';
+}
+
+function loadUpdateUserComboboxes() {
+    const updateCompanySelect = document.getElementById('update-company-select');
+    const updateDepartmentSelect = document.getElementById('update-department-select');
+    const updatePositionSelect = document.getElementById('update-position-select');
+    const updateNameSelect = document.getElementById('update-name-select');
+    
+    // Reset all selects
+    updateCompanySelect.innerHTML = '<option value="">회사명</option>';
+    updateDepartmentSelect.innerHTML = '<option value="">부서</option>';
+    updatePositionSelect.innerHTML = '<option value="">직책</option>';
+    updateNameSelect.innerHTML = '<option value="">이름</option>';
+    
+    // Load company options
+    fetch(`${baseApiUrl}/user/companies`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (Array.isArray(data)) {
+            data.forEach(company => {
+                const option = document.createElement('option');
+                option.value = company;
+                option.textContent = company;
+                updateCompanySelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading company options:', error);
+    });
+    
+    // Add event listeners for update comboboxes
+    updateCompanySelect.addEventListener('change', () => loadUpdateDepartmentOptions(updateCompanySelect.value));
+    updateDepartmentSelect.addEventListener('change', () => loadUpdatePositionOptions(updateCompanySelect.value, updateDepartmentSelect.value));
+    updatePositionSelect.addEventListener('change', () => loadUpdateNameOptions(updateCompanySelect.value, updateDepartmentSelect.value, updatePositionSelect.value));
+    updateNameSelect.addEventListener('change', () => {
+        if (updateNameSelect.value) {
+            // Find the user ID for the selected name
+            const selectedName = updateNameSelect.value;
+            fetch(`${baseApiUrl}/user/by_filter?company=${encodeURIComponent(updateCompanySelect.value)}&department=${encodeURIComponent(updateDepartmentSelect.value)}&position=${encodeURIComponent(updatePositionSelect.value)}&name=${encodeURIComponent(selectedName)}`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    document.getElementById('update-manager-input').value = data[0].id;
+                    validateUpdateUserID(data[0].id);
+                }
+            })
+            .catch(error => {
+                console.error('Error finding user ID:', error);
+            });
+        }
+    });
+}
+
+function loadUpdateDepartmentOptions(company) {
+    const updateDepartmentSelect = document.getElementById('update-department-select');
+    updateDepartmentSelect.innerHTML = '<option value="">부서</option>';
+    
+    if (!company) return;
+    
+    fetch(`${baseApiUrl}/user/departments?company=${encodeURIComponent(company)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (Array.isArray(data)) {
+            data.forEach(department => {
+                const option = document.createElement('option');
+                option.value = department;
+                option.textContent = department;
+                updateDepartmentSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading department options:', error);
+    });
+}
+
+function loadUpdatePositionOptions(company, department) {
+    const updatePositionSelect = document.getElementById('update-position-select');
+    updatePositionSelect.innerHTML = '<option value="">직책</option>';
+    
+    if (!company || !department) return;
+    
+    fetch(`${baseApiUrl}/user/positions?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (Array.isArray(data)) {
+            data.forEach(position => {
+                const option = document.createElement('option');
+                option.value = position;
+                option.textContent = position;
+                updatePositionSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading position options:', error);
+    });
+}
+
+function loadUpdateNameOptions(company, department, position) {
+    const updateNameSelect = document.getElementById('update-name-select');
+    updateNameSelect.innerHTML = '<option value="">이름</option>';
+    
+    if (!company || !department || !position) return;
+    
+    fetch(`${baseApiUrl}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (Array.isArray(data)) {
+            data.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                updateNameSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading name options:', error);
+    });
+}
+
+function validateUpdateUserID(userId) {
+    const updateValidationMessage = document.getElementById('update-validation-message');
+    const updateManagerInput = document.getElementById('update-manager-input');
+    
+    if (!userId) {
+        updateValidationMessage.textContent = '새 담당자 ID를 입력하거나 소속 정보를 통해 선택하세요';
+        updateValidationMessage.className = 'validation-message';
+        return;
+    }
+    
+    fetch(`${baseApiUrl}/user/verify?id=${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            updateValidationMessage.textContent = 'ID 검증에 실패했습니다';
+            updateValidationMessage.className = 'validation-message error';
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.exists) {
+            const user = data.user;
+            // Update the input field to use the database's casing
+            if (updateManagerInput.value.toLowerCase() === user.id.toLowerCase() && 
+                updateManagerInput.value !== user.id) {
+                updateManagerInput.value = user.id;
+            }
+            updateValidationMessage.textContent = `${user.company || '-'} ${user.department || '-'} ${user.name || '-'} ${user.position || '-'}\n올바른 ID입니다.`;
+            updateValidationMessage.className = 'validation-message success';
+        } else {
+            updateValidationMessage.textContent = 'ID를 찾을 수 없습니다';
+            updateValidationMessage.className = 'validation-message error';
+        }
+    })
+    .catch(error => {
+        console.error('Error validating user ID:', error);
+        updateValidationMessage.textContent = 'ID 검증에 실패했습니다';
+        updateValidationMessage.className = 'validation-message error';
+    });
+}
+
+function updateManager() {
+    const updateManagerInput = document.getElementById('update-manager-input');
+    const updateErrorMessage = document.getElementById('update-error-message');
+    const updateSuccessMessage = document.getElementById('update-success-message');
+    
+    const newUserId = updateManagerInput.value.trim();
+    
+    if (!newUserId) {
+        updateErrorMessage.textContent = '새 담당자 ID를 입력해주세요.';
+        updateErrorMessage.style.display = 'block';
+        updateSuccessMessage.style.display = 'none';
+        return;
+    }
+    
+    // Prepare the update data
+    const updateData = {
+        user_id: newUserId
+    };
+    
+    fetch(`${baseApiUrl}/contents/content_manager/${currentUpdateManagerId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || '담당자 변경에 실패했습니다.');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        updateSuccessMessage.textContent = '담당자가 성공적으로 변경되었습니다.';
+        updateSuccessMessage.style.display = 'block';
+        updateErrorMessage.style.display = 'none';
+        
+        // Refresh the permissions list
+        setTimeout(() => {
+            closeUpdateManagerModal();
+            loadPermissions();
+        }, 1500);
+    })
+    .catch(error => {
+        console.error('Error updating manager:', error);
+        updateErrorMessage.textContent = error.message;
+        updateErrorMessage.style.display = 'block';
+        updateSuccessMessage.style.display = 'none';
+    });
 } 
