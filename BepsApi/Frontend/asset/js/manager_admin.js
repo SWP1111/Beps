@@ -1,6 +1,12 @@
 // Global variables
 var contentHierarchy = null;
 
+// Helper function to get base API URL
+function getBaseApiUrl() {
+    const url = typeof baseUrl !== "undefined" ? baseUrl : "http://172.16.8.208:20000";
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+}
+
 // Helper function to get path for a file or folder for display in permissions table
 function getPathInHierarchy(type, id) {
     if (!contentHierarchy) return '';
@@ -1900,7 +1906,7 @@ function loadUpdateUserComboboxes() {
     updateNameSelect.innerHTML = '<option value="">이름</option>';
     
     // Load company options
-    fetch(`${baseApiUrl}/user/companies`, {
+    fetch(`${getBaseApiUrl()}/user/companies`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -1931,7 +1937,7 @@ function loadUpdateUserComboboxes() {
         if (updateNameSelect.value) {
             // Find the user ID for the selected name
             const selectedName = updateNameSelect.value;
-            fetch(`${baseApiUrl}/user/by_filter?company=${encodeURIComponent(updateCompanySelect.value)}&department=${encodeURIComponent(updateDepartmentSelect.value)}&position=${encodeURIComponent(updatePositionSelect.value)}&name=${encodeURIComponent(selectedName)}`, {
+            fetch(`${getBaseApiUrl()}/user/by_filter?company=${encodeURIComponent(updateCompanySelect.value)}&department=${encodeURIComponent(updateDepartmentSelect.value)}&position=${encodeURIComponent(updatePositionSelect.value)}&name=${encodeURIComponent(selectedName)}`, {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
@@ -1959,7 +1965,7 @@ function loadUpdateDepartmentOptions(company) {
     
     if (!company) return;
     
-    fetch(`${baseApiUrl}/user/departments?company=${encodeURIComponent(company)}`, {
+    fetch(`${getBaseApiUrl()}/user/departments?company=${encodeURIComponent(company)}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -1989,7 +1995,7 @@ function loadUpdatePositionOptions(company, department) {
     
     if (!company || !department) return;
     
-    fetch(`${baseApiUrl}/user/positions?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}`, {
+    fetch(`${getBaseApiUrl()}/user/positions?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -2019,7 +2025,7 @@ function loadUpdateNameOptions(company, department, position) {
     
     if (!company || !department || !position) return;
     
-    fetch(`${baseApiUrl}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
+    fetch(`${getBaseApiUrl()}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -2053,7 +2059,7 @@ function validateUpdateUserID(userId) {
         return;
     }
     
-    fetch(`${baseApiUrl}/user/verify?id=${encodeURIComponent(userId)}`, {
+    fetch(`${getBaseApiUrl()}/user/verify?id=${encodeURIComponent(userId)}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -2110,7 +2116,7 @@ function updateManager() {
         user_id: newUserId
     };
     
-    fetch(`${baseApiUrl}/contents/content_manager/${currentUpdateManagerId}`, {
+    fetch(`${getBaseApiUrl()}/contents/content_manager/${currentUpdateManagerId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
