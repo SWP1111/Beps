@@ -768,3 +768,10 @@ background-color: #f0f0f0;
 }
 
 }
+.top-viewed-memo-item > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    display: block;
+}

@@ -7,7 +7,7 @@ from extensions import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from blueprints.leaning.leaning_routes import api_leaning_bp
 from config import Config
-from models import (Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, LearningCompletionHistory
+from models import (Users, ContentViewingHistory, ContentPointRecord, ContentRelPages, LearningCompletionHistory, Assignees
                     , ContentManager, ContentRelFolders, ContentRelChannels)
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
@@ -168,17 +168,20 @@ def rank_update_contents():
 
         cm = aliased(ContentManager)
         u = aliased(Users)
+        a = aliased(Assignees)
         
         top_rows = db.session.query(
                 ContentRelPages.id,
                 ContentRelPages.name,
                 ContentRelPages.updated_at,
-                cm.user_id.label('manager_id'),
+                u.id.label('manager_id'),
                 u.name.label('manager_name')
             ).outerjoin(
-                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
+                cm, (cm.type == 'file') & (cm.file_id == ContentRelPages.id)
             ).outerjoin(
-                u, u.id == cm.user_id
+                a, a.id == cm.assignee_id
+            ).outerjoin(
+                u, u.id == a.user_id
             ).filter(
                 ContentRelPages.is_deleted == False
             ).order_by(
@@ -189,12 +192,14 @@ def rank_update_contents():
                 ContentRelPages.id,
                 ContentRelPages.name,
                 ContentRelPages.updated_at,
-                cm.user_id.label('manager_id'),
+                a.user_id.label('manager_id'),
                 u.name.label('manager_name')
             ).outerjoin(
-                cm, (cm.type == 'page') & (cm.file_id == ContentRelPages.id)
+                cm, (cm.type == 'file') & (cm.file_id == ContentRelPages.id)
             ).outerjoin(
-                u, u.id == cm.user_id
+                a, a.id == cm.assignee_id
+            ).outerjoin(
+                u, u.id == a.user_id
             ).filter(
                 ContentRelPages.is_deleted == False
             ).order_by(
@@ -265,7 +270,8 @@ def get_updated_contents():
                 GROUP BY file_id
             ) cvh ON p.id = cvh.file_id
             LEFT JOIN content_manager cm ON p.id = cm.file_id AND cm.type = 'file'
-            LEFT JOIN users u ON cm.user_id = u.id AND u.is_deleted = false
+            LEFT JOIN assignees a ON a.id = cm.assignee_id
+            LEFT JOIN users u ON a.user_id = u.id AND u.is_deleted = false
             WHERE p.updated_at >= :start_date
                 AND p.is_deleted = false
             ORDER BY p.updated_at DESC

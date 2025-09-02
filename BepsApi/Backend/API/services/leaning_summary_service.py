@@ -47,7 +47,7 @@ def get_folder_progress(params):
         (user_summary_service.get_quarter_period_value, LearningSummaryAgg, 'quarter'),
     ]:
         for period_str, p_start, p_end in period_func(start_date.year):
-            if start_date <= p_start and end_date >= p_end:
+            if start_date <= p_start and end_date >= p_end and not user_summary_service.is_range_used(p_start, p_end, used_range):
                 rows = user_summary_service.get_summary_rows_agg(
                     summary_func,
                     period_type=period_scope,
@@ -92,7 +92,7 @@ def get_folder_progress_by_users(user_ids: list[str], period_type: str, period_v
         (user_summary_service.get_quarter_period_value, LearningSummaryAgg, 'quarter'),
     ]:
         for period_str, p_start, p_end in period_func(start_date.year):
-            if start_date <= p_start and end_date >= p_end:
+            if start_date <= p_start and end_date >= p_end and not user_summary_service.is_range_used(p_start, p_end, used_range):
                 rows = user_summary_service.get_summary_rows_agg(
                     summary_func,
                     period_type=period_scope,

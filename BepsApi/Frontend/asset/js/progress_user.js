@@ -1,5 +1,5 @@
 import './progress_user_summary.js';
-import { configureContentsProgress} from './progress_user_status.js';
+import { configureContentsProgress} from './progress_user_status.js?v=202508131026';
 import { getTopUserConnectionDuration, getTopDepartmentConnectionDuration, getTopCompanyConnectionDuration} from './progress_admin_active_user.js'
 
 const userNames = document.querySelectorAll(".user-name");
@@ -246,7 +246,7 @@ async function configureUserLearningStatus()
     userInfoRankValueRank = document.getElementById("user-rank-value-rank");
     userInfoProgressValueProgress = document.getElementById("user-progress-value-progress");
 
-    var loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    var loggedInUser = JSON.parse(sessionStorage.getItem("loggedInUser"));
     if(loggedInUser) {
         userInfoMemoValueCount.textContent = await getCountOfMemo(loggedInUser.user.id);
         userInfoRankValueRank.textContent = await getUserRank();
@@ -429,11 +429,14 @@ async function getLatestLoginTime() {
         const date = new Date(data.latest_login_time);
         const today = new Date();
 
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+        const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         const seconds = String(date.getSeconds()).padStart(2, '0');
 
-        latestLoginTime.textContent = `${hours}시${minutes}분${seconds}초로` || "정보 없음으로"; // 최신 로그인 시간 표시
+        latestLoginTime.textContent = `${year}.${month}.${day} ${hours}시${minutes}분${seconds}초로` || "정보 없음으로"; // 최신 로그인 시간 표시
 
         // 오늘 날짜와 비교하여 학습하지 않은 날 수 계산(날짜 비교_시간제외)
         today.setHours(0, 0, 0, 0);

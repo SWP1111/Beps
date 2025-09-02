@@ -34,7 +34,7 @@
           flow-id="sign-up-with-password-for-beps"
           base-url="https://api.descope.com"></descope-wc>
           <!-- form='{"email":"user@example.com"}' --> <!-- 초기값 설정 가능하네?-->
-        </descope-wc>
+          <div id="output" style="color: red; margin-top: 10px;"></div>
     </div>  
    </div>
 
@@ -82,14 +82,22 @@
        
       const {sessionJwt, refreshJwt, user} = e.detail;
 
-      await InsertUser(user.customAttributes.familyUniqueKey, 
+      var insertResult = await InsertUser(user.customAttributes.familyUniqueKey, 
                       user.customAttributes.familyCompany, 
                       user.customAttributes.team, 
                       user.customAttributes.position, 
                       user.name,
                       user.email,
                       user.phone);
-
+      if(insertResult.success === false)
+      {
+        if(insertResult.data && insertResult.data.error)
+          output.textContent = "❌ 사용자 정보 등록 실패:\n" + insertResult.data.error;
+        else
+          output.textContent = "❌ 사용자 정보 등록 실패: 알 수 없는 오류가 발생했습니다.";
+        return;
+      }
+      
       const authUserInfo = await AuthUserInfo(user.customAttributes.familyUniqueKey, refreshJwt);
         if(authUserInfo.success)
         {
@@ -200,16 +208,16 @@
                 })
             });
 
-            const responseText = await response.text();
-            console.log("InsertUser 서버 응답: ", responseText);
+            const responseJson = await response.json();
+            console.log("InsertUser 서버 응답: ", responseJson);
 
-            if((await response).ok)
+            if(response.ok)
             {
-                return {success: true, data: responseText}
+                return {success: true, data: responseJson}
             }
             else
             {
-                return {success: false, message: "사용자 추가 실패"};
+                return {success: false, data: responseJson};
             }
 
         }catch(error){

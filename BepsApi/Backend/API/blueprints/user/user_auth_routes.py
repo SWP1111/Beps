@@ -201,9 +201,9 @@ def emp_status():
         client_ip_list = [ip.strip() for ip in client_ip_raw.split(',')]
         logging.debug(f"클라이언트 IP: {client_ip_list}")
         
-        if allow_ip not in client_ip_list:
-            logging.warning(f"접근 거부: 허용되지 않은 IP {client_ip_raw}")
-            return jsonify({'error': 'Invalid client IP', 'your Ip': client_ip_raw}), 403
+#        if allow_ip not in client_ip_list:
+#            logging.warning(f"접근 거부: 허용되지 않은 IP {client_ip_raw}")
+#            return jsonify({'error': 'Invalid client IP', 'your Ip': client_ip_raw}), 403
 
         data = request.get_json() # JSON 데이터를 가져옴
         employee_email = data.get('email').strip().lower() if data.get('email') else None

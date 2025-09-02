@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             return response.json();
         })
-        .then(data => {
+        .then(async data => {
             console.log('Permissions loaded:', data);
             
             // Clear existing rows
@@ -652,11 +652,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (Array.isArray(data)) {
                 // Sort permissions by hierarchy before displaying
                 const sortedPermissions = sortPermissionsByHierarchy(data);
-                
-                sortedPermissions.forEach(permission => {
-                    addPermissionToTable(permission);
-                });
-                
+
+                for (const permission of sortedPermissions) {
+                    await addPermissionToTable(permission);
+                }
+
                 if (data.length === 0) {
                     console.log('No permissions found');
                 }
@@ -710,6 +710,11 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(userData => {
             // Transform the response to match expected format
             if (userData) {
+                if (userData.hasOwnProperty("exists") && userData.exists === false)
+                {
+                    return { exists: false };
+                }
+
                 return {
                     exists: true,
                     user: userData
@@ -819,73 +824,78 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Add permission to table
-    function addPermissionToTable(permission) {
+    async function addPermissionToTable(permission) {
         const row = document.createElement('tr');
         
         // Get hierarchy information for this permission
         const { folderParts, fileName } = getHierarchyInfo(permission);
         
         // Get detailed user information
-        fetchUserDetails(permission.user_id)
-            .then(userData => {
-                // Get user details
-                let company = '';
-                let department = '';
-                let position = '';
-                let name = '';
-                
-                if (userData && userData.exists && userData.user) {
-                    company = userData.user.company || '';
-                    department = userData.user.department || '';
-                    position = userData.user.position || '';
-                    name = userData.user.name || '';
-                }
-                
-                // Translate permission type to Korean
-                let permissionTypeKorean = '';
-                switch(permission.type) {
-                    case 'channel':
-                        permissionTypeKorean = '채널';
-                        break;
-                    case 'folder':
-                        permissionTypeKorean = '폴더';
-                        break;
-                    case 'file':
-                        permissionTypeKorean = '파일';
-                        break;
-                    default:
-                        permissionTypeKorean = permission.type;
-                }
-                
-                // Add cells
-                row.innerHTML = `
-                    <td class="permission-type-col">${permissionTypeKorean}</td>
-                    <td>${folderParts[0] || ''}</td>
-                    <td class="folder1-col">${folderParts[1] || ''}</td>
-                    <td class="folder2-col">${folderParts[2] || ''}</td>
-                    <td class="folder3-col">${folderParts[3] || ''}</td>
-                    <td class="file-col">${fileName || ''}</td>
-                    <td class="company-col">${company || '-'}</td>
-                    <td class="department-col">${department || '-'}</td>
-                    <td class="position-col">${position || '-'}</td>
-                    <td class="name-col">${name || '-'}</td>
-                    <td class="id-col">${permission.user_id || '-'}</td>
-                    <td class="action-col">
-                        <button class="delete-btn" data-id="${permission.id}">삭제</button>
-                    </td>
-                `;
-                
-                // Add row to table
-                permissionsListBody.appendChild(row);
-                
-                // Add event listener to delete button
-                row.querySelector('.delete-btn').addEventListener('click', function() {
-                    deletePermission(this.dataset.id, row);
-                });
-            })
-            .catch(error => {
-                console.error('Error adding permission to table:', error);
+        const userData =  await fetchUserDetails(permission.assignee.user_id)
+        try{    
+            // Get user details
+            let company = '';
+            let department = '';
+            let position = '';
+            let name = '';
+            
+            if (userData && userData.exists && userData.user) {
+                company = userData.user.company || '';
+                department = userData.user.department || '';
+                position = userData.user.position || '';
+                name = userData.user.name || '';
+            }
+            else
+            {
+                position = permission.assignee.position || '';
+                name = permission.assignee.name || '';
+            }
+
+            // Translate permission type to Korean
+            let permissionTypeKorean = '';
+            switch(permission.type) {
+                case 'channel':
+                    permissionTypeKorean = '채널';
+                    break;
+                case 'folder':
+                    permissionTypeKorean = '폴더';
+                    break;
+                case 'file':
+                    permissionTypeKorean = '파일';
+                    break;
+                default:
+                    permissionTypeKorean = permission.type;
+            }
+            
+            // Add cells
+            row.innerHTML = `
+                <td class="permission-type-col">${permissionTypeKorean}</td>
+                <td>${folderParts[0] || ''}</td>
+                <td class="folder1-col">${folderParts[1] || ''}</td>
+                <td class="folder2-col">${folderParts[2] || ''}</td>
+                <td class="folder3-col">${folderParts[3] || ''}</td>
+                <td class="file-col">${fileName || ''}</td>
+                <td class="company-col">${company || '-'}</td>
+                <td class="department-col">${department || '-'}</td>
+                <td class="position-col">${position || '-'}</td>
+                <td class="name-col">${name || '-'}</td>
+                <td class="id-col">${permission.assignee.user_id || '-'}</td>
+                <td class="action-col">
+                    <button class="delete-btn" data-id="${permission.id}">삭제</button>
+                </td>
+            `;
+            
+            // Add row to table
+            permissionsListBody.appendChild(row);
+            
+            // Add event listener to delete button
+            row.querySelector('.delete-btn').addEventListener('click', function() {
+                deletePermission(this.dataset.id, row);
             });
+        }
+        catch(error) {
+            console.error('Error adding permission to table:', error);
+        }
     }
 
     // Fetch user name

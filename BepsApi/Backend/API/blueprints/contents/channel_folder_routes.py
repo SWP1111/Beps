@@ -13,7 +13,7 @@ from datetime import timezone
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from models import ContentRelChannels, ContentRelFolders, ContentRelPages, Users, ContentManager
+from models import ContentRelChannels, ContentRelFolders, ContentRelPages, Users, ContentManager, Assignees
 from log_config import get_content_logger
 from werkzeug.utils import secure_filename
 
@@ -89,8 +89,10 @@ def register_channel_folder_routes(api_contents_bp):
                 ContentRelFolders, ContentManager.folder_id == ContentRelFolders.id
             ).join(
                 ContentRelChannels, ContentRelFolders.channel_id == ContentRelChannels.id
+            ).join(
+                Assignees, ContentManager.assignee_id == Assignees.id
             ).filter(
-                ContentManager.user_id == user_id,
+                Assignees.user_id == user_id,
                 ContentRelChannels.id == channel_id,
                 ContentRelChannels.is_deleted == False
             ).first() is not None

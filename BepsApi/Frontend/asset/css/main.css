@@ -26,22 +26,30 @@ body {
     display: flex;
     flex-direction: column;  
     margin-left: 15px;
+
+    background: linear-gradient(90deg, #B26002 0%, rgba(255,255,255,0.8) 96%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+            color: transparent;
+            
+    filter: drop-shadow(5px 5px 2px rgba(0,0,0,1));
 }
 
 .title-en .title {
-    color: white;
+    /* color: white; */
     font-family: NotosansKR;
     font-weight: 700;
     font-size: 40px;
     line-height: 1;
     letter-spacing: 0;
-    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7);
+    /* text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7); */
     display: inline;
 }
 
 .title-en .subtitle {
     font-size: 20px;
-    color: rgba(232,232,232,1);
+    /* color: rgba(232,232,232,1); */
     font-family: NotosansKR;
     font-weight: 700;
     font-size: 10px;
@@ -51,29 +59,35 @@ body {
 .title-ko {
     margin-top: 11px;
     margin-left: 3px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, #6D6D6D 100%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+            color: transparent;
+    filter: drop-shadow(5px 5px 2px rgba(0,0,0,1));
 }
 
     
 .title-ko .title{
-    color: white;
+    /* color: white; */
     font-family: NotosansKR;
     font-weight: 700;
     font-size: 25px;
     line-height: 1;
     letter-spacing: 0;
-    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7);
+    /* text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7); */
     display: inline;
 }
 
 
 .title-ko .subtitle{
-    color: white;
+    /* color: white; */
     font-family: NotosansKR;
     font-weight: 700;
     font-size: 17px;
     line-height: 1;
     letter-spacing: 0;
-    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7);
+    /* text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.7); */
     display: inline;
 }
 

@@ -5,7 +5,7 @@ import re
 from flask_jwt_extended import jwt_required
 from extensions import db
 from models import ( Users, ContentViewingHistory, MemoData, ContentManager, 
-                    ContentRelChannels, ContentRelFolders, ContentRelPages, ContentRelPageDetails )
+                    ContentRelChannels, ContentRelFolders, ContentRelPages, ContentRelPageDetails, Assignees )
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import aliased
@@ -158,9 +158,9 @@ def get_file_managers():
     """
     query = db.session.query(
         ContentManager.file_id,
-        Users.name.label('manager_name')
+        Assignees.name.label('manager_name')
     ).join(
-        Users, ContentManager.user_id == Users.id
+        Assignees, ContentManager.assignee_id == Assignees.id
     ).filter(ContentManager.type == 'file')
         
     return {row.file_id: row.manager_name for row in query.all()}
@@ -171,9 +171,9 @@ def get_folder_managers():
     """
     query = db.session.query(
         ContentManager.folder_id,
-        Users.name.label('manager_name')
+        Assignees.name.label('manager_name')
     ).join(
-        Users, ContentManager.user_id == Users.id
+        Assignees, ContentManager.assignee_id == Assignees.id   
     ).filter(ContentManager.type == 'folder')
         
     return {row.folder_id: row.manager_name for row in query.all()}

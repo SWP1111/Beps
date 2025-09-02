@@ -222,7 +222,8 @@ def get_memo_count_per_category_by_users(user_ids, period_type, period_value):
     base_query = """
         SELECT u.id AS user_id, c.id AS channel_id, c.name AS channel_name, COUNT(*) AS memo_count
         FROM memos m
-        JOIN content_rel_folders f ON m.folder_id = f.id
+        JOIN content_rel_pages p ON m.file_id = p.id
+        JOIN content_rel_folders f ON p.folder_id = f.id
         JOIN content_rel_channels c ON f.channel_id = c.id
         JOIN users u ON m.user_id = u.id
         WHERE m.user_id = ANY(:user_ids)

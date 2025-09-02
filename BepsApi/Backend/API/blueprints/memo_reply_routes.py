@@ -41,7 +41,8 @@ def create_memo_reply():
         )
         
         # Update memo status to 1 (답변완료) when a reply is added
-        memo.status = 1
+        if(memo.user_id != data['user_id']):
+            memo.status = 1
         
         db.session.add(reply)
         db.session.commit()

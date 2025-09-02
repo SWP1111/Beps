@@ -108,9 +108,10 @@ def get_all_memos():
                 managed_memos_query = """
                     SELECT DISTINCT m.id
                     FROM memos m
-                    LEFT JOIN content_manager cm_file ON (cm_file.user_id = :user_id AND cm_file.file_id = m.file_id AND cm_file.file_id IS NOT NULL)
+                    LEFT JOIN assignees me ON (me.user_id = :user_id)
+                    LEFT JOIN content_manager cm_file ON (cm_file.assignee_id = me.id AND cm_file.file_id = m.file_id AND cm_file.file_id IS NOT NULL)
                     LEFT JOIN content_rel_pages crp ON (m.file_id = crp.id)
-                    LEFT JOIN content_manager cm_folder ON (cm_folder.user_id = :user_id AND cm_folder.folder_id = crp.folder_id AND cm_folder.folder_id IS NOT NULL)
+                    LEFT JOIN content_manager cm_folder ON (cm_folder.assignee_id = me.id AND cm_folder.folder_id = crp.folder_id AND cm_folder.folder_id IS NOT NULL)
                     WHERE m.user_id = :user_id 
                        OR cm_file.file_id IS NOT NULL 
                        OR cm_folder.folder_id IS NOT NULL

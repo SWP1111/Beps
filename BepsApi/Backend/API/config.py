@@ -12,6 +12,10 @@ class Config:
     # 포맷: postgresql://username:password@hostname/database
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/beps")  # 🔹 데이터베이스 URL
     SQLALCHEMY_TRACK_MODIFICATIONS =False   # 🔹 SQLAlchemy의 이벤트를 추적하는 기능을 비활성화(사용하면 성능 저하)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,    # 연결 살아있는지 확인 후 사용
+        "pool_recycle": 1800      # (선택) 30분마다 커넥션 재생성
+    }
     #SQLALCHEMY_ECHO = True  # 🔹 SQLAlchemy 쿼리 로깅 활성화(디버깅 용도)
     SECRET_KEY = os.getenv("JWT_SECRET_KEY","default-secret-key")   # 🔹 JWT 암호화 키
     BACKUP_DIR = os.path.expanduser("~/BepsApi/DB/backup")  # 🔹 DB content_viewing_history 테이블 백업 폴더

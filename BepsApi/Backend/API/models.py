@@ -459,24 +459,40 @@ class ContentRelPageDetails(db.Model):
             'is_deleted': self.is_deleted
         }
 
+class Assignees(db.Model):
+    __tablename__ = 'assignees'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=True, unique=True)
+    name = db.Column(db.Text, nullable=False)
+    position = db.Column(db.Text, nullable=True)
+    
+    def to_dict(self):
+        return {
+            'id' : self.id,
+            'user_id' : self.user_id,
+            'name' : self.name,
+            'position' : self.position
+        }
+        
 class ContentManager(db.Model):
     __tablename__ = 'content_manager'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
     file_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=True)
     folder_id = db.Column(db.Integer, db.ForeignKey('content_rel_folders.id'), nullable=True)
     channel_id = db.Column(db.Integer, db.ForeignKey('content_rel_channels.id'), nullable=True)
     type = db.Column(db.String(10), nullable=False)  # 'file', 'folder', or 'channel'
+    assignee_id = db.Column(db.Integer, db.ForeignKey('assignees.id'), nullable=True)
     
     def to_dict(self):
         return {
             'id': self.id,
-            'user_id': self.user_id,
             'file_id': self.file_id,
             'folder_id': self.folder_id,
             'channel_id': self.channel_id,
-            'type': self.type
+            'type': self.type,
+            'assignee_id': self.assignee_id
         }
 
 class PushMessages(db.Model):

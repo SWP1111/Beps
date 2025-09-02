@@ -534,6 +534,150 @@ document.addEventListener('DOMContentLoaded', async() => {
     }
   }
 
+  /**
+   * 주어진 data-group에 해당하는 목록의 막대(bar) 너비를 동적으로 조정합니다.
+   * - 0% 값(0)은 30px, 100% 값(최댓값)은 240px에 매핑하여 그 사이를 선형적으로 계산합니다.
+   * - 값이 0이면 배경을 투명하게 처리하고 텍스트를 숨깁니다.
+   * @param {string} dataGroupSelector - 너비를 조정할 항목들의 data-group 셀렉터 (예: '[data-group="top-viewed-page"]')
+   */
+  function adjustBarWidths(dataGroupSelector) {
+    // '가장 많이 본 페이지'의 각 항목을 모두 선택합니다.
+    const pageItems = document.querySelectorAll(dataGroupSelector);
+    const classSuffixes = ['first','second','third','fourth','fifth'];
+    
+    const itemsData = Array.from(pageItems).map(item => {
+      const index = parseInt(item.dataset.index, 10);
+      if (isNaN(index) || index >= classSuffixes.length) return null;
+
+      // data-index를 기반으로 정확한 클래스명을 만들어 막대 요소를 선택합니다.
+      const barSelector = `.top-viewed-${classSuffixes[index]}-item`;
+      const bar = item.querySelector(barSelector);
+
+      const countElement = bar ? bar.querySelector('.top-viewed-item-count') : null;
+      const count = countElement ? parseInt(countElement.textContent) || 0 : 0;
+
+      return { bar, count, countElement };
+    }).filter(Boolean); // 혹시 모를 null 값 제거
+
+    const maxCount = Math.max(...itemsData.map(d => d.count), 0);
+
+    const minWidth = 50;
+    const widthRange = 296 - minWidth;
+
+    itemsData.forEach(item => {
+      if(item.bar) {
+        // 1. 너비 계산 (이 로직은 항상 실행)
+        let finalWidth = minWidth;
+        if (maxCount > 0) {
+          const ratio = item.count / maxCount;
+          finalWidth += widthRange * ratio;
+        }
+        item.bar.style.width = finalWidth + 'px';
+
+        // 2. 값이 0인지에 따라 배경/텍스트 가시성 처리
+        if (item.count === 0 )
+        {
+          item.bar.style.backgroundColor = 'transparent';
+          if (item.countElement) {
+            item.countElement.style.visibility = 'hidden';
+          }
+        } else {
+          item.bar.style.backgroundColor = '';  // CSS에 지정된 원래 배경색으로 복원
+          if(item.countElement) {
+            item.countElement.style.visibility = 'visible';
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * "Competition Rank" 방식, 그 중에서도 동점자는 가장 낮은 순위로 처리하는 규칙으로
+   * 순위를 매겨 CSS 클래스를 할당합니다.
+   * 값이 0이면 배경을 투명하게 만듭니다.
+   * @param {string} dataGroupSelector - 처리할 항목들의 data-group 셀렉터
+   */
+  function adjustWidthsByRank(dataGroupSelector) {
+    const items = document.querySelectorAll(dataGroupSelector);
+    const rankClasses = [
+      'top-viewed-first-item',
+      'top-viewed-second-item',
+      'top-viewed-third-item',
+      'top-viewed-fourth-item',
+      'top-viewed-fifth-item'
+    ];
+    // '.top-viewed-first-item, .top-viewed-second-item, ...' 형태의 정확한 셀렉터를 만듭니다.
+    const barSelector = rankClasses.map(cls => `.${cls}`).join(', ');
+
+    const itemsData = Array.from(items).map(item => {
+      const bar = item.querySelector(barSelector);
+      const countElement = bar ? bar.querySelector('.top-viewed-item-count') : null;
+      const count = countElement ? parseInt(countElement.textContent) || 0 : 0;
+      return { bar, count, countElement };
+    }).filter(data => data.bar);
+
+    // 1. 값(count)을 기준으로 내림차순 정렬합니다.
+    const sortedItems = [...itemsData].sort((a,b) => b.count - a.count);
+
+    // 2. 각 항목에 순위(rank)를 할당합니다.
+    const finalRanks = new Map(); // 각 bar 요소에 최종 순위(클래스)를 매핑
+    let i = 0;
+    while (i < sortedItems.length) {
+      const currentCount = sortedItems[i].count;
+      if (currentCount === 0) {
+        i++;
+        continue;
+      }
+
+      // 현재 값과 동일한 값을 가진 동점자 그룹의 마지막 인덱스를 찾습니다.
+      let endIndex = i;
+      while (endIndex + 1 < sortedItems.length && sortedItems[endIndex + 1].count === currentCount) {
+        endIndex++;
+      }
+
+      // 동점자 그룹의 순위는 그룹의 마지막 인덱스(가장 낮은 순위)로 결정됩니다.
+      const rank = endIndex;
+      const rankClass = rank < rankClasses.length ? rankClasses[rank] : null;
+
+      // 그룹 내 모든 항목에 동일한 순위 클래스를 할당합니다.
+      if (rankClass) {
+        for (let k = i; k <= endIndex; k++) {
+          finalRanks.set(sortedItems[k].bar, rankClass);
+        }
+      }
+
+      // 다음 검사를 위해 인덱스를 동점자 그룹 다음으로 이동시킵니다.
+      i = endIndex + 1;
+    }
+    
+    // 3. 모든 항목을 순회하며 최종적으로 클래스를 적용합니다.
+    itemsData.forEach(item => {
+      //초기화
+      item.bar.classList.remove(...rankClasses);
+      item.bar.style.backgroundColor = ''; 
+      item.bar.style.width = '';
+
+      // 값이 0일 경우
+      if (item.count == 0) {
+        item.bar.style.backgroundColor = 'transparent';
+        item.bar.style.width = '0px';
+        if (item.countElement) {
+          item.countElement.style.visibility = 'hidden';
+        }
+      }
+      // 값이 1 이상일 경우
+      else {
+        if (item.countElement) {
+          item.countElement.style.visibility = 'visible';
+        }
+        const newClass = finalRanks.get(item.bar);
+        if (newClass) {
+          item.bar.classList.add(newClass);
+        }
+      }
+    })
+  }
+
   async function getTopViewdPages() {
 
     let url= `${window.baseUrl}leaning/top_viewed_pages?period_value=${period_value}`;
@@ -577,6 +721,10 @@ document.addEventListener('DOMContentLoaded', async() => {
         dateSpan.style.display = "none";
       });
     });
+
+    // 데이터 업데이트 후, data-group 셀렉터를 인자로 넘겨 너비 조정 함수 호출
+    adjustBarWidths('[data-group="top-viewed-page"]');
+    //adjustWidthsByRank('[data-group="top-viewed-page"]');
   }
 
   async function getMemoRank() {
@@ -621,6 +769,10 @@ document.addEventListener('DOMContentLoaded', async() => {
         dateSpan.style.display = "none";
       });
     });
+
+    //데이터 업데이트 후, data-group 셀렉터를 인자로 넘겨 너비 조정 함수 호출
+    adjustBarWidths('[data-group="top-viewed-memo"]');
+    //adjustWidthsByRank('[data-group="top-viewed-memo"]');
   }
 
   async function getUpdatedContentsRank(isTop = true) {

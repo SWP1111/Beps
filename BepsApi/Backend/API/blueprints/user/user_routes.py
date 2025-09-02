@@ -126,18 +126,38 @@ def upsert_user():
         if not data or 'id' not in data:
             return jsonify({'error': 'Please provide id'}), 400
         
+        req_email = data.get('email', '').lower()
+        if not req_email:
+            return jsonify({'error': 'Email is required'}), 400
+        
         user_id = data.get('id').lower()
         login = data.get('login')
         logging.info(f"login: {login}")
         
-        user = Users.query.filter_by(id=user_id).first()
+        trim = lambda v: v.strip() if isinstance(v, str) else v
+        user = Users.query.filter(func.lower(Users.email) == req_email).first()       
+        #user = Users.query.filter_by(id=user_id).first()
         if user is None:    # 새로운 Row 추가
+            
+            # 제공된 id(사번)가 다른 사용자에 의해 이미 사용 중인지 확인
+            id_exists = db.session.query(Users.id).filter(func.lower(Users.id) == user_id).first() is not None
+            if id_exists:
+                # 만약 ID가 이미 사용 중이면, 409 Conflict 에러를 반환
+                logging.warning(f"Attempted to create a new user with an existing employee ID. Email: '{req_email}', ID: '{user_id}'")
+                return jsonify({'error': f"Employee ID '{data.get('id')}' is already in use."}), 409
+   
             user = Users(id=user_id)
             user.password = data.get('password')
             if(is_valid('company', data)): user.company = data.get('company')
-            if(is_valid('department', data)): user.department = data.get('department')
-            if(is_valid('position', data)): user.position = data.get('position')
-            if(is_valid('name', data)): user.name = data.get('name')
+            if(is_valid('department', data)):
+                dept = trim(data.get('department'))
+                user.department = dept if dept else None
+            if(is_valid('position', data)):
+                p = trim(data.get('position'))
+                user.position = p if p else None
+            if(is_valid('name', data)): 
+                n = trim(data.get('name'))
+                user.name = n if n else None
             if(is_valid('access_group_id', data)): user.access_group_id = data.get('access_group_id')
             if(is_valid('role_id', data)): user.role_id = data.get('role_id')
             if(is_valid('phone', data)): user.phone = data.get('phone')
@@ -148,9 +168,15 @@ def upsert_user():
         else:   # Row 업데이트
             if(is_valid('password',data)): user.password = data.get('password')
             if(is_valid('company',data)):user.company = data.get('company')
-            if(is_valid('department',data)):user.department = data.get('department')
-            if(is_valid('position',data)):user.position = data.get('position')
-            if(is_valid('name',data)):user.name = data.get('name')
+            if(is_valid('department',data)):
+                dept = trim(data.get('department'))
+                user.department = dept if dept else None
+            if(is_valid('position',data)):
+                p = trim(data.get('position'))
+                user.position = p if p else None
+            if(is_valid('name',data)):
+                n = trim(data.get('name'))
+                user.name = n if n else None
             if(is_valid('access_group_id',data)):user.access_group_id = data.get('access_group_id')
             if(is_valid('role_id',data)):user.role_id = data.get('role_id')
             if(is_valid('phone',data)):user.phone = data.get('phone')
@@ -172,7 +198,7 @@ def get_test():
 @jwt_required(locations=['headers','cookies'])  # JWT 검증을 먼저 수행
 def get_organizations():
     try:
-        default_companies = ["PTC", "바론", "삼안", "장헌산업", "한맥기술"]
+        default_companies = ["PTC", "바론컨설턴트", "삼안", "장헌산업", "한맥기술"]
         
         organizations = db.session.query(Users.company, Users.department).filter(Users.is_deleted == False).distinct().all()
         
@@ -203,21 +229,22 @@ def get_user_by_org():
             return jsonify({'error': 'Please provide company'}), 400
         
         # 직급별 정렬 우선순위 정의
+        pos = func.trim(func.coalesce(Users.position, ''))
         position_order = case(           
-            (Users.position == '사장', 1),
-            (Users.position == '부사장', 2),
-            (Users.position == '전무이사', 3),
-            (Users.position == '상무이사', 4),
-            (Users.position == '이사', 5),
-            (Users.position == '수석', 6),      
-            (Users.position == '책임', 7),                           
-            (Users.position == '부장', 8),   
-            (Users.position == '선임', 9),                             
-            (Users.position == '차장', 10),              
-            (Users.position == '과장', 11),
-            (Users.position == '대리', 12),
-            (Users.position == '연구원', 13),
-            (Users.position == '사원', 14),
+            (pos.ilike('사장%'), 1),
+            (pos.ilike('부사장%'), 2),
+            (pos.ilike('전무이사%'), 3),
+            (pos.ilike('상무이사%'), 4),
+            (pos.ilike('이사%'), 5),
+            (pos.ilike('수석%'), 6),      
+            (pos.ilike('책임%'), 7),                           
+            (pos.ilike('부장%'), 8),   
+            (pos.ilike('선임%'), 9),                             
+            (pos.ilike('차장%'), 10),              
+            (pos.ilike('과장%'), 11),
+            (pos.ilike('대리%'), 12),
+            (pos.ilike('연구원%'), 13),
+            (pos.ilike('사원%'), 14),
             else_=99  # 미정의 직급은 가장 뒤로
         )
         
@@ -261,9 +288,12 @@ def get_search():
                                 Users.name,
                                 Users.company,
                                 Users.department,
-                                Users.position).filter(
+                                Users.position,
+                                Users.email,
+                                Users.role_id).filter(
                                     Users.is_deleted == False,
                                     or_(
+                                        func.lower(Users.id).like(f'%{keyword}%'),
                                         func.lower(Users.company).like(f'%{keyword}%'),
                                         func.lower(Users.department).like(f'%{keyword}%'),
                                         func.lower(Users.name).like(f'%{keyword}%'),
@@ -282,13 +312,17 @@ def get_search():
             if keyword in (company.lower(), department.lower()):
                 result_map[company][department]
             
-            if keyword in (u.name or '').lower() and key not in seen:
+            if (keyword in (u.name or '').lower() or 
+                keyword in norm_id or 
+                keyword in (u.position or '').lower()) and key not in seen:
                 result_map[company][department].append({
                     'id': u.id,
                     'name': u.name,
                     'company': company,
                     'department': department,
-                    'position': u.position
+                    'position': u.position,
+                    'email': u.email,
+                    'role_id': u.role_id
                 })
                 seen.add(key)
                 

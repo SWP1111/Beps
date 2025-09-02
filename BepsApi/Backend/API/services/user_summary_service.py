@@ -5,9 +5,10 @@ import datetime
 from extensions import db
 from models import LoginHistory, loginSummaryDay, loginSummaryAgg, Users, IpRange
 from collections import defaultdict
-from sqlalchemy import func
+from sqlalchemy import case, func, cast, or_, false
 import config
 from services.ip_range_cache import ip_range_list
+from sqlalchemy.dialects.postgresql import INET
 
 def get_quarter_period_value(year):
     """주어진 연도에 대한 분기 기간을 반환합니다."""
@@ -216,7 +217,7 @@ def get_top_department_duration_mixed(start_date, end_date, filter_is_deleted = 
     for company, department in all_departments:
         dept_duration_map[(company, department)] = 0
     
-    def update_dept_duration(rows, company_filed='company_key', department_field='department_key'):
+    def update_dept_duration(rows, company_filed='company', department_field='department'):
         for row in rows:
             key = (getattr(row, company_filed, None), getattr(row, department_field, None))
             if key not in dept_duration_map:
@@ -234,11 +235,12 @@ def get_top_department_duration_mixed(start_date, end_date, filter_is_deleted = 
                     summary_func,
                     period_type=period_type,
                     period_value=period_str,
-                    group_fields=[loginSummaryAgg.company_key, loginSummaryAgg.department_key]
+                    join_users=True,
+                    group_fields=[Users.company, Users.department]
                 )
                 if summary_rows:
                     used_ranges.append((p_start, p_end))
-                    update_dept_duration(summary_rows)
+                    update_dept_duration(summary_rows, company_filed='company', department_field='department')
                     
     used_ranges.sort(key=lambda x: x[0])
     current = start_date
@@ -253,9 +255,10 @@ def get_top_department_duration_mixed(start_date, end_date, filter_is_deleted = 
                             loginSummaryDay,
                             start_date=current,
                             end_date=min(current_end, datetime.date.today() - datetime.timedelta(days=2)),
-                            group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key]
+                            join_users=True,
+                            group_fields=[Users.company, Users.department]
                         )
-                        update_dept_duration(rows)
+                        update_dept_duration(rows, company_filed='company', department_field='department')
 
                     except Exception as e:
                         logging.error(f"Error in summary_day_rows query: {e}")
@@ -286,9 +289,10 @@ def get_top_department_duration_mixed(start_date, end_date, filter_is_deleted = 
                 loginSummaryDay,
                 start_date=current,
                 end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                group_fields=[loginSummaryDay.company_key, loginSummaryDay.department_key]
+                join_users=True,
+                group_fields=[Users.company, Users.department]
             )
-            update_dept_duration(rows, company_filed='company_key', department_field='department_key')
+            update_dept_duration(rows, company_filed='company', department_field='department')
         if end_date >= datetime.date.today() - datetime.timedelta(days=1):
             local_tz = datetime.datetime.now().astimezone().tzinfo
             utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
@@ -329,7 +333,7 @@ def get_top_company_duration_mixed(start_date, end_date, filter_is_deleted = Fal
     for (company,) in all_companies:
         company_duaration_map[company] = 0
     
-    def update_company_duration(rows, company_field='company_key'):
+    def update_company_duration(rows, company_field='company'):
         for row in rows:
             company = getattr(row, company_field, None)
             if company not in company_duaration_map:
@@ -347,11 +351,12 @@ def get_top_company_duration_mixed(start_date, end_date, filter_is_deleted = Fal
                     summary_func,
                     period_type=period_type,
                     period_value=period_str,
-                    group_fields=[loginSummaryAgg.company_key]
+                    join_users=True,
+                    group_fields=[Users.company]
                 )
                 if summary_rows:
                     used_ranges.append((p_start, p_end))
-                    update_company_duration(summary_rows)
+                    update_company_duration(summary_rows, company_field='company')
     
     used_ranges.sort(key=lambda x: x[0])
     current = start_date
@@ -366,9 +371,10 @@ def get_top_company_duration_mixed(start_date, end_date, filter_is_deleted = Fal
                             loginSummaryDay,
                             start_date=current,
                             end_date=min(current_end, datetime.date.today() - datetime.timedelta(days=2)),
-                            group_fields=[loginSummaryDay.company_key]
+                            join_users=True,
+                            group_fields=[Users.company]
                         )
-                        update_company_duration(rows)
+                        update_company_duration(rows, company_field='company')
 
                     except Exception as e:
                         logging.error(f"Error in summary_day_rows query: {e}")
@@ -398,9 +404,10 @@ def get_top_company_duration_mixed(start_date, end_date, filter_is_deleted = Fal
                 loginSummaryDay,
                 start_date=current,
                 end_date=min(end_date, datetime.date.today() - datetime.timedelta(days=2)),
-                group_fields=[loginSummaryDay.company_key]
+                join_users=True,
+                group_fields=[Users.company]
             )
-            update_company_duration(rows, company_field='company_key')
+            update_company_duration(rows, company_field='company')
         if end_date >= datetime.date.today() - datetime.timedelta(days=1):
             local_tz = datetime.datetime.now().astimezone().tzinfo
             utc_start_dt = datetime.datetime.combine(max(current, datetime.date.today() - datetime.timedelta(days=1)), datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
@@ -585,68 +592,73 @@ def get_connection_summary_day(start_date, end_date, scope, filter_value=None):
 def is_internal_ip(ip_str):
     try:
         ip = ipaddress.ip_address(ip_str)
-        return any(start <= ip <= end for start, end in ip_range_list)
-    except ValueError:
+        return (ip.version == 4) and any(
+            isinstance(start, ipaddress.IPv4Address) and isinstance(end, ipaddress.IPv4Address)
+            and start <= ip <= end
+            for start, end in ip_range_list
+        )
+    except Exception as e:
+        logging.error(f"Error in is_internal_ip for IP {ip_str}: {e}")
         return False
     
-def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):    
-    total = datetime.timedelta(0)
-    work = datetime.timedelta(0)
-    off = datetime.timedelta(0)
-    internal = 0
-    external = 0
-    has_data = False
-    
-    filters = [
+def get_connection_summary_agg(period_type, period_value, scope, filter_value=None):
+    base_filter = (
         loginSummaryAgg.period_type == period_type,
         loginSummaryAgg.period_value == period_value
-    ]
-    
-    query = db.session.query(loginSummaryAgg).join(Users, Users.id == loginSummaryAgg.user_id)
-    
+    )
+
     if scope == 'user' and filter_value:
-        filters.append(loginSummaryAgg.user_id_key == filter_value)
-    elif scope == 'department' and filter_value:
-        parts = filter_value.split('||', 1)
-        if len(parts) == 2:
-            company_name, department_name = parts
-            filters.append(Users.company == company_name)
-            filters.append(Users.department == department_name)
-        else:
-            department_name = parts[0]
-            filters.append(Users.department == department_name)
-    elif scope == 'company' and filter_value:
-        filters.append(Users.company == filter_value)
-
-    data = query.filter(*filters).first()
-    
-    if data:
-        has_data = True
-        total = data.total_duration or datetime.timedelta(0)
-        work = data.worktime_duration or datetime.timedelta(0)
-        off = data.offhour_duration or datetime.timedelta(0)
-        internal = data.internal_count or 0
-        external = data.external_count or 0
-        
-        return {
-            'has_data': has_data,
-            'total_duration': total,
-            'worktime_duration': work,
-            'offhour_duration': off,
-            'internal_count': internal,
-            'external_count': external
-        }
+        # Users 조인 불필요
+        q = (db.session.query(
+                func.sum(loginSummaryAgg.total_duration).label('total'),
+                func.sum(loginSummaryAgg.worktime_duration).label('work'),
+                func.sum(loginSummaryAgg.offhour_duration).label('off'),
+                func.sum(loginSummaryAgg.internal_count).label('internal'),
+                func.sum(loginSummaryAgg.external_count).label('external'),
+            )
+            .filter(*base_filter, loginSummaryAgg.user_id_key == filter_value))
     else:
-        return {
-            'has_data': has_data,
-            'total_duration': total,
-            'worktime_duration': work,
-            'offhour_duration': off,
-            'internal_count': internal,
-            'external_count': external
-        }
+        # 현재 조직 기준 필터 필요 → Users 조인
+        q = (db.session.query(
+                func.sum(loginSummaryAgg.total_duration).label('total'),
+                func.sum(loginSummaryAgg.worktime_duration).label('work'),
+                func.sum(loginSummaryAgg.offhour_duration).label('off'),
+                func.sum(loginSummaryAgg.internal_count).label('internal'),
+                func.sum(loginSummaryAgg.external_count).label('external'),
+            )
+            .join(Users, Users.id == loginSummaryAgg.user_id)
+            .filter(*base_filter))
 
-  
+        if scope == 'department' and filter_value:
+            parts = filter_value.split('||', 1)
+            if len(parts) == 2:
+                company_name, department_name = parts
+                q = q.filter(Users.company == company_name,
+                             Users.department == department_name)
+            else:
+                q = q.filter(Users.department == parts[0])
+
+        elif scope == 'company' and filter_value:
+            q = q.filter(Users.company == filter_value)
+
+    row = q.one()  # 매칭 없으면 NULL들인 1행이 반환됨(Postgres)
+
+    total    = row.total    or datetime.timedelta(0)
+    work     = row.work     or datetime.timedelta(0)
+    off      = row.off      or datetime.timedelta(0)
+    internal = int(row.internal or 0)
+    external = int(row.external or 0)
+
+    has_data = any([total, work, off, internal, external])
+
+    return {
+        'has_data': has_data,
+        'total_duration': total,
+        'worktime_duration': work,
+        'offhour_duration': off,
+        'internal_count': internal,
+        'external_count': external
+    }
         
 def get_summary_rows_agg(model, period_type, period_value, group_fields, join_users=False, extra_filter=None):    
     query = db.session.query(*group_fields, func.sum(model.total_duration).label('total'))
@@ -701,3 +713,62 @@ def get_summary_rows_history(model, start_date, end_date, group_fields, join_use
     
     # logging.debug(query.statement.compile(compile_kwargs={"literal_binds": True}))
     return query.all()
+
+
+
+def get_unique_ip_counts(start_date, end_date, scope, filter_value=None):
+    """
+    LoginHistory 테이블에서 주어진 기간 동안의 고유 IP 주소 개수를 반환합니다.
+    """
+    base_query = db.session.query(LoginHistory.ip_address, LoginHistory.user_id).distinct()
+    
+    #공통 필터 설정: 날짜 범위
+    local_tz = datetime.datetime.now().astimezone().tzinfo
+    utc_start_dt = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+    utc_end_dt = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=local_tz).astimezone(datetime.timezone.utc)
+    
+    filters = [
+        LoginHistory.login_time >= utc_start_dt,
+        LoginHistory.login_time <= utc_end_dt,
+        LoginHistory.ip_address != None,
+        LoginHistory.ip_address != ''
+    ]
+    
+    if scope in ['department', 'company']:
+        base_query = base_query.join(Users, LoginHistory.user_id == Users.id)
+
+    if scope == 'user' and filter_value:
+        filters.append(LoginHistory.user_id == filter_value)
+    elif scope == 'department' and filter_value:
+        parts = filter_value.split('||', 1)
+        if len(parts) == 2:
+            company_name, department_name = parts
+            filters.extend([Users.company == company_name, Users.department == department_name])
+        else:
+            department_name = parts[0]
+            filters.append(Users.department == department_name)
+    elif scope == 'company' and filter_value:
+        filters.append(Users.company == filter_value)
+    
+    ip_inet = cast(LoginHistory.ip_address, INET)
+    ip_family = func.family(ip_inet)
+    
+    # 내부 IP 확인을 위한 SQL 조건 생성 (ip_range_list 캐시 사용/ IPv4 형식만 체크)
+    internal_ip_conditions = [
+        case(
+            (ip_family == 4,
+             ip_inet.between(cast(str(start_ip), INET), cast(str(end_ip), INET))),
+            else_=false()
+        )
+        for start_ip, end_ip in ip_range_list
+    ]
+            
+    internal_ip_filter = or_(*internal_ip_conditions) if internal_ip_conditions else false()
+    
+    internal_user_ip_pairs = base_query.filter(*filters, internal_ip_filter).all()
+    logging.debug(f"Found unique internal (IP, User) pairs: {internal_user_ip_pairs}")
+    
+    external_user_ip_pairs = base_query.filter(*filters, ~internal_ip_filter).all()
+    logging.debug(f"Found unique external (IP, User) pairs: {external_user_ip_pairs}")
+
+    return {'internal_count': len(internal_user_ip_pairs), 'external_count': len(external_user_ip_pairs)}

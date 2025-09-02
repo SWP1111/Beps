@@ -1,4 +1,4 @@
- const contentsProgressContainer = document.getElementById("contents-progress-container");
+const contentsProgressContainer = document.getElementById("contents-progress-container");
 const contentsDataButton = document.getElementById("contents-data-button");
 
 let [start, end] = getWeekRange(new Date());
@@ -9,16 +9,15 @@ const fpContents = flatpickr("#contents-date", {
     locale: "ko",
     defaultDate: [start, end],  // ✅ 이번 주 기본 선택
     onChange: function(selectedDates, dateStr, instance) {
-        if (selectedDates.length === 1) {
-            [start, end] = getWeekRange(selectedDates[0]);
+        if(selectedDates.length === 2) {
+            [start, end] = selectedDates;   // ✅ 선택된 날짜 범위 업데이트
 
-            // 프로그램적으로 range 선택
-            instance.setDate([start, end], true);
-             // 달력 닫기!
-            instance.close();
-
+            if(start.getTime() == end.getTime()) {
+                const formattedDate = flatpickr.formatDate(start, "y-m-d");
+                instance.input.value = `${formattedDate} ~ ${formattedDate}`; // ✅ 날짜가 같을 때는 "YYYY-MM-DD ~ YYYY-MM-DD" 형식으로 표시
+            }
             const existing = document.querySelector(".expander-container");
-            if (existing) existing.remove();
+            if (existing) existing.remove(); // 기존 확장 영역 제거
         }
     }
 });

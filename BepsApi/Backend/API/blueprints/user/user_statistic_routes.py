@@ -43,49 +43,38 @@ def get_connection_duration():
         if period_value is None:
             return jsonify({'error': 'Please provide period_value'}), 400
         
-        if(period_type == 'day'):
-            start_date, end_date = [datetime.datetime.strptime(d.strip(), '%Y-%m-%d').date() for d in period_value.split('~')]
-            data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
-                                
-            if data['has_data']:
-                return jsonify({
-                    'total_duration': data['total_duration'].total_seconds(),
-                    'worktime_duration': data['worktime_duration'].total_seconds(),
-                    'offhour_duration': data['offhour_duration'].total_seconds(),
-                    'internal_count': data['internal_count'],
-                    'external_count': data['external_count']
-                })
-            else:    
-                return jsonify({'error': 'No data available for given parameters'}), 404     
-        elif(period_type in ['quarter', 'half', 'year']):
-            data = summary_service.get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
-            
-            if data['has_data']:
-                return jsonify({
-                    'total_duration': data['total_duration'].total_seconds(),
-                    'worktime_duration': data['worktime_duration'].total_seconds(),
-                    'offhour_duration': data['offhour_duration'].total_seconds(),
-                    'internal_count': data['internal_count'],
-                    'external_count': data['external_count']
-                })
-            else:
-                start_date,end_date = summary_service.get_period_value(period_type, period_value)                     
-                data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
-                               
-                if data['has_data']:
-                    return jsonify({
-                        'total_duration': data['total_duration'].total_seconds(),
-                        'worktime_duration': data['worktime_duration'].total_seconds(),
-                        'offhour_duration': data['offhour_duration'].total_seconds(),
-                        'internal_count': data['internal_count'],
-                        'external_count': data['external_count']
-                    })
-                else:    
-                    return jsonify({'error': 'No data available for given parameters'}), 404 
+        start_date, end_date = summary_service.get_period_value(period_type, period_value)
         
-        return jsonify({'error': f"Invalid period_type. Allowed values are: day, quarter, half, year."}), 400
-             
+        # LoginHistory 테이블에서 고유 IP 개수만 가져오기
+        ip_counts = summary_service.get_unique_ip_counts(start_date, end_date, filter_type, filter_value)
+        logging.info(f"IP Counts: {ip_counts}")
+        
+        duration_data = None
+        if(period_type == 'day'):
+            duration_data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)   
+        elif(period_type in ['quarter', 'half', 'year']):
+            duration_data = summary_service.get_connection_summary_agg(period_type, period_value, filter_type, filter_value)
+            
+            if not duration_data['has_data']:                   
+                duration_data = summary_service.get_connection_summary_mixed(start_date, end_date, filter_type, filter_value)
+        else:
+            return jsonify({'error': f"Invalid period_type. Allowed values are: day, quarter, half, year."}), 400
+        
+        logging.info(f"Duration Data: {duration_data}")
+        
+        if duration_data and (duration_data['has_data'] or ip_counts['internal_count'] > 0 or ip_counts['external_count'] > 0):
+            return jsonify({
+                'total_duration': duration_data['total_duration'].total_seconds() if duration_data['total_duration'] else 0,
+                'worktime_duration': duration_data['worktime_duration'].total_seconds() if duration_data['worktime_duration'] else 0,
+                'offhour_duration': duration_data['offhour_duration'].total_seconds() if duration_data['offhour_duration'] else 0,
+                'internal_count': ip_counts['internal_count'],
+                'external_count': ip_counts['external_count']
+            })
+        else:
+            return jsonify({'error': 'No data found'}), 404
+        
     except Exception as e:
+        logging.error(f"예외 발생: {str(e)}, {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
     
    
@@ -195,7 +184,8 @@ def get_top_department_duration():
                 loginSummaryAgg,
                 period_type = period_type,
                 period_value = period_value,
-                group_fields=[loginSummaryAgg.company, loginSummaryAgg.department]
+                join_users=True,
+                group_fields=[Users.company, Users.department]  # Users 테이블의 company, department 필드로 그룹화
             )
             
             if summary_rows:
@@ -263,7 +253,8 @@ def get_top_company_duration():
                 loginSummaryAgg,
                 period_type= period_type,
                 period_value= period_value,
-                group_fields=[loginSummaryAgg.company]
+                join_users=True,
+                group_fields=[Users.company]
             )
             
             if summary_rows:

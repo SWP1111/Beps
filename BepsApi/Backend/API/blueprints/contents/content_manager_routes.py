@@ -8,10 +8,11 @@ This module handles:
 """
 
 import logging
+import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from models import ContentManager, Users, ContentRelChannels, ContentRelFolders, ContentRelPages
+from models import ContentManager, Users, ContentRelChannels, ContentRelFolders, ContentRelPages,Assignees
 from log_config import get_content_logger
 
 # Initialize logger
@@ -29,8 +30,22 @@ def register_content_manager_routes(api_contents_bp):
         Returns a list of content manager entries
         """
         try:
-            managers = ContentManager.query.all()
-            return jsonify([manager.to_dict() for manager in managers])
+            rows = (db.session.query(ContentManager, Assignees)
+                    .outerjoin(Assignees, ContentManager.assignee_id == Assignees.id)
+                    .all())
+            
+            data = []
+            for cm, a in rows:
+                base = cm.to_dict()
+                base['assignee'] = None if a is None else {
+                    'id': a.id,
+                    'user_id': a.user_id,
+                    'name': a.name,
+                    'position' : a.position
+                }
+                data.append(base)
+                
+            return jsonify(data)
         except Exception as e:
             logger.error(f"Error getting content managers: {str(e)}")
             return jsonify({'error': str(e)}), 500
@@ -61,6 +76,16 @@ def register_content_manager_routes(api_contents_bp):
             if not user:
                 return jsonify({'error': f'User with ID {user_id} not found'}), 404
             
+            assignee = Assignees.query.filter_by(user_id=user_id).first()
+            if not assignee:
+                prefixes = ('연구원','선임','책임','수석','대리','과장','차장','부장')
+                raw = user.position
+                s = re.sub(r'\s+', ' ', raw).strip() if raw else ''
+                position = ('미지정' if not s else next((p for p in prefixes if s.startswith(p)), re.split(r'[\s(/]', s, 1)[0]))
+                assignee = Assignees(user_id=user_id, name=user.name, position=position)
+                db.session.add(assignee)
+                db.session.flush()  # Flush to get the ID
+                
             # Use the actual user ID from the database to ensure consistent casing
             user_id = user.id
             
@@ -75,7 +100,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Check for duplicate
                 duplicate = ContentManager.query.filter_by(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type='channel',
                     channel_id=channel_id
                 ).first()
@@ -85,7 +110,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Create new manager entry
                 manager = ContentManager(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type=permission_type,
                     channel_id=channel_id
                 )
@@ -100,7 +125,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Check for duplicate
                 duplicate = ContentManager.query.filter_by(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type='folder',
                     folder_id=folder_id
                 ).first()
@@ -110,7 +135,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Create new manager entry
                 manager = ContentManager(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type=permission_type,
                     folder_id=folder_id
                 )
@@ -125,7 +150,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Check for duplicate
                 duplicate = ContentManager.query.filter_by(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type='file',
                     file_id=file_id
                 ).first()
@@ -135,7 +160,7 @@ def register_content_manager_routes(api_contents_bp):
                 
                 # Create new manager entry
                 manager = ContentManager(
-                    user_id=user_id,
+                    assignee_id=assignee.id,
                     type=permission_type,
                     file_id=file_id
                 )
@@ -170,7 +195,22 @@ def register_content_manager_routes(api_contents_bp):
             if not manager:
                 return jsonify({'error': f'Content manager entry with ID {manager_id} not found'}), 404
             
+            assignee_id = manager.assignee_id
+            should_delete_assignee = False
+            if assignee_id is not None:
+                other_exists = db.session.query(ContentManager.id).filter(
+                    ContentManager.assignee_id == assignee_id,
+                    ContentManager.id != manager_id
+                ).first()
+                should_delete_assignee = (other_exists is None)
+                
             db.session.delete(manager)
+            
+            if should_delete_assignee:
+                assignee = Assignees.query.get(assignee_id)
+                if assignee:
+                    db.session.delete(assignee)
+                    
             db.session.commit()
             
             return jsonify({'message': 'Content manager entry deleted successfully'})
@@ -198,7 +238,6 @@ def register_content_manager_routes(api_contents_bp):
         try:
             # Find the manager entry
             manager = ContentManager.query.get(manager_id)
-            
             if not manager:
                 return jsonify({'error': f'Content manager entry with ID {manager_id} not found'}), 404
             
@@ -208,7 +247,7 @@ def register_content_manager_routes(api_contents_bp):
                 return jsonify({'error': 'Request body is required'}), 400
             
             # Store original user_id for duplicate checking
-            original_user_id = manager.user_id
+            original_assignee_id = manager.assignee_id
             original_type = manager.type
             original_channel_id = manager.channel_id
             original_folder_id = manager.folder_id
@@ -222,10 +261,16 @@ def register_content_manager_routes(api_contents_bp):
                 if not user:
                     return jsonify({'error': f'User with ID {user_id} not found'}), 404
                 # Use the actual user ID from the database to ensure consistent casing
-                user_id = user.id
-                manager.user_id = user_id
+                assignee = Assignees.query.filter(Assignees.user_id == user.id).first()
+                if not assignee:
+                    assignee = Assignees(user_id=user.id, name=user.name, position=user.position)
+                    db.session.add(assignee)
+                    db.session.flush()  # Flush to get the ID
+                user_id = user.id                
+                manager.assignee_id = assignee.id
+                assignee_id = assignee.id
             else:
-                user_id = original_user_id
+                assignee_id = original_assignee_id
             
             # Update type and related IDs if provided
             if 'type' in data:
@@ -248,13 +293,13 @@ def register_content_manager_routes(api_contents_bp):
                     
                     # Check for duplicates, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        user_id=user_id,
+                        assignee_id=assignee_id,
                         type='channel',
                         channel_id=channel_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'User {user_id} already has channel manager permission for this channel'}), 409
+                        return jsonify({'error': f'Assignee {assignee_id} already has channel manager permission for this channel'}), 409
                     
                     manager.channel_id = channel_id
                 
@@ -268,13 +313,13 @@ def register_content_manager_routes(api_contents_bp):
                     
                     # Check for duplicates, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        user_id=user_id,
+                        assignee_id=assignee_id,
                         type='folder',
                         folder_id=folder_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'User {user_id} already has folder manager permission for this folder'}), 409
+                        return jsonify({'error': f'Assignee {assignee_id} already has folder manager permission for this folder'}), 409
                     
                     manager.folder_id = folder_id
                 
@@ -288,13 +333,13 @@ def register_content_manager_routes(api_contents_bp):
                     
                     # Check for duplicates, but ignore if it's the same record being updated
                     duplicate = ContentManager.query.filter_by(
-                        user_id=user_id,
+                        assignee_id=assignee_id,
                         type='file',
                         file_id=file_id
                     ).filter(ContentManager.id != manager_id).first()
                     
                     if duplicate:
-                        return jsonify({'error': f'User {user_id} already has file manager permission for this file'}), 409
+                        return jsonify({'error': f'Assignee {assignee_id} already has file manager permission for this file'}), 409
                     
                     manager.file_id = file_id
                 
@@ -308,33 +353,33 @@ def register_content_manager_routes(api_contents_bp):
                     # Current settings
                     if manager.type == 'channel' and manager.channel_id:
                         duplicate = ContentManager.query.filter_by(
-                            user_id=user_id,
+                            assignee_id=assignee_id,
                             type='channel',
                             channel_id=manager.channel_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'User {user_id} already has channel manager permission for this channel'}), 409
+                            return jsonify({'error': f'Assignee {assignee_id} already has channel manager permission for this channel'}), 409
                     
                     elif manager.type == 'folder' and manager.folder_id:
                         duplicate = ContentManager.query.filter_by(
-                            user_id=user_id,
+                            assignee_id=assignee_id,
                             type='folder',
                             folder_id=manager.folder_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'User {user_id} already has folder manager permission for this folder'}), 409
+                            return jsonify({'error': f'Assignee {assignee_id} already has folder manager permission for this folder'}), 409
                     
                     elif manager.type == 'file' and manager.file_id:
                         duplicate = ContentManager.query.filter_by(
-                            user_id=user_id,
+                            assignee_id=assignee_id,
                             type='file',
                             file_id=manager.file_id
                         ).filter(ContentManager.id != manager_id).first()
                         
                         if duplicate:
-                            return jsonify({'error': f'User {user_id} already has file manager permission for this file'}), 409
+                            return jsonify({'error': f'Assignee {assignee_id} already has file manager permission for this file'}), 409
             
             # Save to database
             db.session.commit()

@@ -21,14 +21,17 @@ document.addEventListener("DOMContentLoaded", () => {
         //document.getElementById("opinion-button").style.display = "none"; // 의견 버튼 숨김
     }
 
-    // 담당자 관리 버튼은 role_id가 1 또는 999일 때만 표시
-    // 기획 요청으로 role_id가일단 1(관리자)일때 숨김 2(개발 관리자)(2025-07-14)
+    // 담당자 관리 버튼은 role_id가 1, 2, 999일 때만 표시
     console.log("User role:", user_role);
-    if(user_role != 2 && user_role != 999) {
+    if(!(user_role === 1 || user_role === 2 || user_role === 999)) {
         console.log("Hiding manager admin button for role:", user_role);
         document.getElementById("manager-admin-button").style.display = "none";
     } else {
         console.log("Showing manager admin button for role:", user_role);
+    }
+
+    if(!(user_role === 1 || user_role ===2 || user_role === 999)){ // 통합관리자 또는 개발관리자가 아닐 때
+     document.getElementById("learning-admin-button").style.display = "none"; // 관리자 버튼 숨김
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -42,12 +45,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }); 
         loadContent("opinion.html");
     }
-    else{
-	if(user_role == 1 || user_role == 2 || user_role == 999) // 통합관리자 또는 개발관리자
-	    loadContent("progress_admin.html");
-    	else
-	    loadContent("progress_user.html");
-    }
+    else
+        loadContent("progress_user.html");
 
     buttons.forEach(button => {
         button.addEventListener("click", () => {
@@ -57,10 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // 클릭한 버튼에 'active' 클래스 추가
             button.classList.add("active");
             
-            if(button.id == "learning-button" && (user_role == 1 || user_role == 2))
-                loadContent("progress_admin.html");
-            else
-                loadContent(button.dataset.content);
+            loadContent(button.dataset.content);
         });
     });
 
