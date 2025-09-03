@@ -766,9 +766,9 @@ def get_unique_ip_counts(start_date, end_date, scope, filter_value=None):
     internal_ip_filter = or_(*internal_ip_conditions) if internal_ip_conditions else false()
     
     internal_user_ip_pairs = base_query.filter(*filters, internal_ip_filter).all()
-    logging.debug(f"Found unique internal (IP, User) pairs: {internal_user_ip_pairs}")
+    #logging.debug(f"Found unique internal (IP, User) pairs: {internal_user_ip_pairs}")
     
     external_user_ip_pairs = base_query.filter(*filters, ~internal_ip_filter).all()
-    logging.debug(f"Found unique external (IP, User) pairs: {external_user_ip_pairs}")
+    #logging.debug(f"Found unique external (IP, User) pairs: {external_user_ip_pairs}")
 
     return {'internal_count': len(internal_user_ip_pairs), 'external_count': len(external_user_ip_pairs)}

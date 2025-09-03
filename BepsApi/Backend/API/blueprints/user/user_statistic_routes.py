@@ -60,8 +60,6 @@ def get_connection_duration():
         else:
             return jsonify({'error': f"Invalid period_type. Allowed values are: day, quarter, half, year."}), 400
         
-        logging.info(f"Duration Data: {duration_data}")
-        
         if duration_data and (duration_data['has_data'] or ip_counts['internal_count'] > 0 or ip_counts['external_count'] > 0):
             return jsonify({
                 'total_duration': duration_data['total_duration'].total_seconds() if duration_data['total_duration'] else 0,
