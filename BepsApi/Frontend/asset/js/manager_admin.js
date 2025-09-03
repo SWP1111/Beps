@@ -7,6 +7,51 @@ function getBaseApiUrl() {
     return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
+// Shared function to load name options for any select element
+function loadNamesForSelect(selectElement, company, department, position) {
+    if (!selectElement || !company || !department || !position) {
+        if (selectElement) {
+            selectElement.innerHTML = '<option value="">이름</option>';
+        }
+        return Promise.resolve([]);
+    }
+
+    return fetch(`${getBaseApiUrl()}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to fetch name options');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Clear existing options except the first placeholder
+        selectElement.innerHTML = '<option value="">이름</option>';
+        
+        // Add new options
+        if (Array.isArray(data)) {
+            data.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.name;
+                selectElement.appendChild(option);
+            });
+        }
+        return data;
+    })
+    .catch(error => {
+        console.error('Error loading name options:', error);
+        selectElement.innerHTML = '<option value="">이름</option>';
+        throw error;
+    });
+}
+
 // Helper function to get path for a file or folder for display in permissions table
 function getPathInHierarchy(type, id) {
     if (!contentHierarchy) return '';
@@ -1079,35 +1124,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load name options based on selected company, department, and position
     function loadNameOptions(company, department, position) {
-        fetch(`${baseApiUrl}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to fetch name options');
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Clear existing options except the first placeholder
-            nameSelect.innerHTML = '<option value="">이름</option>';
-            
-            // Add new options
-            data.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.id;
-                option.textContent = user.name;
-                nameSelect.appendChild(option);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading name options:', error);
-        });
+        loadNamesForSelect(nameSelect, company, department, position);
     }
 
     // Reset user selection comboboxes
@@ -1981,26 +1998,9 @@ function loadUpdateUserComboboxes() {
     updatePositionSelect.addEventListener('change', () => loadUpdateNameOptions(updateCompanySelect.value, updateDepartmentSelect.value, updatePositionSelect.value));
     updateNameSelect.addEventListener('change', () => {
         if (updateNameSelect.value) {
-            // Find the user ID for the selected name
-            const selectedName = updateNameSelect.value;
-            fetch(`${getBaseApiUrl()}/user/by_filter?company=${encodeURIComponent(updateCompanySelect.value)}&department=${encodeURIComponent(updateDepartmentSelect.value)}&position=${encodeURIComponent(updatePositionSelect.value)}&name=${encodeURIComponent(selectedName)}`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.length > 0) {
-                    document.getElementById('update-manager-input').value = data[0].id;
-                    validateUpdateUserID(data[0].id);
-                }
-            })
-            .catch(error => {
-                console.error('Error finding user ID:', error);
-            });
+            // Set the selected user's ID in the manager input field (same logic as main table)
+            document.getElementById('update-manager-input').value = updateNameSelect.value;
+            validateUpdateUserID(updateNameSelect.value);
         }
     });
 }
@@ -2067,32 +2067,7 @@ function loadUpdatePositionOptions(company, department) {
 
 function loadUpdateNameOptions(company, department, position) {
     const updateNameSelect = document.getElementById('update-name-select');
-    updateNameSelect.innerHTML = '<option value="">이름</option>';
-    
-    if (!company || !department || !position) return;
-    
-    fetch(`${getBaseApiUrl()}/user/names?company=${encodeURIComponent(company)}&department=${encodeURIComponent(department)}&position=${encodeURIComponent(position)}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (Array.isArray(data)) {
-            data.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                updateNameSelect.appendChild(option);
-            });
-        }
-    })
-    .catch(error => {
-        console.error('Error loading name options:', error);
-    });
+    loadNamesForSelect(updateNameSelect, company, department, position);
 }
 
 function validateUpdateUserID(userId) {
