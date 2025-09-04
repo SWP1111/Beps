@@ -839,7 +839,7 @@ td:nth-child(even) {
                             "Content-Type": "application/json"
                         }
                     })
-                    .then(response => {
+                    .then(async response => {
                         if (!response.ok) {
                             throw new Error('Failed to delete reply');
                         }
@@ -848,6 +848,38 @@ td:nth-child(even) {
                         const index = replies.value.findIndex(r => r.id === reply.id);
                         if (index !== -1) {
                             replies.value.splice(index, 1);
+                        }
+                        
+                        // Get updated memo status after reply deletion
+                        try {
+                            const memoResponse = await fetch(`${url}memo/${memo.value.id}`, {
+                                method: "GET",
+                                credentials: "include",
+                                headers: {
+                                    "Accept": "application/json"
+                                }
+                            });
+                            
+                            if (memoResponse.ok) {
+                                const updatedMemo = await memoResponse.json();
+                                const oldStatus = memo.value.status;
+                                memo.value.status = updatedMemo.status;
+                                
+                                console.log(`Reply deleted - memo status changed from ${oldStatus} to ${updatedMemo.status}`);
+                                
+                                // Notify parent window about status change
+                                if (window.opener && !window.opener.closed) {
+                                    window.opener.postMessage({
+                                        type: 'memoStatusUpdate',
+                                        memoId: memo.value.id,
+                                        newStatus: updatedMemo.status,
+                                        statusText: statusMapping[updatedMemo.status]
+                                    }, '*');
+                                    console.log('Reply deleted - status update message sent to parent window');
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error updating memo status after reply deletion:', error);
                         }
                     })
                     .catch(error => {
