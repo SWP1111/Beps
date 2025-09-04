@@ -220,7 +220,25 @@ td:nth-child(even) {
         <table>
             <tr>
                 <td>등록일</td>
-                <td colspan="5" style="white-space: pre-line;">{{ formatDate(memo.modified_at) }}</td>
+                <td colspan="5" style="white-space: pre-line; position: relative;">
+                    {{ formatDate(memo.modified_at) }}
+                    <!-- Status control section -->
+                    <div style="float: right; margin-left: 20px; display: flex; align-items: center; gap: 10px;">
+                        <span class="status-icon" :title="getStatusText(memo.status)" style="font-size: 1.2em;">
+                            {{ getStatusIcon(memo.status) }}
+                        </span>
+                        <button v-if="memo.status !== 2 && (isAuthor || isManager)" 
+                                @click="markAsComplete" 
+                                style="background-color: #4CAF50; color: white; padding: 4px 8px; font-size: 0.8em; border: none; border-radius: 3px; cursor: pointer;">
+                            처리완료
+                        </button>
+                        <button v-if="memo.status === 2 && (isAuthor || isManager)" 
+                                @click="cancelComplete" 
+                                style="background-color: #f44336; color: white; padding: 4px 8px; font-size: 0.8em; border: none; border-radius: 3px; cursor: pointer;">
+                            취소
+                        </button>
+                    </div>
+                </td>
             </tr>
             <tr>
                 <td>작성자</td>
@@ -352,12 +370,27 @@ td:nth-child(even) {
                 const editTitle = ref('');
                 const editContent = ref('');
                 const isAuthor = ref(false);
+                const isManager = ref(false);
+                const previousStatus = ref(0);
                 
                 // Define status mapping at a higher scope to ensure it's always available
                 const statusMapping = {
                     0: "답변대기",
                     1: "답변완료",
                     2: "처리완료"
+                };
+                
+                const getStatusIcon = (status) => {
+                    switch(status) {
+                        case 0: return "⏳"; // 답변대기
+                        case 1: return "✅"; // 답변완료
+                        case 2: return "🔒"; // 처리완료
+                        default: return "❓";
+                    }
+                };
+                
+                const getStatusText = (status) => {
+                    return statusMapping[status] || "알 수 없음";
                 };
 
                 const loadData = async () => {
@@ -434,13 +467,8 @@ td:nth-child(even) {
                             console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isCurrentUserAuthor}`);
                             console.log('[Status Check] Current memo status is:', memo.value?.status);
                             
-                            // Proceed if the current user is the author
-                            if (isCurrentUserAuthor) {
-                                console.log('✅ User is confirmed as memo author. Proceeding to check status...');
-                                await markMemoAsViewed(memo.value.id);
-                            } else {
-                                console.log('❌ User is NOT the memo author. No status change will be triggered.');
-                            }
+                            // Check if user is manager for this memo
+                            await checkIfUserIsManager();
                         } else {
                             console.error("Failed to process user data: `loggedInUser` or `loggedInUser.user` is missing.", loggedInUser);
                             alert('로그인 정보를 불러올 수 없습니다.');
@@ -481,15 +509,40 @@ td:nth-child(even) {
                     });
                 };
 
-                const markMemoAsViewed = async (memoId) => {
+                const checkIfUserIsManager = async () => {
                     try {
-                        if (memo.value.status !== 1) {
-                            console.log(`[Guard] Memo status is ${memo.value.status}, not 1. Skipping API call.`);
+                        if (!memo.value.file_id) {
+                            isManager.value = false;
                             return;
                         }
-                        console.log(`[API Call] Attempting to mark memo ${memoId} as viewed.`);
-
-                        const response = await fetch(`${url}memo/reply/memo/${memoId}/mark_viewed`, {
+                        
+                        const response = await fetch(`${url}memo/${memo.value.id}/is_manager`, {
+                            method: "GET",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            isManager.value = data.is_manager;
+                            console.log(`[Manager Check] User is manager: ${data.is_manager}`);
+                        } else {
+                            isManager.value = false;
+                            console.log('[Manager Check] Failed to check manager status');
+                        }
+                    } catch (error) {
+                        console.error('Error checking manager status:', error);
+                        isManager.value = false;
+                    }
+                };
+                
+                const markAsComplete = async () => {
+                    try {
+                        previousStatus.value = memo.value.status;
+                        
+                        const response = await fetch(`${url}memo/${memo.value.id}/mark_complete`, {
                             method: "POST",
                             credentials: "include",
                             headers: {
@@ -499,37 +552,59 @@ td:nth-child(even) {
                         });
                         
                         if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error(`[API Error] Failed to mark memo as viewed: ${response.status} ${response.statusText}`, errorText);
-                            return;
+                            throw new Error('Failed to mark as complete');
                         }
                         
                         const data = await response.json();
-                        console.log("Memo marked as viewed successfully:", data);
+                        memo.value.status = data.status;
                         
-                        // Update the memo status in the local data
-                        if (memo.value) {
-                            memo.value.status = data.status;
-                            memo.value.status_text = statusMapping[data.status] || "알 수 없음";
-                        }
-                        
-                        // Notify parent window about status change for real-time update
-                        try {
-                            if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage({
-                                    type: 'memoStatusUpdate',
-                                    memoId: memoId,
-                                    newStatus: data.status,
-                                    statusText: statusMapping[data.status] || "알 수 없음"
-                                }, '*');
-                                console.log('Status update message sent to parent window');
-                            }
-                        } catch (error) {
-                            console.error('Error sending status update to parent window:', error);
+                        // Notify parent window
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.postMessage({
+                                type: 'memoStatusUpdate',
+                                memoId: memo.value.id,
+                                newStatus: data.status,
+                                statusText: statusMapping[data.status]
+                            }, '*');
                         }
                         
                     } catch (error) {
-                        console.error("Error marking memo as viewed:", error);
+                        console.error('Error marking as complete:', error);
+                        alert('처리완료 설정에 실패했습니다.');
+                    }
+                };
+                
+                const cancelComplete = async () => {
+                    try {
+                        const response = await fetch(`${url}memo/${memo.value.id}/cancel_complete`, {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json"
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to cancel complete');
+                        }
+                        
+                        const data = await response.json();
+                        memo.value.status = data.status;
+                        
+                        // Notify parent window
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.postMessage({
+                                type: 'memoStatusUpdate',
+                                memoId: memo.value.id,
+                                newStatus: data.status,
+                                statusText: statusMapping[data.status]
+                            }, '*');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error canceling complete:', error);
+                        alert('처리완료 취소에 실패했습니다.');
                     }
                 };
 
@@ -659,25 +734,29 @@ td:nth-child(even) {
                         // Refresh replies list
                         fetchReplies(memo.value.id);
                         
-                        // Update memo status to 1 (답변완료) since a reply was added
-                        if (memo.value) {
-                            memo.value.status = 1;
-                            memo.value.status_text = "답변완료";
-                        }
+                        // Status will be updated automatically by backend based on last reply author
+                        // Refresh memo data to get updated status
+                        const memoResponse = await fetch(`${url}memo/${memo.value.id}`, {
+                            method: "GET",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
                         
-                        // Notify parent window about status change for real-time update
-                        try {
+                        if (memoResponse.ok) {
+                            const updatedMemo = await memoResponse.json();
+                            memo.value.status = updatedMemo.status;
+                            
+                            // Notify parent window about status change
                             if (window.opener && !window.opener.closed) {
                                 window.opener.postMessage({
                                     type: 'memoStatusUpdate',
                                     memoId: memo.value.id,
-                                    newStatus: 1,
-                                    statusText: "답변완료"
+                                    newStatus: updatedMemo.status,
+                                    statusText: statusMapping[updatedMemo.status]
                                 }, '*');
-                                console.log('Reply added - status update message sent to parent window');
                             }
-                        } catch (error) {
-                            console.error('Error sending status update to parent window:', error);
                         }
                         
                         // Send message to local window process
@@ -1256,7 +1335,12 @@ td:nth-child(even) {
                     onFileSelected,
                     formatFileSize,
                     viewAttachment,
-                    deleteAttachment
+                    deleteAttachment,
+                    getStatusIcon,
+                    getStatusText,
+                    markAsComplete,
+                    cancelComplete,
+                    isManager
                 };
             }
         }).mount("#app");

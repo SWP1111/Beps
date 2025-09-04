@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from models import MemoData, Users, ContentManager, Assignees, ContentRelPages
+from models import MemoData, Users, ContentManager, Assignees, ContentRelPages, MemoReply
 import logging
 import log_config
 from log_config import get_memo_logger
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc
 import traceback
 from datetime import datetime, timezone, time
 
@@ -276,4 +276,161 @@ def memo_rank():
     except Exception as e:
         logger.error(f"[memo_rank] error: {str(e)}, {traceback.format_exc()}")
         return jsonify({'[memo_rank] error': str(e)}), 500
+
+
+# Helper functions for manager detection and status calculation
+def is_user_manager_for_memo(user_id, memo_id):
+    """Check if user is a manager for the given memo"""
+    try:
+        memo = MemoData.query.get(memo_id)
+        if not memo or not memo.file_id:
+            return False
+            
+        # Check if user has manager permissions for this file
+        assignee = Assignees.query.filter_by(user_id=user_id).first()
+        if not assignee:
+            return False
+            
+        # Direct file manager
+        file_manager = ContentManager.query.filter_by(
+            assignee_id=assignee.id,
+            type='file',
+            file_id=memo.file_id
+        ).first()
+        
+        if file_manager:
+            return True
+            
+        # Check folder-level management
+        file_page = ContentRelPages.query.get(memo.file_id)
+        if file_page and file_page.folder_id:
+            folder_manager = ContentManager.query.filter_by(
+                assignee_id=assignee.id,
+                type='folder',
+                folder_id=file_page.folder_id
+            ).first()
+            
+            if folder_manager:
+                return True
+                
+        return False
+    except Exception as e:
+        logger.error(f"Error checking manager status: {str(e)}")
+        return False
+
+
+def calculate_memo_status_from_replies(memo_id):
+    """Calculate memo status based on last reply author"""
+    try:
+        memo = MemoData.query.get(memo_id)
+        if not memo:
+            return 0
+            
+        # Get the last reply (most recent non-deleted reply)
+        last_reply = MemoReply.query.filter_by(
+            memo_id=memo_id, 
+            is_deleted=False
+        ).order_by(desc(MemoReply.created_at)).first()
+        
+        # If no replies, status is 0 (답변대기)
+        if not last_reply:
+            return 0
+            
+        # If last reply is from memo owner, status is 0 (답변대기)
+        if last_reply.user_id == memo.user_id:
+            return 0
+            
+        # If last reply is from a manager, status is 1 (답변완료)
+        if is_user_manager_for_memo(last_reply.user_id, memo_id):
+            return 1
+            
+        # Otherwise, status is 0 (답변대기) - regular user replied
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Error calculating memo status: {str(e)}")
+        return 0
+
+
+@api_memo_bp.route('/<int:memo_id>/is_manager', methods=['GET'])
+@jwt_required(locations=['headers','cookies'])
+def check_user_is_manager(memo_id):
+    """Check if current user is manager for the memo"""
+    try:
+        current_user_id = get_jwt_identity()
+        is_manager = is_user_manager_for_memo(current_user_id, memo_id)
+        
+        return jsonify({
+            "is_manager": is_manager,
+            "memo_id": memo_id,
+            "user_id": current_user_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Error checking manager status: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_memo_bp.route('/<int:memo_id>/mark_complete', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def mark_memo_complete(memo_id):
+    """Mark memo as complete (status 2) - manual action by owner or manager"""
+    try:
+        current_user_id = get_jwt_identity()
+        memo = MemoData.query.get_or_404(memo_id)
+        
+        # Check if user is owner or manager
+        is_owner = memo.user_id == current_user_id
+        is_manager = is_user_manager_for_memo(current_user_id, memo_id)
+        
+        if not (is_owner or is_manager):
+            return jsonify({"error": "Only memo owner or manager can mark as complete"}), 403
+            
+        # Save previous status and mark as complete
+        memo.status = 2
+        db.session.commit()
+        
+        logger.info(f"Memo {memo_id} marked as complete by user {current_user_id}")
+        
+        return jsonify({
+            "message": "Memo marked as complete",
+            "status": memo.status,
+            "memo_id": memo_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Error marking memo as complete: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@api_memo_bp.route('/<int:memo_id>/cancel_complete', methods=['POST'])
+@jwt_required(locations=['headers','cookies'])
+def cancel_memo_complete(memo_id):
+    """Cancel complete status - revert to automatic status based on replies"""
+    try:
+        current_user_id = get_jwt_identity()
+        memo = MemoData.query.get_or_404(memo_id)
+        
+        # Check if user is owner or manager
+        is_owner = memo.user_id == current_user_id
+        is_manager = is_user_manager_for_memo(current_user_id, memo_id)
+        
+        if not (is_owner or is_manager):
+            return jsonify({"error": "Only memo owner or manager can cancel complete"}), 403
+            
+        # Calculate status based on replies
+        new_status = calculate_memo_status_from_replies(memo_id)
+        memo.status = new_status
+        db.session.commit()
+        
+        logger.info(f"Memo {memo_id} complete status cancelled by user {current_user_id}, new status: {new_status}")
+        
+        return jsonify({
+            "message": "Complete status cancelled",
+            "status": memo.status,
+            "memo_id": memo_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Error cancelling memo complete: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 

@@ -1,7 +1,8 @@
 from extensions import db
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import MemoReply, MemoData, Users, MemoReplyAttachment
+from models import MemoReply, MemoData, Users, MemoReplyAttachment, ContentManager, Assignees, ContentRelPages
+from sqlalchemy import desc
 import logging
 import log_config
 from log_config import get_memo_logger, get_content_logger
@@ -40,9 +41,8 @@ def create_memo_reply():
             content=data['content']
         )
         
-        # Update memo status to 1 (답변완료) when a reply is added
-        if(memo.user_id != data['user_id']):
-            memo.status = 1
+        # Calculate and update memo status based on reply author
+        memo.status = calculate_memo_status_from_replies(memo.id, data['user_id'])
         
         db.session.add(reply)
         db.session.commit()
@@ -71,37 +71,7 @@ def get_replies_by_memo(memo_id):
         logger.error(f"Error retrieving memo replies: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@api_memo_reply_bp.route('/memo/<int:memo_id>/mark_viewed', methods=['POST'])
-@jwt_required(locations=['headers','cookies'])
-def mark_memo_viewed(memo_id):
-    try:
-        # Get current user from JWT token
-        current_user_id = get_jwt_identity()
-        logger.info(f"Received mark_viewed request for memo {memo_id} from user {current_user_id}")
-        
-        # Check if memo exists
-        memo = MemoData.query.get_or_404(memo_id)
-        logger.info(f"Found memo {memo_id} with current status {memo.status} and author {memo.user_id}")
-        
-        # Only allow the memo author to mark it as viewed
-        if memo.user_id != current_user_id:
-            logger.warning(f"User {current_user_id} attempted to mark memo {memo_id} as viewed, but author is {memo.user_id}")
-            return jsonify({"error": "Only the memo author can mark it as viewed"}), 403
-            
-        # If memo status is 1 (답변완료), change it to 2 (처리완료)
-        old_status = memo.status
-        if memo.status == 1:
-            memo.status = 2
-            db.session.commit()
-            logger.info(f"Memo {memo_id} status changed from {old_status} to 2 (처리완료) by author {current_user_id}")
-        else:
-            logger.info(f"Memo {memo_id} status is {memo.status}, no change needed (only changes from 1 to 2)")
-            
-        return jsonify({"message": "Memo marked as viewed", "status": memo.status}), 200
-    except Exception as e:
-        logger.error(f"Error marking memo as viewed: {str(e)}")
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+# Note: mark_viewed functionality has been replaced with manual status control
 
 @api_memo_reply_bp.route('/memo/<int:memo_id>/debug', methods=['GET'])
 @jwt_required(locations=['headers','cookies'])
@@ -151,11 +121,20 @@ def delete_reply(id):
     try:
         reply = MemoReply.query.get_or_404(id)
         
+        # Get memo_id before deletion for status recalculation
+        memo_id = reply.memo_id
+        
         # Soft delete by setting is_deleted flag
         reply.is_deleted = True
+        
+        # Recalculate memo status after reply deletion
+        memo = MemoData.query.get(memo_id)
+        if memo:
+            memo.status = calculate_memo_status_from_replies(memo_id)
+        
         db.session.commit()
         
-        logger.info(f"Successfully deleted memo reply with id: {reply.id}")
+        logger.info(f"Successfully deleted memo reply with id: {reply.id}, updated memo status")
         return '', 204
     except Exception as e:
         logger.error(f"Error deleting memo reply: {str(e)}")
@@ -456,4 +435,84 @@ def delete_attachment(attachment_id):
     except Exception as e:
         db.session.rollback()
         content_logger.error(f"Error deleting attachment {attachment_id}: {str(e)}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+
+# Helper functions for status calculation
+def is_user_manager_for_memo(user_id, memo_id):
+    """Check if user is a manager for the given memo"""
+    try:
+        memo = MemoData.query.get(memo_id)
+        if not memo or not memo.file_id:
+            return False
+            
+        # Check if user has manager permissions for this file
+        assignee = Assignees.query.filter_by(user_id=user_id).first()
+        if not assignee:
+            return False
+            
+        # Direct file manager
+        file_manager = ContentManager.query.filter_by(
+            assignee_id=assignee.id,
+            type='file',
+            file_id=memo.file_id
+        ).first()
+        
+        if file_manager:
+            return True
+            
+        # Check folder-level management
+        file_page = ContentRelPages.query.get(memo.file_id)
+        if file_page and file_page.folder_id:
+            folder_manager = ContentManager.query.filter_by(
+                assignee_id=assignee.id,
+                type='folder',
+                folder_id=file_page.folder_id
+            ).first()
+            
+            if folder_manager:
+                return True
+                
+        return False
+    except Exception as e:
+        logger.error(f"Error checking manager status: {str(e)}")
+        return False
+
+
+def calculate_memo_status_from_replies(memo_id, new_reply_user_id=None):
+    """Calculate memo status based on replies, optionally considering a new reply"""
+    try:
+        memo = MemoData.query.get(memo_id)
+        if not memo:
+            return 0
+            
+        # If this is being called for a new reply, consider that user as the last replier
+        if new_reply_user_id:
+            last_reply_user_id = new_reply_user_id
+        else:
+            # Get the last reply (most recent non-deleted reply)
+            last_reply = MemoReply.query.filter_by(
+                memo_id=memo_id, 
+                is_deleted=False
+            ).order_by(desc(MemoReply.created_at)).first()
+            
+            # If no replies, status is 0 (답변대기)
+            if not last_reply:
+                return 0
+                
+            last_reply_user_id = last_reply.user_id
+            
+        # If last reply is from memo owner, status is 0 (답변대기)
+        if last_reply_user_id == memo.user_id:
+            return 0
+            
+        # If last reply is from a manager, status is 1 (답변완료)
+        if is_user_manager_for_memo(last_reply_user_id, memo_id):
+            return 1
+            
+        # Otherwise, status is 0 (답변대기) - regular user replied
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Error calculating memo status: {str(e)}")
+        return 0
