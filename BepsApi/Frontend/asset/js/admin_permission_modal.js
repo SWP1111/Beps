@@ -744,8 +744,8 @@ class AdminPermissionModal {
         const labels = {
             'integrated_admin': '통합관리자',
             'dev_admin': '개발관리자',
-            'content_admin': 'Content_관리자',
-            'content_worker': 'Content_실무자',
+            // 'content_admin': 'Content_관리자',
+            // 'content_worker': 'Content_실무자',
             'internal_user': '일반사용자(사내)',
             'external_user': '일반사용자(사외)'
         };
@@ -759,8 +759,8 @@ class AdminPermissionModal {
         const roleMapping = {
             'integrated_admin': 1,
             'dev_admin': 2,
-            'content_admin': 3,
-            'content_worker': 4,
+            // 'content_admin': 3,
+            // 'content_worker': 4,
             'internal_user': 5,
             'external_user': 6
         };
@@ -774,8 +774,8 @@ class AdminPermissionModal {
         const permissionMapping = {
             1: 'integrated_admin',
             2: 'dev_admin',
-            3: 'content_admin',
-            4: 'content_worker',
+            // 3: 'content_admin',
+            // 4: 'content_worker',
             5: 'internal_user',
             6: 'external_user'
         };

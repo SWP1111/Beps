@@ -132,9 +132,9 @@
     document.getElementById('sheet-org').style.display = type === 'org' ? 'block' : 'none';
     document.getElementById('sheet-user').style.display = type === 'user' ? 'block' : 'none';
     
-    // 버튼 상태 갱신
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.tab-btn[onclick*="${type}"]`).classList.add('active');
+    // 버튼 상태 갱신 (하단 탭 버튼만 해당되도록 선택자 수정)
+    document.querySelectorAll('#sheet-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`#sheet-tabs .tab-btn[onclick*="${type}"]`).classList.add('active');
     }
 
     function downloadExcel() {
@@ -197,16 +197,62 @@
     function renderPagination(currentPage) {
       const container = document.getElementById("org-pagination");
       container.innerHTML = "";
-    
+      const pageRange = 2; // Number of pages to show around the current page
+      
+      if (totalPages <= 1) return; // Don't render pagination if there's only one page or less
+
+      // Helper function to create a button
+      const createButton = (text, page, isActive = false, isDisabled = false) => {
+          const btn = document.createElement("button");
+          btn.innerHTML = text; // Use innerHTML for entities like &lt;
+          btn.className = "tab-btn";
+          if (isActive) btn.classList.add("active");
+          
+          if (isDisabled) {
+              btn.disabled = true;
+              btn.style.cursor = "not-allowed";
+              btn.style.opacity = "0.5";
+          } else {
+              btn.onclick = () => loadUserHtmlPage(page);
+          }
+          container.appendChild(btn);
+      };
+
+      // Helper function to create an ellipsis
+      const createEllipsis = () => {
+          const span = document.createElement("span");
+          span.innerText = "...";
+          span.style.padding = "8px 4px";
+          span.style.alignSelf = "center";
+          container.appendChild(span);
+      };
+
+      // Previous button
+      createButton("&lt;", currentPage - 1, false, currentPage === 1);
+
+      // Page numbers
+      let lastPageAdded = 0;
       for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement("button");
-        btn.innerText = i;
-        btn.className = "tab-btn";
-        if (i === currentPage) btn.classList.add("active");
-    
-        btn.onclick = () => loadUserHtmlPage(i);  // ✔ 호출 연결
-        container.appendChild(btn);
+          // Conditions to show a page number:
+          // 1. It's the first page
+          // 2. It's the last page
+          // 3. It's within the range of the current page
+          const isFirstPage = i === 1;
+          const isLastPage = i === totalPages;
+          const isInRange = i >= currentPage - pageRange && i <= currentPage + pageRange;
+
+          if (isFirstPage || isLastPage || isInRange) {
+              // If there's a gap since the last page number, add an ellipsis
+              if (i > lastPageAdded + 1) {
+                  createEllipsis();
+              }
+              createButton(i, i, i === currentPage);
+              lastPageAdded = i;
+          }
       }
+
+      // Next button
+      createButton("&gt;", currentPage + 1, false, currentPage === totalPages);
     }
 
   </script>

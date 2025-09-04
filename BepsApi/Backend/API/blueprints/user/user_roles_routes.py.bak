@@ -48,7 +48,7 @@ def get_users_by_role():
     """
     권한별 사용자 조회 API
     Query Parameters:
-    - role_id: 권한 ID (1: 통합관리자, 2: 개발관리자, ~~3: Content_관리자(삭제됨), 4: Content_실무자(삭제됨)~~, 5: 일반사용자(사내), 6: 일반사용자(사외))
+    - role_id: 권한 ID (1: 통합관리자, 2: 개발관리자, 3: Content_관리자, 4: Content_실무자, 5: 일반사용자(사내), 6: 일반사용자(사외))
              비어있으면 전체 사용자 조회
     
     Returns:
@@ -61,8 +61,8 @@ def get_users_by_role():
         role_names = {
             1: '통합관리자',
             2: '개발관리자', 
-            # 3: 'Content_관리자',
-            # 4: 'Content_실무자',
+            3: 'Content_관리자',
+            4: 'Content_실무자',
             5: '일반사용자(사내)',
             6: '일반사용자(사외)'
         }
@@ -82,7 +82,7 @@ def get_users_by_role():
                 return jsonify({'error': 'role_id must be an integer'}), 400
             
             # 유효한 role_id 범위 체크
-            if role_id not in [1, 2, 5, 6]:
+            if role_id not in [1, 2, 3, 4, 5, 6]:
                 return jsonify({'error': 'role_id must be between 1 and 6'}), 400
             
             # role_id가 5인 경우 NULL인 사용자도 포함
@@ -155,7 +155,7 @@ def update_user_permission():
             return jsonify({'error': 'role_id is required'}), 400
         
         # role_id 유효성 검사
-        if not isinstance(role_id, int) or role_id not in [1, 2, 5, 6]:
+        if not isinstance(role_id, int) or role_id not in [1, 2, 3, 4, 5, 6]:
             return jsonify({'error': 'role_id must be an integer between 1 and 6'}), 400
         
         # 사용자 존재 여부 확인
@@ -172,8 +172,8 @@ def update_user_permission():
         role_names = {
             1: '통합관리자',
             2: '개발관리자', 
-            # 3: 'Content_관리자',
-            # 4: 'Content_실무자',
+            3: 'Content_관리자',
+            4: 'Content_실무자',
             5: '일반사용자(사내)',
             6: '일반사용자(사외)'
         }
