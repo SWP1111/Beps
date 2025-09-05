@@ -227,12 +227,12 @@ td:nth-child(even) {
                         <span class="status-icon" :title="getStatusText(memo.status)" style="font-size: 1.2em;">
                             {{ getStatusIcon(memo.status) }}
                         </span>
-                        <button v-if="memo.status !== 2 && (isAuthor || isManager)" 
+                        <button v-if="memo.status !== 2 && (isAuthor || isManager || isSuperAdmin)" 
                                 @click="markAsComplete" 
                                 style="background-color: #4CAF50; color: white; padding: 4px 8px; font-size: 0.8em; border: none; border-radius: 3px; cursor: pointer;">
                             처리완료
                         </button>
-                        <button v-if="memo.status === 2 && (isAuthor || isManager)" 
+                        <button v-if="memo.status === 2 && (isAuthor || isManager || isSuperAdmin)" 
                                 @click="cancelComplete" 
                                 style="background-color: #f44336; color: white; padding: 4px 8px; font-size: 0.8em; border: none; border-radius: 3px; cursor: pointer;">
                             취소
@@ -371,6 +371,7 @@ td:nth-child(even) {
                 const editContent = ref('');
                 const isAuthor = ref(false);
                 const isManager = ref(false);
+                const isSuperAdmin = ref(false);
                 const previousStatus = ref(0);
                 
                 // Define status mapping at a higher scope to ensure it's always available
@@ -454,7 +455,8 @@ td:nth-child(even) {
                                 name: loggedInUser.user.name || '',
                                 position: loggedInUser.user.position || '',
                                 company: loggedInUser.user.company || '',
-                                department: loggedInUser.user.department || ''
+                                department: loggedInUser.user.department || '',
+                                role_id: loggedInUser.user.role_id
                             };
                             
                             console.log('Current user loaded:', currentUser.value);
@@ -464,7 +466,11 @@ td:nth-child(even) {
                             const isCurrentUserAuthor = memo.value && String(memo.value.user_id) === String(currentUser.value.id);
                             isAuthor.value = isCurrentUserAuthor;
                             
+                            // Check if user is SuperAdmin (role_id == 1)
+                            isSuperAdmin.value = currentUser.value.role_id === 1 || currentUser.value.role_id === 999;
+                            
                             console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isCurrentUserAuthor}`);
+                            console.log(`[SuperAdmin Check] User role_id: ${currentUser.value.role_id}, Is SuperAdmin: ${isSuperAdmin.value}`);
                             console.log('[Status Check] Current memo status is:', memo.value?.status);
                             
                             // Check if user is manager for this memo
@@ -1372,7 +1378,8 @@ td:nth-child(even) {
                     getStatusText,
                     markAsComplete,
                     cancelComplete,
-                    isManager
+                    isManager,
+                    isSuperAdmin
                 };
             }
         }).mount("#app");
