@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import log_config
 import decryption
 from flask import Blueprint, jsonify, request, make_response
@@ -7,7 +8,7 @@ from flask_jwt_extended import create_access_token, decode_token, get_csrf_token
 import datetime
 from datetime import timezone
 from extensions import db
-from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg, IpRange
+from models import Users, Roles, ContentAccessGroups, LoginHistory, loginSummaryDay, loginSummaryAgg, IpRange, Assignees
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import text
 import requests
@@ -165,7 +166,9 @@ def upsert_user():
             if login is True: user.login_time = datetime.datetime.now(timezone.utc)
             db.session.add(user)
             db.session.commit()
-        else:   # Row 업데이트
+        else:   # Row 업데이트   
+            assignee_updates = {}
+                     
             if(is_valid('password',data)): user.password = data.get('password')
             if(is_valid('company',data)):user.company = data.get('company')
             if(is_valid('department',data)):
@@ -174,14 +177,27 @@ def upsert_user():
             if(is_valid('position',data)):
                 p = trim(data.get('position'))
                 user.position = p if p else None
+                prefixes = ('연구원','선임','책임','수석','대리','과장','차장','부장')
+                
+                raw = p
+                s = re.sub(r'\s+', ' ', raw).strip() if raw else ''
+                position = ('미지정' if not s else next((p for p in prefixes if s.startswith(p)), re.split(r'[\s(/]', s, 1)[0]))
+                assignee_updates['position'] = position
             if(is_valid('name',data)):
                 n = trim(data.get('name'))
                 user.name = n if n else None
+                assignee_updates['name'] = user.name
             if(is_valid('access_group_id',data)):user.access_group_id = data.get('access_group_id')
             if(is_valid('role_id',data)):user.role_id = data.get('role_id')
             if(is_valid('phone',data)):user.phone = data.get('phone')
             if(is_valid('email',data)):user.email = data.get('email')
             if login is True: user.login_time = datetime.datetime.now(timezone.utc)
+                       
+            # Assignees 테이블 업데이트
+            if assignee_updates:
+                updated = db.session.query(Assignees).filter_by(user_id=user.id)\
+                    .update(assignee_updates, synchronize_session=False)
+        
             db.session.commit()
         return jsonify(user.to_dict()), 201
     except OperationalError as e:   # DB 접속 오류 처리

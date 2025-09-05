@@ -260,7 +260,11 @@ def register_content_manager_routes(api_contents_bp):
                 # Use the actual user ID from the database to ensure consistent casing
                 assignee = Assignees.query.filter(Assignees.user_id == user.id).first()
                 if not assignee:
-                    assignee = Assignees(user_id=user.id, name=user.name, position=user.position)
+                    prefixes = ('연구원','선임','책임','수석','대리','과장','차장','부장')
+                    raw = user.position
+                    s = re.sub(r'\s+', ' ', raw).strip() if raw else ''
+                    position = ('미지정' if not s else next((p for p in prefixes if s.startswith(p)), re.split(r'[\s(/]', s, 1)[0]))
+                    assignee = Assignees(user_id=user.id, name=user.name, position=position)
                     db.session.add(assignee)
                     db.session.flush()  # Flush to get the ID
                 user_id = user.id                
@@ -372,6 +376,19 @@ def register_content_manager_routes(api_contents_bp):
                         if duplicate:
                             return jsonify({'error': f'This file already has a manager assigned'}), 409
             
+            # 수정 전 assignee_id가 더이상 사용되지 않으면 테이블에서 행 제거
+            should_delete_assignee = False
+            if 'user_id' in data and original_assignee_id is not None and original_assignee_id != assignee_id:
+                other_manager_exists = db.session.query(ContentManager.id).filter(
+                    ContentManager.assignee_id == original_assignee_id,
+                ).first()
+                should_delete_assignee = (other_manager_exists is None)
+                      
+            if should_delete_assignee:
+                old_assignee = Assignees.query.get(original_assignee_id)
+                if old_assignee:
+                    db.session.delete(old_assignee)
+                    
             # Save to database
             db.session.commit()
             
