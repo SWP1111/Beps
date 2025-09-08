@@ -221,7 +221,7 @@ td:nth-child(even) {
             <tr>
                 <td>등록일</td>
                 <td colspan="5" style="white-space: pre-line; position: relative;">
-                    {{ formatDate(memo.created_at || memo.modified_at) }}
+                    {{ formatDate(memo.modified_at) }}
                     <!-- Status control section -->
                     <div style="float: right; margin-left: 20px; display: flex; align-items: center; gap: 10px;">
                         <span class="status-icon" :title="getStatusText(memo.status)" style="font-size: 1.2em;">

@@ -27,8 +27,7 @@ def create_memo():
         current_time = datetime.now(timezone.utc)
         # Create memo with explicit values from request data
         memo = MemoData(
-            created_at=current_time,  # Set registration date (등록일) - will never change
-            modified_at=current_time,  # Set initial modified date
+            modified_at=current_time,  # Set registration date (등록일) - will only update when content changes
             user_id=data.get('user_id'),
             type=int(data.get('type', 0)),  # Convert to int with default 0
             title=data.get('title'),
@@ -170,26 +169,69 @@ def update_memo(id):
             
         logger.info(f"Received PUT request to /memo/{id} with data: {data}")
         
-        # Update fields matching the JSON case
-        memo.content = data.get('content', memo.content)
-        memo.title = data.get('title', memo.title)
-        memo.user_id = data.get('user_id', memo.user_id)
-        memo.path = data.get('path', memo.path)
-        memo.file_id = data.get('file_id', memo.file_id)
-        memo.folder_id = data.get('folder_id', memo.folder_id)
-        memo.rel_position_x = data.get('relPositionX', memo.rel_position_x)
-        memo.rel_position_y = data.get('relPositionY', memo.rel_position_y)
-        memo.world_position_x = data.get('worldPositionX', memo.world_position_x)
-        memo.world_position_y = data.get('worldPositionY', memo.world_position_y)
-        memo.world_position_z = data.get('worldPositionZ', memo.world_position_z)
-        memo.status = data.get('status', memo.status)
+        # Track if content fields change (not just status)
+        content_changed = False
         
-        # Handle type field with proper integer conversion
-        if 'type' in data:
+        # Check content fields and update them
+        if 'content' in data and data['content'] != memo.content:
+            memo.content = data['content']
+            content_changed = True
+            
+        if 'title' in data and data['title'] != memo.title:
+            memo.title = data['title']
+            content_changed = True
+            
+        if 'user_id' in data and data['user_id'] != memo.user_id:
+            memo.user_id = data['user_id']
+            content_changed = True
+            
+        if 'path' in data and data['path'] != memo.path:
+            memo.path = data['path']
+            content_changed = True
+            
+        if 'file_id' in data and data['file_id'] != memo.file_id:
+            memo.file_id = data['file_id']
+            content_changed = True
+            
+        if 'folder_id' in data and data['folder_id'] != memo.folder_id:
+            memo.folder_id = data['folder_id']
+            content_changed = True
+            
+        if 'relPositionX' in data and data['relPositionX'] != memo.rel_position_x:
+            memo.rel_position_x = data['relPositionX']
+            content_changed = True
+            
+        if 'relPositionY' in data and data['relPositionY'] != memo.rel_position_y:
+            memo.rel_position_y = data['relPositionY']
+            content_changed = True
+            
+        if 'worldPositionX' in data and data['worldPositionX'] != memo.world_position_x:
+            memo.world_position_x = data['worldPositionX']
+            content_changed = True
+            
+        if 'worldPositionY' in data and data['worldPositionY'] != memo.world_position_y:
+            memo.world_position_y = data['worldPositionY']
+            content_changed = True
+            
+        if 'worldPositionZ' in data and data['worldPositionZ'] != memo.world_position_z:
+            memo.world_position_z = data['worldPositionZ']
+            content_changed = True
+            
+        if 'type' in data and int(data['type']) != memo.type:
             memo.type = int(data['type'])
+            content_changed = True
         
-        # Update modified_at timestamp
-        memo.modified_at = datetime.now(timezone.utc)
+        # Update status (this doesn't affect modified_at)
+        if 'status' in data:
+            memo.status = data['status']
+            logger.info(f"Status updated to {memo.status} for memo {id} - modified_at preserved")
+        
+        # Only update modified_at if content actually changed (not just status)
+        if content_changed:
+            memo.modified_at = datetime.now(timezone.utc)
+            logger.info(f"Content changed for memo {id} - modified_at updated")
+        else:
+            logger.info(f"Only status/non-content fields changed for memo {id} - modified_at preserved")
         
         db.session.commit()
         logger.info(f"Successfully updated memo with id: {memo.id}")

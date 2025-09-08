@@ -535,8 +535,7 @@ class MemoData(db.Model):
     __tablename__ = 'memos'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())  # Registration date - never changes
-    modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())  # Last update date
+    modified_at = db.Column(db.DateTime(timezone=True), server_default=func.now())  # Registration date - only updates when content changes
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=True)
     title = db.Column(db.String, nullable=True)
     content = db.Column(db.String, nullable=True)
@@ -571,8 +570,7 @@ class MemoData(db.Model):
         
         return {
             'id': self.id,
-            'created_at': self.created_at,  # Registration date for '등록일'
-            'modified_at': self.modified_at,  # Last update date
+            'modified_at': self.modified_at,  # Registration date (등록일) - only changes when content is modified
             'user_id': self.user_id,
             'title': self.title,
             'content': self.content,
