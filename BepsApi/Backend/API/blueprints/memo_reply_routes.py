@@ -490,7 +490,7 @@ def calculate_memo_status_from_replies(memo_id, new_reply_user_id=None):
         if new_reply_user_id:
             last_reply_user_id = new_reply_user_id
         else:
-            # Get the last reply (most recent non-deleted reply)
+            # Get the last reply (most recent non-deleted reply by creation time)
             last_reply = MemoReply.query.filter_by(
                 memo_id=memo_id, 
                 is_deleted=False
@@ -508,6 +508,11 @@ def calculate_memo_status_from_replies(memo_id, new_reply_user_id=None):
             
         # If last reply is from a manager, status is 1 (답변완료)
         if is_user_manager_for_memo(last_reply_user_id, memo_id):
+            return 1
+        
+        # If last reply is from a SuperAdmin, status is 1 (답변완료)
+        user = Users.query.get(last_reply_user_id)
+        if user and user.role_id in [1, 2, 999]:  # SuperAdmin roles
             return 1
             
         # Otherwise, status is 0 (답변대기) - regular user replied
