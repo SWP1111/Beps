@@ -421,12 +421,16 @@ def mark_memo_complete(memo_id):
         current_user_id = get_jwt_identity()
         memo = MemoData.query.get_or_404(memo_id)
         
-        # Check if user is owner or manager
+        # Check if user is owner, manager, or SuperAdmin
         is_owner = memo.user_id == current_user_id
         is_manager = is_user_manager_for_memo(current_user_id, memo_id)
         
-        if not (is_owner or is_manager):
-            return jsonify({"error": "Only memo owner or manager can mark as complete"}), 403
+        # Check if user is SuperAdmin
+        user = Users.query.get(current_user_id)
+        is_super_admin = user and user.role_id in [1, 2, 999]
+        
+        if not (is_owner or is_manager or is_super_admin):
+            return jsonify({"error": "Only memo owner, manager, or SuperAdmin can mark as complete"}), 403
             
         # Save previous status and mark as complete
         memo.status = 2
@@ -453,12 +457,16 @@ def cancel_memo_complete(memo_id):
         current_user_id = get_jwt_identity()
         memo = MemoData.query.get_or_404(memo_id)
         
-        # Check if user is owner or manager
+        # Check if user is owner, manager, or SuperAdmin
         is_owner = memo.user_id == current_user_id
         is_manager = is_user_manager_for_memo(current_user_id, memo_id)
         
-        if not (is_owner or is_manager):
-            return jsonify({"error": "Only memo owner or manager can cancel complete"}), 403
+        # Check if user is SuperAdmin
+        user = Users.query.get(current_user_id)
+        is_super_admin = user and user.role_id in [1, 2, 999]
+        
+        if not (is_owner or is_manager or is_super_admin):
+            return jsonify({"error": "Only memo owner, manager, or SuperAdmin can cancel complete"}), 403
             
         # Calculate status based on replies
         new_status = calculate_memo_status_from_replies(memo_id)
