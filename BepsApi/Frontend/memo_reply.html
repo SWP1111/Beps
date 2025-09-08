@@ -221,7 +221,7 @@ td:nth-child(even) {
             <tr>
                 <td>등록일</td>
                 <td colspan="5" style="white-space: pre-line; position: relative;">
-                    {{ formatDate(memo.modified_at) }}
+                    {{ formatDate(memo.created_at || memo.modified_at) }}
                     <!-- Status control section -->
                     <div style="float: right; margin-left: 20px; display: flex; align-items: center; gap: 10px;">
                         <span class="status-icon" :title="getStatusText(memo.status)" style="font-size: 1.2em;">
@@ -467,7 +467,7 @@ td:nth-child(even) {
                             isAuthor.value = isCurrentUserAuthor;
                             
                             // Check if user is SuperAdmin (role_id == 1)
-                            isSuperAdmin.value = currentUser.value.role_id === 1 || currentUser.value.role_id === 999;
+                            isSuperAdmin.value = currentUser.value.role_id === 1 || currentUser.value.role_id === 999 || currentUser.value.role_id === 2;
                             
                             console.log(`[Author Check] Memo author: "${memo.value?.user_id}" (type: ${typeof memo.value?.user_id}), Current user: "${currentUser.value.id}" (type: ${typeof currentUser.value.id}). Are they the same author? ${isCurrentUserAuthor}`);
                             console.log(`[SuperAdmin Check] User role_id: ${currentUser.value.role_id}, Is SuperAdmin: ${isSuperAdmin.value}`);

@@ -60,8 +60,8 @@ def get_replies_by_memo(memo_id):
         # Check if memo exists
         memo = MemoData.query.get_or_404(memo_id)
         
-        # Get replies for this memo that are not deleted
-        replies = MemoReply.query.filter_by(memo_id=memo_id, is_deleted=False).all()
+        # Get replies for this memo that are not deleted, ordered chronologically (oldest first)
+        replies = MemoReply.query.filter_by(memo_id=memo_id, is_deleted=False).order_by(MemoReply.created_at.asc()).all()
         
         # The to_dict() method already includes user information through the relationship
         result = [reply.to_dict() for reply in replies]

@@ -24,10 +24,11 @@ def create_memo():
             
         logger.info(f"Received POST request to /memo with data: {data}")
         
-        modified_at = datetime.now(timezone.utc)
+        current_time = datetime.now(timezone.utc)
         # Create memo with explicit values from request data
         memo = MemoData(
-            modified_at=modified_at,  # Explicitly set modified_at to current time
+            created_at=current_time,  # Set registration date (등록일) - will never change
+            modified_at=current_time,  # Set initial modified date
             user_id=data.get('user_id'),
             type=int(data.get('type', 0)),  # Convert to int with default 0
             title=data.get('title'),
@@ -47,7 +48,7 @@ def create_memo():
         db.session.commit()
         logger.info(f"Successfully created memo with id: {memo.id}")
         return jsonify({
-            "modified_at": modified_at,
+            "modified_at": current_time,
             "id": memo.id
         }), 201
     except Exception as e:
