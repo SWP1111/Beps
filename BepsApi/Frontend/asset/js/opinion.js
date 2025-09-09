@@ -109,6 +109,7 @@ createApp({
         const formatDate = (dateString) => {
             if (!dateString) return '';
             const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
             return date.toLocaleString('ko-KR', {
                 year: 'numeric',
                 month: '2-digit',
@@ -559,6 +560,14 @@ createApp({
                 
                 // Process all user data requests
                 Promise.all(promises).then(updatedMemos => {
+                    // Debug: log memo data to check created_at field
+                    console.log('Updated memos with created_at check:', updatedMemos.map(m => ({
+                        id: m.id,
+                        title: m.title,
+                        created_at: m.created_at,
+                        modified_at: m.modified_at
+                    })));
+                    
                     // Memos are already sorted before pagination, just assign them
                     memoList.value = updatedMemos;
                 });
