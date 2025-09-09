@@ -122,8 +122,8 @@ createApp({
             if (type === 'date') {
                 // Sort by registration date, latest first
                 return data.sort((a, b) => {
-                    const dateA = new Date(a.modified_at || a.created_at || 0);
-                    const dateB = new Date(b.modified_at || b.created_at || 0);
+                    const dateA = new Date(a.created_at || 0);
+                    const dateB = new Date(b.created_at || 0);
                     return dateB - dateA; // Latest first
                 });
             } else if (type === 'status') {
@@ -137,8 +137,8 @@ createApp({
                     }
                     
                     // Same status, sort by date (latest first)
-                    const dateA = new Date(a.modified_at || a.created_at || 0);
-                    const dateB = new Date(b.modified_at || b.created_at || 0);
+                    const dateA = new Date( a.created_at || 0);
+                    const dateB = new Date( b.created_at || 0);
                     return dateB - dateA;
                 });
             } else if (type === 'id') {
@@ -176,8 +176,8 @@ createApp({
         const extractAvailableYears = (memos) => {
             const years = new Set();
             memos.forEach(memo => {
-                if (memo.modified_at || memo.created_at) {
-                    const date = new Date(memo.modified_at || memo.created_at);
+                if ( memo.created_at) {
+                    const date = new Date( memo.created_at);
                     if (!isNaN(date.getTime())) {
                         years.add(date.getFullYear());
                     }
@@ -222,7 +222,7 @@ createApp({
             if (!selectedYear.value) return memos;
 
             return memos.filter(memo => {
-                const memoDate = new Date(memo.modified_at || memo.created_at);
+                const memoDate = new Date(memo.created_at);
                 if (isNaN(memoDate.getTime())) return false;
 
                 const memoYear = memoDate.getFullYear();
@@ -347,7 +347,7 @@ createApp({
                 if (searchStartDate.value) {
                     const startDate = new Date(searchStartDate.value);
                     filteredData = filteredData.filter(memo => 
-                        memo.modified_at && new Date(memo.modified_at) >= startDate
+                        memo.created_at && new Date(memo.created_at) >= startDate
                     );
                 }
                 
@@ -355,7 +355,7 @@ createApp({
                     const endDate = new Date(searchEndDate.value);
                     endDate.setHours(23, 59, 59); // End of the day
                     filteredData = filteredData.filter(memo => 
-                        memo.modified_at && new Date(memo.modified_at) <= endDate
+                        memo.created_at && new Date(memo.created_at) <= endDate
                     );
                 }
                 
