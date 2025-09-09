@@ -28,6 +28,7 @@ def create_memo():
         # Create memo with explicit values from request data
         memo = MemoData(
             modified_at=current_time,  # Set registration date (등록일) - will only update when content changes
+            created_at=current_time,  # Set created_at to current time
             user_id=data.get('user_id'),
             type=int(data.get('type', 0)),  # Convert to int with default 0
             title=data.get('title'),
