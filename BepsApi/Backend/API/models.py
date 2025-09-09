@@ -571,6 +571,7 @@ class MemoData(db.Model):
         
         return {
             'id': self.id,
+            'created_at': self.created_at,  # Memo creation date - never changes
             'modified_at': self.modified_at,  # Registration date (등록일) - only changes when content is modified
             'user_id': self.user_id,
             'title': self.title,
