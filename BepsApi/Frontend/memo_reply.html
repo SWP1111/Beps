@@ -227,7 +227,7 @@ td:nth-child(even) {
                         <span class="status-icon" :title="getStatusText(memo.status)" style="font-size: 1.2em;">
                             {{ getStatusIcon(memo.status) }}
                         </span>
-                        <button v-if="memo.status !== 2 && (isAuthor || isManager || isSuperAdmin)" 
+                        <button v-if="memo.status == 1 && (isAuthor || isManager || isSuperAdmin)" 
                                 @click="markAsComplete" 
                                 style="background-color: #4CAF50; color: white; padding: 4px 8px; font-size: 0.8em; border: none; border-radius: 3px; cursor: pointer;">
                             처리완료

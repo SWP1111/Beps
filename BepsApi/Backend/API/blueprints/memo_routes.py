@@ -24,6 +24,24 @@ def create_memo():
             
         logger.info(f"Received POST request to /memo with data: {data}")
         
+        # Validate foreign key constraints before creating memo to prevent ID increment on failure
+        file_id = data.get('file_id')
+        if file_id is not None:
+            # Check if file_id exists in content_rel_pages
+            file_exists = db.session.query(ContentRelPages.id).filter_by(id=file_id).first()
+            if not file_exists:
+                logger.error(f"file_id {file_id} does not exist in content_rel_pages")
+                return jsonify({"error": f"file_id {file_id} does not exist"}), 400
+        
+        folder_id = data.get('folder_id')
+        if folder_id is not None:
+            # Check if folder_id exists in content_rel_folders (assuming this table exists)
+            # This prevents foreign key violations before attempting insert
+            folder_query = db.session.execute(text("SELECT 1 FROM content_rel_folders WHERE id = :folder_id"), {"folder_id": folder_id})
+            if not folder_query.fetchone():
+                logger.error(f"folder_id {folder_id} does not exist in content_rel_folders")
+                return jsonify({"error": f"folder_id {folder_id} does not exist"}), 400
+        
         current_time = datetime.now(timezone.utc)
         # Create memo with explicit values from request data
         memo = MemoData(
