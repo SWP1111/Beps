@@ -238,7 +238,8 @@ document.addEventListener('DOMContentLoaded', async() => {
           filter_type,
           filter_value,
           title,
-          message
+          message,
+          pointValue
         })
       });
 
@@ -536,7 +537,7 @@ document.addEventListener('DOMContentLoaded', async() => {
 
   /**
    * 주어진 data-group에 해당하는 목록의 막대(bar) 너비를 동적으로 조정합니다.
-   * - 0% 값(0)은 30px, 100% 값(최댓값)은 240px에 매핑하여 그 사이를 선형적으로 계산합니다.
+   * - 0% 값(0)은 50px, 100% 값(최댓값)은 296px에 매핑하여 그 사이를 선형적으로 계산합니다.
    * - 값이 0이면 배경을 투명하게 처리하고 텍스트를 숨깁니다.
    * @param {string} dataGroupSelector - 너비를 조정할 항목들의 data-group 셀렉터 (예: '[data-group="top-viewed-page"]')
    */
