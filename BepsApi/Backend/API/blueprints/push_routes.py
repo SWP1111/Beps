@@ -4,9 +4,9 @@ import log_config
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask import Blueprint, Response, jsonify, request
 from extensions import db, redis_client
-from models import PushMessages, Users
+from models import PushMessages, Users, ContentRelPages, LearningCompletionHistory
 import json
-from sqlalchemy import func
+from sqlalchemy import Float, func
 from config import Config
 
 api_push_bp = Blueprint('push', __name__)  # 블루프린트 생성
@@ -43,6 +43,7 @@ def send():
     filter_value = data.get('filter_value')
     title = data.get('title','')
     message = data.get('message')
+    pointValue = data.get('pointValue',0)
     
     if not filter_type:
         return jsonify({
@@ -81,7 +82,42 @@ def send():
             'status': 'error',
             'message': '해당 조건에 맞는 사용자가 없습니다.'
         }), 404
+     
+    # 전체 페이지 수  
+    total_pages = db.session.query(func.count(ContentRelPages.id)) \
+                            .filter(ContentRelPages.is_deleted == False).scalar() or 0
+    if total_pages == 0:
+        return jsonify({'status': 'error','message': '등록된 페이지가 없습니다.'}), 400
     
+    # 사용자별 완료 페이지 수
+    completion_threshold = datetime.timedelta(minutes=Config.LEARNING_COMPLETED_MINUTES)
+    completed_subq = (
+        db.session.query(
+            LearningCompletionHistory.user_id.label("user_id"),
+            func.count(func.distinct(LearningCompletionHistory.page_id)).label("completed_pages")
+        )
+        .filter(
+            LearningCompletionHistory.user_id.in_(user_ids),
+            LearningCompletionHistory.total_duration >= completion_threshold
+        )
+        .group_by(LearningCompletionHistory.user_id)
+        .subquery()
+    )
+
+    # 진도율 조건 적용 (pointValue 미만만)
+    filtered_query = (
+        db.session.query(Users.id)
+        .filter(Users.id.in_(user_ids))
+        .outerjoin(completed_subq, completed_subq.c.user_id == Users.id)
+        .filter(
+            (func.coalesce(completed_subq.c.completed_pages, 0).cast(Float) / total_pages * 100) < pointValue
+        )
+    )
+    
+    user_ids = [row.id for row in filtered_query.all()]
+    if not user_ids:
+        return jsonify({'status': 'error','message': f'진도율 {pointValue}% 미만 사용자 없음'}), 404
+                           
     now = datetime.datetime.now(datetime.timezone.utc)
     messages = [
         PushMessages(user_id=uid, title=title, message=message, created_at=now)

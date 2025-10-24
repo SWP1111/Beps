@@ -118,22 +118,27 @@ def get_avg_learning_time_per_file(start_dt, end_dt, scope, filter_value):
     if isinstance(end_dt, date) and not isinstance(end_dt, datetime):
         end_dt = datetime.combine(end_dt, time.max, tzinfo=local_tz).astimezone(timezone.utc)
 
-    avg_seconds_expr = func.avg(func.extract('epoch', ContentViewingHistory.stay_duration))
-    
-    query = db.session.query(
+    dur_sec = func.extract('epoch', ContentViewingHistory.stay_duration)
+
+    # 파일별 (총 학습시간) / (그 파일을 본 고유 사용자 수)
+    avg_expr = (
+        func.sum(dur_sec) / func.nullif(func.count(func.distinct(ContentViewingHistory.user_id)), 0)
+    ).label('avg_sec')
+
+    q = db.session.query(
         ContentViewingHistory.file_id,
-        avg_seconds_expr.label('avg_stay_duration')
+        avg_expr
     ).filter(
         ContentViewingHistory.start_time >= start_dt,
         ContentViewingHistory.start_time <= end_dt
     )
-    
+
     if user_ids:
-        query = query.filter(ContentViewingHistory.user_id.in_(user_ids))
-        
-    query = query.group_by(ContentViewingHistory.file_id)
-    
-    return {row.file_id: round(float(row.avg_stay_duration),1) for row in query.all()}
+        q = q.filter(ContentViewingHistory.user_id.in_(user_ids))
+
+    q = q.group_by(ContentViewingHistory.file_id)
+
+    return {r.file_id: round(float(r.avg_sec or 0), 1) for r in q.all()}
 
 def get_memo_count_per_file(start_dt, end_dt, scope, filter_value):
     user_ids = get_user_ids_by_scope(scope, filter_value) if scope != 'all' else None
