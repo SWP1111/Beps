@@ -208,4 +208,119 @@ def register_hierarchy_routes(api_contents_bp):
             return jsonify(hierarchy)
         except Exception as e:
             logger.error(f"Error getting channel hierarchy: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    @api_contents_bp.route('/hierarchy-with-managers', methods=['GET'])
+    def get_hierarchy_with_managers():
+        """
+        Get the full content hierarchy with manager assignments
+
+        Returns structured data for the unified Content/Manager Admin table:
+        - Channels (탭)
+        - Categories (카테고리) with 책임자 (category managers)
+        - Pages (페이지) with 실무자 (page managers)
+
+        Response is sorted by: channel → category → page
+        """
+        try:
+            from models import ContentManager, Assignees
+
+            # Get all channels
+            channels = ContentRelChannels.query.filter_by(is_deleted=False).order_by(ContentRelChannels.name).all()
+
+            result = {
+                'channels': []
+            }
+
+            for channel in channels:
+                channel_data = {
+                    'id': channel.id,
+                    'name': channel.name,
+                    'description': channel.description,
+                    'categories': []
+                }
+
+                # Get top-level folders (categories) for this channel
+                categories = ContentRelFolders.query.filter_by(
+                    channel_id=channel.id,
+                    parent_id=None,
+                    is_deleted=False
+                ).order_by(ContentRelFolders.name).all()
+
+                for category in categories:
+                    # Get category manager (책임자)
+                    category_manager = None
+                    manager_record = ContentManager.query.filter_by(
+                        type='folder',
+                        folder_id=category.id
+                    ).first()
+
+                    if manager_record and manager_record.assignee_id:
+                        assignee = Assignees.query.get(manager_record.assignee_id)
+                        if assignee:
+                            category_manager = {
+                                'name': assignee.name,
+                                'position': assignee.position,
+                                'user_id': assignee.user_id
+                            }
+
+                    category_data = {
+                        'id': category.id,
+                        'name': category.name,
+                        'description': category.description,
+                        'manager': category_manager,  # 책임자
+                        'pages': []
+                    }
+
+                    # Get pages for this category
+                    pages = ContentRelPages.query.filter_by(
+                        folder_id=category.id,
+                        is_deleted=False
+                    ).order_by(ContentRelPages.name).all()
+
+                    for page in pages:
+                        # Get page manager (실무자)
+                        page_manager = None
+                        page_manager_record = ContentManager.query.filter_by(
+                            type='file',
+                            file_id=page.id
+                        ).first()
+
+                        if page_manager_record and page_manager_record.assignee_id:
+                            assignee = Assignees.query.get(page_manager_record.assignee_id)
+                            if assignee:
+                                page_manager = {
+                                    'name': assignee.name,
+                                    'position': assignee.position,
+                                    'user_id': assignee.user_id
+                                }
+
+                        # Check if page has pending content
+                        from models import PendingContent
+                        has_pending = PendingContent.query.filter_by(
+                            content_type='page',
+                            page_id=page.id
+                        ).first() is not None
+
+                        page_data = {
+                            'id': page.id,
+                            'name': page.name,
+                            'description': page.description,
+                            'object_id': page.object_id,
+                            'manager': page_manager,  # 실무자
+                            'has_pending': has_pending,
+                            'created_at': page.created_at.isoformat() if page.created_at else None,
+                            'updated_at': page.updated_at.isoformat() if page.updated_at else None
+                        }
+
+                        category_data['pages'].append(page_data)
+
+                    channel_data['categories'].append(category_data)
+
+                result['channels'].append(channel_data)
+
+            return jsonify(result)
+
+        except Exception as e:
+            logger.error(f"Error getting hierarchy with managers: {str(e)}")
             return jsonify({'error': str(e)}), 500 

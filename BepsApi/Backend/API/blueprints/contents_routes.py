@@ -35,7 +35,12 @@ def register_all_routes():
         from .contents.page_detail_routes import register_page_detail_routes
         from .contents.r2_routes import register_r2_routes
         from .contents.content_manager_routes import register_content_manager_routes
-        
+
+        # Import NEW route modules for content manager refactoring
+        from .contents.additional_content_routes import register_additional_content_routes
+        from .contents.pending_approve_routes import register_pending_approve_routes
+        from .contents.rename_routes import register_rename_routes
+
         # Register route modules
         register_hierarchy_routes(api_contents_bp)
         register_channel_folder_routes(api_contents_bp)
@@ -43,9 +48,14 @@ def register_all_routes():
         register_page_detail_routes(api_contents_bp)
         register_r2_routes(api_contents_bp)
         register_content_manager_routes(api_contents_bp)
-        
-        logger.info("Successfully registered all contents routes")
-        
+
+        # Register NEW route modules
+        register_additional_content_routes(api_contents_bp)
+        register_pending_approve_routes(api_contents_bp)
+        register_rename_routes(api_contents_bp)
+
+        logger.info("Successfully registered all contents routes (including refactored routes)")
+
     except ImportError as e:
         logger.error(f"Failed to import route modules: {str(e)}")
         raise

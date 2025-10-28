@@ -646,3 +646,124 @@ class MemoReplyAttachment(db.Model):
             'updated_at': self.updated_at
         }
 
+
+# ========== Content Manager Refactoring Models ==========
+
+class PageAdditionals(db.Model):
+    """
+    Track additional content files associated with pages
+    Following naming convention: {page_prefix}_{content_number}.{ext}
+    """
+    __tablename__ = 'page_additionals'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    page_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    object_key = db.Column(db.String(500), nullable=False)  # R2 path
+    file_extension = db.Column(db.String(10), nullable=False)
+    content_number = db.Column(db.Integer, nullable=False)  # The XX in "001_XX.ext"
+    file_size = db.Column(db.BigInteger, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    is_deleted = db.Column(db.Boolean, default=False)
+
+    # Relationships
+    page = db.relationship('ContentRelPages', backref=db.backref('additionals', lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('page_id', 'content_number', name='uq_page_content_number'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'page_id': self.page_id,
+            'filename': self.filename,
+            'object_key': self.object_key,
+            'file_extension': self.file_extension,
+            'content_number': self.content_number,
+            'file_size': self.file_size,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_deleted': self.is_deleted
+        }
+
+
+class PendingContent(db.Model):
+    """
+    Track pending content uploads awaiting approval
+    Supports both pages and additional content
+    """
+    __tablename__ = 'pending_content'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    content_type = db.Column(db.String(20), nullable=False)  # 'page' or 'additional'
+    page_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=False)
+    additional_id = db.Column(db.Integer, db.ForeignKey('page_additionals.id'), nullable=True)
+    object_key = db.Column(db.String(500), nullable=False)  # R2 path in pending location
+    filename = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.BigInteger, default=0)
+    uploaded_by = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)
+    uploaded_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    page = db.relationship('ContentRelPages', backref=db.backref('pending_contents', lazy=True))
+    additional = db.relationship('PageAdditionals', backref=db.backref('pending_contents', lazy=True))
+    uploader = db.relationship('Users', backref=db.backref('uploaded_pending_contents', lazy=True))
+
+    __table_args__ = (
+        CheckConstraint("content_type IN ('page', 'additional')", name='chk_pending_content_type'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content_type': self.content_type,
+            'page_id': self.page_id,
+            'additional_id': self.additional_id,
+            'object_key': self.object_key,
+            'filename': self.filename,
+            'file_size': self.file_size,
+            'uploaded_by': self.uploaded_by,
+            'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None
+        }
+
+
+class ArchivedContent(db.Model):
+    """
+    Track archived versions of content (old versions before updates)
+    """
+    __tablename__ = 'archived_content'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    content_type = db.Column(db.String(20), nullable=False)  # 'page' or 'additional'
+    original_page_id = db.Column(db.Integer, db.ForeignKey('content_rel_pages.id'), nullable=False)
+    original_additional_id = db.Column(db.Integer, db.ForeignKey('page_additionals.id'), nullable=True)
+    object_key = db.Column(db.String(500), nullable=False)  # R2 path in archive/old
+    archived_filename = db.Column(db.String(255), nullable=False)  # With timestamp suffix
+    file_size = db.Column(db.BigInteger, default=0)
+    archived_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    archived_by = db.Column(db.Text, db.ForeignKey('users.id'), nullable=False)  # 책임자 who approved
+
+    # Relationships
+    original_page = db.relationship('ContentRelPages', backref=db.backref('archived_contents', lazy=True))
+    original_additional = db.relationship('PageAdditionals', backref=db.backref('archived_contents', lazy=True))
+    archiver = db.relationship('Users', backref=db.backref('archived_by_user', lazy=True))
+
+    __table_args__ = (
+        CheckConstraint("content_type IN ('page', 'additional')", name='chk_archived_content_type'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content_type': self.content_type,
+            'original_page_id': self.original_page_id,
+            'original_additional_id': self.original_additional_id,
+            'object_key': self.object_key,
+            'archived_filename': self.archived_filename,
+            'file_size': self.file_size,
+            'archived_at': self.archived_at.isoformat() if self.archived_at else None,
+            'archived_by': self.archived_by
+        }
+

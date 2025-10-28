@@ -151,13 +151,13 @@ def delete_r2_object(object_key):
 def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_name=None):
     """
     Generate R2 object key based on content hierarchy
-    
+
     Args:
         file_id: The file ID (page or page detail)
         filename: The filename
         is_page_detail: Whether this is a page detail
         page_detail_name: Name of the page detail (if applicable)
-    
+
     Returns:
         Generated R2 object key
     """
@@ -167,12 +167,12 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
             detail = ContentRelPageDetails.query.filter_by(id=file_id, is_deleted=False).first()
             if not detail:
                 raise ValueError(f"Page detail with ID {file_id} not found")
-            
+
             # Get the parent page
             parent_page = ContentRelPages.query.filter_by(id=detail.page_id, is_deleted=False).first()
             if not parent_page:
                 raise ValueError(f"Parent page for detail {file_id} not found")
-            
+
             # Use the parent page's folder hierarchy
             folder_id = parent_page.folder_id
             page_name = parent_page.name
@@ -181,24 +181,24 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
             page = ContentRelPages.query.filter_by(id=file_id, is_deleted=False).first()
             if not page:
                 raise ValueError(f"Page with ID {file_id} not found")
-            
+
             folder_id = page.folder_id
             page_name = page.name
-        
+
         # Build the path components
         path_components = []
-        
+
         # Traverse the folder hierarchy
         current_folder_id = folder_id
         while current_folder_id is not None:
             folder = ContentRelFolders.query.filter_by(id=current_folder_id, is_deleted=False).first()
             if not folder:
                 break
-            
+
             # Replace problematic characters for R2 path
             safe_folder_name = folder.name.replace('/', '⁄').replace('\\', '⁄')
             path_components.append(safe_folder_name)
-            
+
             if folder.parent_id is None:
                 # Top-level folder, get the channel
                 channel = ContentRelChannels.query.filter_by(id=folder.channel_id, is_deleted=False).first()
@@ -206,29 +206,213 @@ def generate_r2_object_key(file_id, filename, is_page_detail=False, page_detail_
                     safe_channel_name = channel.name.replace('/', '⁄').replace('\\', '⁄')
                     path_components.append(safe_channel_name)
                 break
-            
+
             current_folder_id = folder.parent_id
-        
+
         # Reverse to get correct order (channel -> folders -> page)
         path_components.reverse()
-        
+
         if is_page_detail:
             # For page details, add page folder (without extension)
             import os as os_module
             page_name_without_ext = os_module.path.splitext(page_name)[0]
             safe_page_name = page_name_without_ext.replace('/', '⁄').replace('\\', '⁄')
             path_components.append(safe_page_name)
-        
+
         # Add the filename
         safe_filename = filename.replace('/', '⁄').replace('\\', '⁄')
         path_components.append(safe_filename)
-        
+
         # Join with forward slashes for R2 object key
         object_key = '/'.join(path_components)
-        
+
         return object_key
-        
+
     except Exception as e:
         logger.error(f"Error generating R2 object key for file {file_id}: {str(e)}")
         # Fallback to simple key
-        return f"files/{file_id}/{filename}" 
+        return f"files/{file_id}/{filename}"
+
+
+# ========== Extended R2 Utilities for Content Manager Refactoring ==========
+
+def move_r2_object(source_key, destination_key):
+    """
+    Move an object from one location to another in R2
+    This is implemented as copy + delete
+
+    Args:
+        source_key: Source object key
+        destination_key: Destination object key
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+
+        # Copy the object to new location
+        copy_source = {'Bucket': bucket_name, 'Key': source_key}
+        r2_client.copy_object(
+            CopySource=copy_source,
+            Bucket=bucket_name,
+            Key=destination_key
+        )
+
+        # Delete the original object
+        r2_client.delete_object(Bucket=bucket_name, Key=source_key)
+
+        logger.info(f"Successfully moved R2 object from {source_key} to {destination_key}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to move R2 object from {source_key} to {destination_key}: {str(e)}")
+        return False
+
+
+def copy_r2_object(source_key, destination_key):
+    """
+    Copy an object to a new location in R2
+
+    Args:
+        source_key: Source object key
+        destination_key: Destination object key
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+
+        # Copy the object
+        copy_source = {'Bucket': bucket_name, 'Key': source_key}
+        r2_client.copy_object(
+            CopySource=copy_source,
+            Bucket=bucket_name,
+            Key=destination_key
+        )
+
+        logger.info(f"Successfully copied R2 object from {source_key} to {destination_key}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to copy R2 object from {source_key} to {destination_key}: {str(e)}")
+        return False
+
+
+def generate_pending_path(original_path):
+    """
+    Generate pending content path from original path
+
+    Original: beps-contents/{channel}/{category}/{page}.png
+    Pending:  beps-content-archive/pending/{channel}/{category}/{page}.png
+
+    Args:
+        original_path: Original R2 object key
+
+    Returns:
+        Pending path
+    """
+    # Replace the base prefix
+    if original_path.startswith('beps-contents/'):
+        return original_path.replace('beps-contents/', 'beps-content-archive/pending/', 1)
+    else:
+        # Fallback: add pending prefix
+        return f'beps-content-archive/pending/{original_path}'
+
+
+def generate_archived_path(original_path, timestamp_suffix):
+    """
+    Generate archived content path from original path
+
+    Original: beps-contents/{channel}/{category}/{page}.png
+    Archived: beps-content-archive/old/{channel}/{category}/{page}__{timestamp}.png
+
+    Args:
+        original_path: Original R2 object key
+        timestamp_suffix: Timestamp suffix (yyyymmddHHMM format)
+
+    Returns:
+        Archived path with timestamp
+    """
+    import os as os_module
+
+    # Extract directory and filename
+    dirname = os_module.path.dirname(original_path)
+    filename = os_module.path.basename(original_path)
+
+    # Split filename and extension
+    name, ext = os_module.path.splitext(filename)
+
+    # Generate archived filename with timestamp
+    archived_filename = f"{name}__{timestamp_suffix}{ext}"
+
+    # Replace base prefix and reconstruct path
+    if dirname.startswith('beps-contents/'):
+        archived_dirname = dirname.replace('beps-contents/', 'beps-content-archive/old/', 1)
+    else:
+        archived_dirname = f'beps-content-archive/old/{dirname}'
+
+    return f"{archived_dirname}/{archived_filename}"
+
+
+def get_r2_object_metadata(object_key):
+    """
+    Get metadata for an R2 object
+
+    Args:
+        object_key: The R2 object key
+
+    Returns:
+        Dictionary with metadata (size, last_modified, etc.) or None if not found
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+
+        response = r2_client.head_object(Bucket=bucket_name, Key=object_key)
+
+        return {
+            'size': response.get('ContentLength', 0),
+            'last_modified': response.get('LastModified'),
+            'content_type': response.get('ContentType'),
+            'etag': response.get('ETag')
+        }
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            return None
+        else:
+            logger.error(f"Error getting R2 object metadata: {str(e)}")
+            raise
+    except Exception as e:
+        logger.error(f"Failed to get R2 object metadata: {str(e)}")
+        raise
+
+
+def list_r2_objects(prefix):
+    """
+    List objects in R2 with given prefix
+
+    Args:
+        prefix: Prefix to filter objects
+
+    Returns:
+        List of object keys
+    """
+    try:
+        r2_client = get_r2_client()
+        bucket_name = current_app.config.get('R2_BUCKET_NAME')
+
+        response = r2_client.list_objects_v2(
+            Bucket=bucket_name,
+            Prefix=prefix
+        )
+
+        if 'Contents' in response:
+            return [obj['Key'] for obj in response['Contents']]
+        else:
+            return []
+
+    except Exception as e:
+        logger.error(f"Failed to list R2 objects with prefix {prefix}: {str(e)}")
+        return [] 
