@@ -174,17 +174,22 @@ router.get(`/${service_type}/page/:pageId`, authenticateJwtHeader, async (req, r
 router.put(`/${service_type}/page-detail/:id/margin`, authenticateJwtHeader, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { margin } = req.body;
+  console.log(`margin : ${margin}`);
+  console.log(`id : ${id}`);
+
   if (!id) {
     return res.status(400).json({ error: 'id를 URL 파라미터로 전달해주세요.' });
   }
   if (typeof margin === 'undefined') {
     return res.status(400).json({ error: 'margin 값을 body에 전달해주세요.' });
   }
+
   try {
     const result = await dbPool.query(
       `UPDATE content_rel_page_details SET margin = $1, updated_at = now() WHERE id = $2 RETURNING *`,
       [margin, id]
     );
+    console.log(`/${service_type}/page-detail/:id/margin : ${result}`);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: '해당 id의 page_detail을 찾을 수 없습니다.' });
     }
